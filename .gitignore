@@ -1,0 +1,35 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Python cache / local env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+.env
+.venv*
+
+# Local repo metadata
+.synced_hash
+.agents/
+.codex/
+
+# Skill runtime outputs
+/projects/
+/tmp/
+/temp/
+/cache/
+/docs/plan/
+/docs/superpowers/
+
+# Common logs / temp files
+*.log
+*.tmp
+*.temp
