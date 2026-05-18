@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "skill_name": "ppt-master",
+  "release_version": "r2.7.0-v0.1.0",
+  "upstream": {
+    "repo": "hugohe3/ppt-master",
+    "version": "2.7.0",
+    "tag": "v2.7.0",
+    "ref": "main",
+    "commit": "9abdeff7188b50e6c993dc574e9ca04c4c972910"
+  },
+  "local": {
+    "version": "0.1.0",
+    "synced_hash": "37e02d73b039ac622dec25ffb2cdb6db876ed5592c43b77da8f8e7d1949263e5"
+  },
+  "support_files": {
+    "requirements_source": "local",
+    "env_example_source": "local",
+    "requirements_basis": "upstream skills/ppt-master/requirements.txt @ v2.7.0",
+    "env_example_basis": "upstream .env.example @ v2.7.0"
+  },
+  "package": {
+    "zip_name_pattern": "ppt-master-sustech-r<upstream>-v<local>-YYYY-MM-DD.zip",
+    "root_dirname": "ppt-master"
+  },
+  "notes": "SUSTech custom release line after upstream merge."
+}

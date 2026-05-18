@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "artifact_type": "brief_lock",
+  "revision": 1,
+  "template_identity": {
+    "template_id": "sustech_academic_official",
+    "display_name": "SUSTech Academic Official",
+    "category": "scenario"
+  },
+  "library_positioning": {
+    "applicable_scenarios": [
+      "course report",
+      "research briefing",
+      "thesis defense"
+    ],
+    "keywords": [
+      "SUSTech",
+      "Academic",
+      "Official",
+      "University",
+      "Defense"
+    ]
+  },
+  "style_contract": {
+    "tone_summary": "Official, academic, restrained",
+    "design_style": "University-branded, clean, low-decoration",
+    "theme_mode": "light",
+    "theme_color": "#003F43"
+  },
+  "canvas": {
+    "format": "ppt169"
+  },
+  "reference_source": {
+    "type": "pptx",
+    "factual_findings": [
+      "school official template reference used",
+      "official logo present",
+      "content-family divider rhythm present"
+    ]
+  },
+  "asset_policy": {
+    "include": [
+      "cover_campus_bg.jpg",
+      "ending_campus_bg.jpg",
+      "full_top_right_school_logo.png",
+      "top_left_motif_standard.png"
+    ],
+    "exclude": [
+      "school_logo.png",
+      "top_left_motif.png",
+      "top_right_logo_structure.png"
+    ],
+    "simplification_policy": "Preserve school branding and recurring shell elements; do not revive legacy logo fragments."
+  },
+  "designer_constraints": {
+    "placeholder_contract": "canonical_v1",
+    "must_keep": [
+      "university branding",
+      "academic tone",
+      "deep teal primarily for headings and limited hero emphasis",
+      "content cards prefer white-outline / light cyan / light warm hierarchy"
+    ],
+    "must_avoid": [
+      "over-decorative gradients",
+      "multiple large deep-teal content cards on ordinary pages",
+      "using deep teal as the default background for parallel information cards"
+    ]
+  },
+  "open_assumptions": [
+    "exact_typography_family"
+  ],
+  "replication": {
+    "mode": "standard",
+    "fidelity_level": "literal"
+  }
+}

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720">
+  <rect width="1280" height="720" fill="#FFFFFF"/>
+  <image href="top_left_motif_standard.png" x="0" y="13" width="70" height="62" preserveAspectRatio="xMidYMid meet"/>
+  <image href="full_top_right_school_logo.png" x="1060" y="13" width="220" height="66" preserveAspectRatio="xMidYMid meet"/>
+  <text x="92" y="60" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="32" font-weight="bold">{{PAGE_TITLE}}</text>
+  <line x1="92" y1="76" x2="280" y2="76" stroke="#E3660D" stroke-width="3"/>
+  <line x1="280" y1="76" x2="1188" y2="76" stroke="#CECECE" stroke-width="1"/>
+  <text x="92" y="106" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="26.7">{{SECTION_NAME}}</text>
+  <rect x="72" y="156" width="1136" height="246" rx="22" fill="#EAF1F0"/>
+  <rect x="110" y="226" width="170" height="88" rx="18" fill="#FFFFFF"/>
+  <rect x="344" y="204" width="230" height="116" rx="22" fill="#F6EBDF"/>
+  <rect x="638" y="226" width="170" height="88" rx="18" fill="#FFFFFF"/>
+  <rect x="872" y="204" width="280" height="116" rx="22" fill="#F6EBDF"/>
+  <text x="195" y="262" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18">Step 1</text>
+  <text x="459" y="252" text-anchor="middle" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22" font-weight="bold">Step 2</text>
+  <text x="459" y="282" text-anchor="middle" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14">Main process / method focus</text>
+  <text x="723" y="262" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18">Step 3</text>
+  <text x="1012" y="252" text-anchor="middle" fill="#B63742" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22" font-weight="bold">Step 4</text>
+  <text x="1012" y="282" text-anchor="middle" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14">Decision / endpoint</text>
+  <path d="M 280 248 H 328 L 328 244 L 344 258 L 328 272 L 328 268 H 280 Z" fill="#E3660D"/>
+  <path d="M 574 248 H 622 L 622 244 L 638 258 L 622 272 L 622 268 H 574 Z" fill="#E3660D"/>
+  <path d="M 808 248 H 856 L 856 244 L 872 258 L 856 272 L 856 268 H 808 Z" fill="#E3660D"/>
+  <rect x="72" y="426" width="760" height="240" rx="18" fill="#FFFFFF" stroke="#CECECE" stroke-width="1.5"/>
+  <text x="452" y="532" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22">{{CONTENT_AREA}}</text>
+  <text x="452" y="562" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">Merged explanation / method details / result block</text>
+  <rect x="856" y="426" width="352" height="104" rx="18" fill="#F6EBDF"/>
+  <text x="1032" y="486" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18">Method Note / Criteria</text>
+  <rect x="856" y="562" width="352" height="104" rx="18" fill="#FFFFFF" stroke="#CECECE" stroke-width="1.2"/>
+  <text x="1032" y="622" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18">Outcome / Application</text>
+  <line x1="92" y1="688" x2="1188" y2="688" stroke="#CECECE" stroke-width="1"/>
+  <text x="92" y="704" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">Southern University of Science and Technology</text>
+  <text x="1188" y="704" text-anchor="end" fill="#003F43" font-family="Arial, sans-serif" font-size="16" font-weight="bold">{{PAGE_NUM}}</text>
+</svg>
