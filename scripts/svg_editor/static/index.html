@@ -11,6 +11,9 @@
         <div id="panel-left">
             <div class="panel-header" data-i18n="panel_slides">Slides</div>
             <div id="slide-list"></div>
+            <div id="panel-left-actions">
+                <button id="btn-reset-preview" type="button" data-i18n="btn_reset_preview">Reset preview</button>
+            </div>
         </div>
         <div id="panel-center">
             <div id="slide-nav">
@@ -36,6 +39,16 @@
                 <div class="section-label" data-i18n="label_selected_element">Selected element</div>
                 <div id="selected-element" class="empty" data-i18n="empty_selected_element">Click an element on the slide to select it</div>
                 <div id="element-props" style="display:none;"></div>
+                <div id="selected-element-actions" style="display:none;">
+                    <button id="btn-toggle-selection-mode" type="button" data-i18n="btn_enter_child_mode">Enter child elements</button>
+                </div>
+                <div id="selection-path" style="display:none;"></div>
+                <div id="selected-element-help" data-i18n="selected_help_drag">Drag selected elements to generate move annotations.</div>
+            </div>
+            <div id="layout-issues" style="display:none;">
+                <div class="section-label" data-i18n="label_layout_issues">Layout issues</div>
+                <div id="layout-issues-list"></div>
+                <div id="layout-issues-actions"></div>
             </div>
             <div id="annotation-input" style="display:none;">
                 <div class="section-label" data-i18n="label_edit_instruction">Edit instruction</div>
@@ -61,6 +74,7 @@
             </div>
         </div>
     </div>
+    <script src="/static/editor_logic.js"></script>
     <script src="/static/app.js"></script>
 </body>
 </html>

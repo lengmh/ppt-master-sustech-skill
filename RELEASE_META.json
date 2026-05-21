@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "skill_name": "ppt-master",
-  "release_version": "r2.7.0-v0.1.0",
+  "release_version": "r2.7.0-v0.1.1",
   "upstream": {
     "repo": "hugohe3/ppt-master",
     "version": "2.7.0",
@@ -10,7 +10,7 @@
     "commit": "9abdeff7188b50e6c993dc574e9ca04c4c972910"
   },
   "local": {
-    "version": "0.1.0",
+    "version": "0.1.1",
     "synced_hash": "37e02d73b039ac622dec25ffb2cdb6db876ed5592c43b77da8f8e7d1949263e5"
   },
   "support_files": {

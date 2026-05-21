@@ -42,6 +42,7 @@ python3 scripts/package_release.py --temp-root /home/sustech/TempFiles --keep-te
 | Conversion | `source_to_md/pdf_to_md.py`, `source_to_md/doc_to_md.py`, `source_to_md/ppt_to_md.py`, `source_to_md/web_to_md.py`, `source_to_md/web_to_md.cjs` | [docs/conversion.md](./docs/conversion.md) |
 | Project management | `project_manager.py`, `batch_validate.py`, `generate_examples_index.py`, `error_helper.py`, `pptx_template_import.py`, `register_template.py`, `template_quality_checker.py`, `template_preview.py` | [docs/project.md](./docs/project.md) |
 | SVG pipeline | `finalize_svg.py`, `svg_to_pptx.py`, `total_md_split.py`, `svg_quality_checker.py` | [docs/svg-pipeline.md](./docs/svg-pipeline.md) |
+| Live preview editor | `svg_editor/server.py`, `check_annotations.py` | Browser preview/annotation workflow for SVG edits |
 | Spec maintenance | `update_spec.py` | [docs/update_spec.md](./docs/update_spec.md) |
 | Image tools | `image_gen.py`, `analyze_images.py`, `gemini_watermark_remover.py` | [docs/image.md](./docs/image.md) |
 | Repo maintenance | `update_repo.py`, `package_release.py` | README install/update section |
@@ -117,6 +118,7 @@ Notes:
 - Move provider-specific or helper internals into subdirectories
 - Prefer the unified entry points `project_manager.py`, `finalize_svg.py`, and `image_gen.py`
 - Prefer `svg_final/` over `svg_output/` when exporting
+- `scripts/svg_editor/` supports drag-generated move annotations, current-object scale suggestions, and browser-side text layout issue suggestions while preserving the existing string-only annotation save path
 
 ## Related Docs
 

@@ -14,10 +14,17 @@
             placeholder_select_slide: "Select a slide on the left to begin",
             label_selected_element: "Selected element",
             empty_selected_element: "Click an element on the slide to select it",
+            btn_enter_child_mode: "Enter child elements",
+            btn_return_group_mode: "Return to group",
+            selection_path_label: "Current: ",
+            selected_help_group: "Default: select the whole block first. Use the button below to enter child elements.",
+            selected_help_drag: "Drag selected elements to generate move annotations.",
             label_edit_instruction: "Edit instruction",
+            label_layout_issues: "Layout issues",
             placeholder_annotation: "Describe how the AI should modify this element...",
             placeholder_annotation_multi: "Describe how to modify all {count} elements...",
             btn_add_annotation: "Add annotation",
+            btn_reset_preview: "Reset preview",
             label_annotations_on_slide: "Annotations on this slide",
             btn_submit_annotations: "Submit annotations",
             btn_exit_preview: "Exit preview",
@@ -56,10 +63,17 @@
             placeholder_select_slide: "在左侧选择一张幻灯片开始",
             label_selected_element: "已选元素",
             empty_selected_element: "点击幻灯片中的元素进行选择",
+            btn_enter_child_mode: "进入子元素",
+            btn_return_group_mode: "返回整体",
+            selection_path_label: "当前：",
+            selected_help_group: "默认先选整体，需要时再进入子元素。",
+            selected_help_drag: "拖拽已选元素，可自动生成移动类批注。",
             label_edit_instruction: "修改说明",
+            label_layout_issues: "排版问题",
             placeholder_annotation: "描述希望 AI 如何修改该元素……",
             placeholder_annotation_multi: "描述希望如何修改所选 {count} 个元素……",
             btn_add_annotation: "添加标注",
+            btn_reset_preview: "复位预览",
             label_annotations_on_slide: "本页标注",
             btn_submit_annotations: "提交标注",
             btn_exit_preview: "退出预览",
@@ -148,13 +162,22 @@
 
     // ---- DOM refs ---------------------------------------------------
     var slideListEl       = document.getElementById("slide-list");
+    var btnResetPreview   = document.getElementById("btn-reset-preview");
     var svgPlaceholder    = document.getElementById("svg-placeholder");
     var svgContent        = document.getElementById("svg-content");
+    var svgContainerEl    = document.getElementById("svg-container");
     var selectedElementEl = document.getElementById("selected-element");
+    var selectionActionsEl = document.getElementById("selected-element-actions");
+    var btnToggleSelectionMode = document.getElementById("btn-toggle-selection-mode");
+    var selectionPathEl   = document.getElementById("selection-path");
+    var selectedElementHelpEl = document.getElementById("selected-element-help");
     var annotationInput   = document.getElementById("annotation-input");
     var annotationText    = document.getElementById("annotation-text");
     var btnAddAnnotation  = document.getElementById("btn-add-annotation");
     var annotationsEl     = document.getElementById("annotations");
+    var layoutIssuesEl    = document.getElementById("layout-issues");
+    var layoutIssuesListEl = document.getElementById("layout-issues-list");
+    var layoutIssuesActionsEl = document.getElementById("layout-issues-actions");
     var btnSave           = document.getElementById("btn-save");
     var btnExitPreview    = document.getElementById("btn-exit-preview");
     var modalOverlay      = document.getElementById("modal-overlay");
@@ -175,9 +198,40 @@
     var slideNames        = [];     // ordered slide filenames for navigation
     var selectedElementIds = new Set(); // id attrs of selected SVG elements
     var slideAnnotations  = {};     // {element_id: annotation_text} for current slide
+    var currentLayoutIssues = [];
     var liveMode          = false;
     var slidePollTimer    = null;
     var pendingModalAction = "submit";
+    var suppressNextElementClick = false;
+    var EditorLogic       = window.PptSvgEditorLogic || null;
+    var previewOffsetsBySlide = {};
+    var previewScalesBySlide = {};
+    var previewTextHintsBySlide = {};
+    var selectionMode     = "group";
+    var activeGroupId     = null;
+    var activeChildId     = null;
+    var dragState = {
+        active: false,
+        started: false,
+        sourceId: null,
+        startMouse: null,
+        startSvg: null,
+        currentDx: 0,
+        currentDy: 0,
+        ids: [],
+        originalTransforms: {}
+    };
+    var scaleState = {
+        active: false,
+        objectId: null,
+        handle: null,
+        startMouse: null,
+        startBox: null,
+        startScaleX: 1,
+        startScaleY: 1
+    };
+    var scaleHandleLayer = null;
+    var DRAG_THRESHOLD = 4;
 
     function currentSlideIndex() {
         if (!currentSlide) return -1;
@@ -213,6 +267,414 @@
         if (navPrevBtn)  navPrevBtn.disabled  = !hasCurrent || idx2 <= 0;
         if (navNextBtn)  navNextBtn.disabled  = !hasCurrent || idx2 >= total - 1;
         if (navLastBtn)  navLastBtn.disabled  = !hasCurrent || idx2 >= total - 1;
+    }
+
+    function getSvgRoot() {
+        return svgContent.querySelector("svg");
+    }
+
+    function getSvgPoint(clientX, clientY) {
+        var svg = getSvgRoot();
+        if (!svg || typeof svg.createSVGPoint !== "function") return null;
+        var pt = svg.createSVGPoint();
+        pt.x = clientX;
+        pt.y = clientY;
+        var ctm = svg.getScreenCTM();
+        if (!ctm || typeof ctm.inverse !== "function") return null;
+        return pt.matrixTransform(ctm.inverse());
+    }
+
+    function isSelectableElement(node) {
+        return !!(node && node.classList && node.classList.contains("svg-selectable"));
+    }
+
+    function isEditableChildTag(tag) {
+        return tag === "text" || tag === "tspan" || tag === "rect" || tag === "image" || tag === "path";
+    }
+
+    function isSimpleEditablePath(el) {
+        if (!el || el.tagName.toLowerCase() !== "path") return false;
+        var d = el.getAttribute("d") || "";
+        return d.length > 0 && d.length <= 400;
+    }
+
+    function isEditableChildElement(el) {
+        if (!el) return false;
+        var tag = el.tagName.toLowerCase();
+        if (!isEditableChildTag(tag)) return false;
+        if (tag === "path") return isSimpleEditablePath(el);
+        return true;
+    }
+
+    function findNearestGroupAncestor(el) {
+        var cur = el;
+        while (cur && cur !== getSvgRoot()) {
+            if (cur.tagName && cur.tagName.toLowerCase() === "g" && cur.id) {
+                return cur;
+            }
+            cur = cur.parentNode;
+        }
+        return null;
+    }
+
+    function getEditableChildren(groupEl) {
+        if (!groupEl || !groupEl.querySelectorAll) return [];
+        return Array.from(groupEl.querySelectorAll("*")).filter(function (el) {
+            return isEditableChildElement(el);
+        });
+    }
+
+    function resetSelectionModeState() {
+        selectionMode = "group";
+        activeGroupId = null;
+        activeChildId = null;
+    }
+
+    function getCurrentPreviewOffsets() {
+        if (!currentSlide) return {};
+        if (!previewOffsetsBySlide[currentSlide]) {
+            previewOffsetsBySlide[currentSlide] = {};
+        }
+        return previewOffsetsBySlide[currentSlide];
+    }
+
+    function getCurrentPreviewScales() {
+        if (!currentSlide) return {};
+        if (!previewScalesBySlide[currentSlide]) {
+            previewScalesBySlide[currentSlide] = {};
+        }
+        return previewScalesBySlide[currentSlide];
+    }
+
+    function getCurrentPreviewTextHints() {
+        if (!currentSlide) return {};
+        if (!previewTextHintsBySlide[currentSlide]) {
+            previewTextHintsBySlide[currentSlide] = {};
+        }
+        return previewTextHintsBySlide[currentSlide];
+    }
+
+    function getCurrentTargetId() {
+        return activeChildId || activeGroupId || selectedElementIds.values().next().value || null;
+    }
+
+    function markPreviewBaseTransforms() {
+        var svg = getSvgRoot();
+        if (!svg) return;
+        svg.querySelectorAll("*").forEach(function (el) {
+            if (!el.getAttribute) return;
+            if (el.getAttribute("data-preview-base-transform") === null) {
+                el.setAttribute("data-preview-base-transform", el.getAttribute("transform") || "");
+            }
+        });
+    }
+
+    function applyPreviewOffsetsForCurrentSlide() {
+        var offsets = getCurrentPreviewOffsets();
+        var scales = getCurrentPreviewScales();
+        var allIds = new Set(Object.keys(offsets).concat(Object.keys(scales)));
+        allIds.forEach(function (id) {
+            var el = svgContent.querySelector("#" + CSS.escape(id));
+            if (!el) return;
+            var offset = offsets[id] || { dx: 0, dy: 0 };
+            var scale = scales[id] || { scaleX: 1, scaleY: 1 };
+            var dx = Number(offset.dx) || 0;
+            var dy = Number(offset.dy) || 0;
+            var scaleX = Number(scale.scaleX) || 1;
+            var scaleY = Number(scale.scaleY) || 1;
+            var base = el.getAttribute("data-preview-base-transform") || "";
+            var bbox = elementBBoxSafe(el);
+            var hasMove = Math.abs(dx) >= 1 || Math.abs(dy) >= 1;
+            var hasScale = Math.abs(scaleX - 1) >= 0.01 || Math.abs(scaleY - 1) >= 0.01;
+            if (!hasMove && !hasScale) {
+                if (base) el.setAttribute("transform", base);
+                else el.removeAttribute("transform");
+                delete offsets[id];
+                delete scales[id];
+                return;
+            }
+            var parts = [];
+            if (base) parts.push(base);
+            if (hasMove) parts.push("translate(" + dx.toFixed(2) + " " + dy.toFixed(2) + ")");
+            if (hasScale && bbox) {
+                var cx = bbox.x + bbox.width / 2;
+                var cy = bbox.y + bbox.height / 2;
+                parts.push(
+                    "translate(" + cx.toFixed(2) + " " + cy.toFixed(2) + ")" +
+                    " scale(" + scaleX.toFixed(3) + " " + scaleY.toFixed(3) + ")" +
+                    " translate(" + (-cx).toFixed(2) + " " + (-cy).toFixed(2) + ")"
+                );
+            }
+            if (parts.length) el.setAttribute("transform", parts.join(" "));
+            else el.removeAttribute("transform");
+        });
+    }
+
+    function resetPreviewOffsets(clearTextarea) {
+        if (currentSlide) {
+            previewOffsetsBySlide[currentSlide] = {};
+            previewScalesBySlide[currentSlide] = {};
+            previewTextHintsBySlide[currentSlide] = {};
+        }
+        var svg = getSvgRoot();
+        if (svg) {
+            svg.querySelectorAll("*").forEach(function (el) {
+                if (!el.getAttribute) return;
+                var base = el.getAttribute("data-preview-base-transform");
+                if (base === null) return;
+                if (base) el.setAttribute("transform", base);
+                else el.removeAttribute("transform");
+            });
+        }
+        if (clearTextarea) {
+            annotationText.value = "";
+        }
+    }
+
+    function updateMergedAnnotationForCurrentTarget() {
+        var targetId = getCurrentTargetId();
+        if (!targetId || !EditorLogic) return;
+        var offsets = getCurrentPreviewOffsets()[targetId] || { dx: 0, dy: 0 };
+        var scales = getCurrentPreviewScales()[targetId] || { scaleX: 1, scaleY: 1 };
+        var hints = getCurrentPreviewTextHints()[targetId] || [];
+        annotationInput.style.display = "block";
+        annotationText.value = EditorLogic.generateMergedAnnotation({
+            dx: offsets.dx || 0,
+            dy: offsets.dy || 0,
+            scaleX: scales.scaleX || 1,
+            scaleY: scales.scaleY || 1,
+            textHints: hints,
+            count: selectedElementIds.size || 1,
+            lang: LANG
+        });
+    }
+
+    function getMergedAnnotationForTarget(targetId) {
+        if (!targetId || !EditorLogic) return "";
+        var offsets = getCurrentPreviewOffsets()[targetId] || { dx: 0, dy: 0 };
+        var scales = getCurrentPreviewScales()[targetId] || { scaleX: 1, scaleY: 1 };
+        var hints = getCurrentPreviewTextHints()[targetId] || [];
+        return EditorLogic.generateMergedAnnotation({
+            dx: offsets.dx || 0,
+            dy: offsets.dy || 0,
+            scaleX: scales.scaleX || 1,
+            scaleY: scales.scaleY || 1,
+            textHints: hints,
+            count: selectedElementIds.size || 1,
+            lang: LANG
+        });
+    }
+
+    function resetDragState() {
+        dragState.active = false;
+        dragState.started = false;
+        dragState.sourceId = null;
+        dragState.startMouse = null;
+        dragState.startSvg = null;
+        dragState.currentDx = 0;
+        dragState.currentDy = 0;
+        dragState.ids = [];
+        dragState.originalTransforms = {};
+    }
+
+    function resetScaleState() {
+        scaleState.active = false;
+        scaleState.objectId = null;
+        scaleState.handle = null;
+        scaleState.startMouse = null;
+        scaleState.startBox = null;
+        scaleState.startScaleX = 1;
+        scaleState.startScaleY = 1;
+    }
+
+    function ensureScaleHandleLayer() {
+        if (scaleHandleLayer) return scaleHandleLayer;
+        scaleHandleLayer = document.createElement("div");
+        scaleHandleLayer.setAttribute("id", "scale-handle-layer");
+        document.body.appendChild(scaleHandleLayer);
+        return scaleHandleLayer;
+    }
+
+    function clearScaleHandles() {
+        if (!scaleHandleLayer) return;
+        scaleHandleLayer.innerHTML = "";
+        scaleHandleLayer.style.display = "none";
+    }
+
+    function buildHandle(x, y, handleName) {
+        var handle = document.createElement("div");
+        handle.className = "scale-handle";
+        handle.style.left = (x - 6) + "px";
+        handle.style.top = (y - 6) + "px";
+        handle.dataset.handle = handleName;
+        handle.addEventListener("mousedown", function (e) {
+            if (e.button !== 0) return;
+            e.stopPropagation();
+            e.preventDefault();
+            beginScale(handleName, e);
+        });
+        return handle;
+    }
+
+    function renderScaleHandles() {
+        clearScaleHandles();
+        if (selectedElementIds.size !== 1) return;
+        var targetId = getCurrentTargetId();
+        if (!targetId) return;
+        var el = svgContent.querySelector("#" + CSS.escape(targetId));
+        var bbox = elementBBoxSafe(el);
+        var ctm = el && el.getScreenCTM ? el.getScreenCTM() : null;
+        if (!el || !bbox || !ctm) return;
+
+        var layer = ensureScaleHandleLayer();
+        var corners = [
+            { name: "nw", x: bbox.x, y: bbox.y },
+            { name: "ne", x: bbox.x + bbox.width, y: bbox.y },
+            { name: "sw", x: bbox.x, y: bbox.y + bbox.height },
+            { name: "se", x: bbox.x + bbox.width, y: bbox.y + bbox.height }
+        ];
+        layer.style.display = "block";
+        corners.forEach(function (corner) {
+            var sx = corner.x * ctm.a + corner.y * ctm.c + ctm.e;
+            var sy = corner.x * ctm.b + corner.y * ctm.d + ctm.f;
+            layer.appendChild(buildHandle(sx, sy, corner.name));
+        });
+    }
+
+    function beginScale(handleName, event) {
+        var targetId = getCurrentTargetId();
+        if (!targetId) return false;
+        var el = svgContent.querySelector("#" + CSS.escape(targetId));
+        var bbox = elementBBoxSafe(el);
+        if (!el || !bbox) return false;
+        var currentScale = getCurrentPreviewScales()[targetId] || { scaleX: 1, scaleY: 1 };
+        scaleState.active = true;
+        scaleState.objectId = targetId;
+        scaleState.handle = handleName;
+        scaleState.startMouse = { x: event.clientX, y: event.clientY };
+        scaleState.startBox = { width: bbox.width, height: bbox.height };
+        scaleState.startScaleX = Number(currentScale.scaleX) || 1;
+        scaleState.startScaleY = Number(currentScale.scaleY) || 1;
+        return true;
+    }
+
+    function updateScalePreview(event) {
+        if (!scaleState.active || !scaleState.startMouse || !scaleState.startBox) return;
+        var dx = event.clientX - scaleState.startMouse.x;
+        var dy = event.clientY - scaleState.startMouse.y;
+        var delta = Math.max(dx, dy);
+        var factor = Math.max(0.2, 1 + delta / Math.max(scaleState.startBox.width, 120));
+        var scales = getCurrentPreviewScales();
+        scales[scaleState.objectId] = {
+            scaleX: scaleState.startScaleX * factor,
+            scaleY: scaleState.startScaleY * factor
+        };
+        applyPreviewOffsetsForCurrentSlide();
+        renderScaleHandles();
+        updateMergedAnnotationForCurrentTarget();
+    }
+
+    function finishScale() {
+        if (!scaleState.active) return false;
+        var applied = true;
+        resetScaleState();
+        renderScaleHandles();
+        return applied;
+    }
+
+    function clearDragPreview(keepCurrentPosition) {
+        dragState.ids.forEach(function (id) {
+            var el = svgContent.querySelector("#" + CSS.escape(id));
+            if (!el) return;
+            if (!keepCurrentPosition && Object.prototype.hasOwnProperty.call(dragState.originalTransforms, id)) {
+                var original = dragState.originalTransforms[id];
+                if (original) el.setAttribute("transform", original);
+                else el.removeAttribute("transform");
+            }
+            el.classList.remove("svg-drag-preview");
+        });
+    }
+
+    function beginDrag(elem, event) {
+        if (!elem || !elem.id) return false;
+        if (!selectedElementIds.has(elem.id)) {
+            selectElement(elem, false);
+        }
+        var startSvg = getSvgPoint(event.clientX, event.clientY);
+        if (!startSvg) return false;
+
+        dragState.active = true;
+        dragState.started = false;
+        dragState.sourceId = elem.id;
+        dragState.startMouse = { x: event.clientX, y: event.clientY };
+        dragState.startSvg = { x: startSvg.x, y: startSvg.y };
+        dragState.currentDx = 0;
+        dragState.currentDy = 0;
+        dragState.ids = Array.from(selectedElementIds);
+        dragState.originalTransforms = {};
+        dragState.ids.forEach(function (id) {
+            var target = svgContent.querySelector("#" + CSS.escape(id));
+            dragState.originalTransforms[id] = target ? (target.getAttribute("transform") || "") : "";
+        });
+        return true;
+    }
+
+    function updateDragPreview(event) {
+        if (!dragState.active || !dragState.startSvg) return;
+
+        var dxScreen = event.clientX - dragState.startMouse.x;
+        var dyScreen = event.clientY - dragState.startMouse.y;
+        if (!dragState.started && Math.sqrt(dxScreen * dxScreen + dyScreen * dyScreen) < DRAG_THRESHOLD) {
+            return;
+        }
+
+        var current = getSvgPoint(event.clientX, event.clientY);
+        if (!current) return;
+
+        dragState.started = true;
+        dragState.currentDx = current.x - dragState.startSvg.x;
+        dragState.currentDy = current.y - dragState.startSvg.y;
+
+        dragState.ids.forEach(function (id) {
+            var el = svgContent.querySelector("#" + CSS.escape(id));
+            if (!el) return;
+            var original = dragState.originalTransforms[id];
+            var translate = "translate(" + dragState.currentDx.toFixed(2) + " " + dragState.currentDy.toFixed(2) + ")";
+            if (original) el.setAttribute("transform", original + " " + translate);
+            else el.setAttribute("transform", translate);
+            el.classList.add("svg-drag-preview");
+        });
+    }
+
+    function finishDrag() {
+        if (!dragState.active) return false;
+
+        var applied = dragState.started &&
+            EditorLogic &&
+            (Math.abs(dragState.currentDx) >= 1 || Math.abs(dragState.currentDy) >= 1);
+
+        if (applied) {
+            var offsets = getCurrentPreviewOffsets();
+            dragState.ids.forEach(function (id) {
+                var existing = offsets[id] || { dx: 0, dy: 0 };
+                offsets[id] = {
+                    dx: (Number(existing.dx) || 0) + dragState.currentDx,
+                    dy: (Number(existing.dy) || 0) + dragState.currentDy
+                };
+            });
+            updateMergedAnnotationForCurrentTarget();
+            suppressNextElementClick = true;
+            window.setTimeout(function () {
+                suppressNextElementClick = false;
+            }, 50);
+        }
+
+        clearDragPreview(applied);
+        resetDragState();
+        if (applied) {
+            applyPreviewOffsetsForCurrentSlide();
+        }
+        return applied;
     }
 
     // ================================================================
@@ -293,9 +755,15 @@
         currentSlide = name;
         selectedElementIds.clear();
         slideAnnotations = {};
+        currentLayoutIssues = [];
+        resetSelectionModeState();
         updateNavLabel();
 
         // Reset right panel and rubber band
+        clearDragPreview();
+        resetDragState();
+        clearScaleHandles();
+        resetScaleState();
         cancelRubberBand();
         clearSelection();
 
@@ -323,8 +791,11 @@
                 });
 
                 setupSvgInteraction();
+                markPreviewBaseTransforms();
+                applyPreviewOffsetsForCurrentSlide();
                 refreshAnnotationVisuals();
                 updateAnnotationList();
+                renderLayoutIssuesForSelection();
             })
             .catch(function (err) {
                 console.error("selectSlide:", err);
@@ -336,6 +807,22 @@
     //  3.  setupSvgInteraction
     // ================================================================
     var SKIP_TAGS = ["defs", "style", "title", "desc"];
+
+    function resolveSelectionTarget(el) {
+        if (!el) return null;
+        if (selectionMode === "child" && activeGroupId) {
+            var groupEl = svgContent.querySelector("#" + CSS.escape(activeGroupId));
+            if (groupEl && groupEl.contains && groupEl.contains(el)) {
+                return isEditableChildElement(el) ? el : null;
+            }
+        }
+
+        var groupAncestor = findNearestGroupAncestor(el);
+        if (groupAncestor) {
+            return groupAncestor;
+        }
+        return el;
+    }
 
     function setupSvgInteraction() {
         var svg = svgContent.querySelector("svg");
@@ -350,8 +837,25 @@
             el.classList.add("svg-selectable");
 
             el.addEventListener("click", function (e) {
+                if (suppressNextElementClick) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    suppressNextElementClick = false;
+                    return;
+                }
                 e.stopPropagation();
-                selectElement(el, e.ctrlKey || e.metaKey);
+                var target = resolveSelectionTarget(el);
+                if (target) {
+                    selectElement(target, e.ctrlKey || e.metaKey);
+                }
+            });
+
+            el.addEventListener("mousedown", function (e) {
+                if (e.button !== 0) return;
+                var target = resolveSelectionTarget(el);
+                if (target) {
+                    beginDrag(target, e);
+                }
             });
         });
 
@@ -371,6 +875,7 @@
     function selectElement(elem, addToSelection) {
         var eid = elem.id;
         if (!eid) return;
+        var tag = elem.tagName.toLowerCase();
 
         if (addToSelection) {
             // Ctrl+click: toggle this element
@@ -394,6 +899,17 @@
             elem.classList.add("svg-selected");
         }
 
+        if (selectionMode === "child") {
+            activeChildId = eid;
+            if (!activeGroupId) {
+                var parentGroup = findNearestGroupAncestor(elem);
+                activeGroupId = parentGroup ? parentGroup.id : null;
+            }
+        } else {
+            activeChildId = null;
+            activeGroupId = tag === "g" ? eid : null;
+        }
+
         updateSelectionPanel();
     }
 
@@ -401,12 +917,68 @@
     //  5.  clearSelection
     // ================================================================
     function clearSelection() {
+        clearDragPreview();
+        resetDragState();
+        clearScaleHandles();
+        resetScaleState();
         selectedElementIds.forEach(function (id) {
             var el = svgContent.querySelector("#" + CSS.escape(id));
             if (el) el.classList.remove("svg-selected");
         });
         selectedElementIds.clear();
+        clearLayoutIssueVisuals();
+        currentLayoutIssues = [];
+        resetSelectionModeState();
         updateSelectionPanel();
+    }
+
+    function enterChildSelectionMode() {
+        if (!activeGroupId) return;
+        var groupEl = svgContent.querySelector("#" + CSS.escape(activeGroupId));
+        if (!groupEl) return;
+        var editableChildren = getEditableChildren(groupEl);
+        if (!editableChildren.length) return;
+        selectionMode = "child";
+        activeChildId = editableChildren[0].id;
+        selectElement(editableChildren[0], false);
+    }
+
+    function returnToGroupSelectionMode() {
+        if (!activeGroupId) return;
+        var groupEl = svgContent.querySelector("#" + CSS.escape(activeGroupId));
+        selectionMode = "group";
+        activeChildId = null;
+        if (groupEl) {
+            selectElement(groupEl, false);
+        } else {
+            updateSelectionPanel();
+        }
+    }
+
+    function updateSelectionModeControls(selectedEl) {
+        if (!selectionActionsEl || !btnToggleSelectionMode || !selectionPathEl || !selectedElementHelpEl) return;
+
+        selectionActionsEl.style.display = "none";
+        selectionPathEl.style.display = "none";
+        selectionPathEl.textContent = "";
+        selectedElementHelpEl.textContent = t("selected_help_drag");
+
+        if (!selectedEl || selectedElementIds.size !== 1) return;
+
+        if (selectionMode === "child" && activeGroupId && activeChildId) {
+            selectionActionsEl.style.display = "block";
+            btnToggleSelectionMode.textContent = t("btn_return_group_mode");
+            selectionPathEl.style.display = "block";
+            selectionPathEl.textContent = t("selection_path_label") + activeGroupId + " > " + activeChildId;
+            selectedElementHelpEl.textContent = t("selected_help_drag");
+            return;
+        }
+
+        if (selectedEl.tagName.toLowerCase() === "g" && getEditableChildren(selectedEl).length > 0) {
+            selectionActionsEl.style.display = "block";
+            btnToggleSelectionMode.textContent = t("btn_enter_child_mode");
+            selectedElementHelpEl.textContent = t("selected_help_group");
+        }
     }
 
     function updateSelectionPanel() {
@@ -420,15 +992,24 @@
             annotationText.value = "";
             propsEl.style.display = "none";
             propsEl.innerHTML = "";
+            layoutIssuesEl.style.display = "none";
+            layoutIssuesListEl.innerHTML = "";
+            layoutIssuesActionsEl.innerHTML = "";
+            selectionActionsEl.style.display = "none";
+            selectionPathEl.style.display = "none";
+            selectionPathEl.textContent = "";
+            selectedElementHelpEl.textContent = t("selected_help_drag");
             return;
         }
 
         selectedElementEl.classList.remove("empty");
         propsEl.style.display = "block";
+        var currentEl = null;
 
         if (count === 1) {
             var eid = selectedElementIds.values().next().value;
             var el = svgContent.querySelector("#" + CSS.escape(eid));
+            currentEl = el;
             if (el) {
                 var tag = el.tagName.toLowerCase();
                 selectedElementEl.innerHTML =
@@ -446,9 +1027,15 @@
         annotationText.placeholder = count > 1
             ? t("placeholder_annotation_multi", { count: count })
             : t("placeholder_annotation");
-        annotationText.value = count === 1
-            ? (slideAnnotations[selectedElementIds.values().next().value] || "")
-            : "";
+        if (count === 1) {
+            var targetId = selectedElementIds.values().next().value;
+            annotationText.value = getMergedAnnotationForTarget(targetId) || slideAnnotations[targetId] || "";
+        } else {
+            annotationText.value = "";
+        }
+        updateSelectionModeControls(currentEl);
+        renderLayoutIssuesForSelection();
+        renderScaleHandles();
     }
 
     // ---- Rubber band selection ----
@@ -465,6 +1052,7 @@
         container.addEventListener("mousedown", function (e) {
             // Only left mouse button
             if (e.button !== 0) return;
+            if (e.target && isSelectableElement(e.target)) return;
 
             // Always start tracking — rubber band only activates when
             // mousemove exceeds the threshold. This allows clicking on any
@@ -475,6 +1063,14 @@
         });
 
         document.addEventListener("mousemove", function (e) {
+            if (scaleState.active) {
+                updateScalePreview(e);
+                return;
+            }
+            if (dragState.active) {
+                updateDragPreview(e);
+                return;
+            }
             if (!rubberBandStart) return;
 
             var dx = e.clientX - rubberBandStart.x;
@@ -509,6 +1105,14 @@
         });
 
         document.addEventListener("mouseup", function (e) {
+            if (scaleState.active) {
+                finishScale();
+                return;
+            }
+            if (dragState.active) {
+                finishDrag();
+                return;
+            }
             if (!rubberBandStart) return;
 
             overlay.classList.remove("active");
@@ -549,6 +1153,7 @@
 
             rubberBandStart = null;
         });
+
     }
 
     function cancelRubberBand() {
@@ -560,6 +1165,8 @@
         var ov = document.getElementById("rubber-band-overlay");
         if (ov) ov.classList.remove("active");
         suppressNextSvgClick = false;
+        clearDragPreview();
+        resetDragState();
     }
 
     function selectByRubberBand(screenRect) {
@@ -666,6 +1273,28 @@
         if (navLastBtn)  navLastBtn.addEventListener("click", function ()  { gotoSlideIndex(slideNames.length - 1); });
     }
 
+    if (btnResetPreview) {
+        btnResetPreview.addEventListener("click", function () {
+            clearDragPreview();
+            resetDragState();
+            clearScaleHandles();
+            resetScaleState();
+            resetPreviewOffsets(true);
+            renderLayoutIssuesForSelection();
+            renderScaleHandles();
+        });
+    }
+
+    if (btnToggleSelectionMode) {
+        btnToggleSelectionMode.addEventListener("click", function () {
+            if (selectionMode === "group") {
+                enterChildSelectionMode();
+            } else {
+                returnToGroupSelectionMode();
+            }
+        });
+    }
+
     // ================================================================
     //  6.  Add annotation  -- POST /api/slide/{name}/annotate
     // ================================================================
@@ -720,6 +1349,141 @@
                 console.error("removeAnnotation:", err);
                 showError(t("err_remove_annotation") + err.message);
             });
+    }
+
+    function clearLayoutIssueVisuals() {
+        svgContent.querySelectorAll(".svg-layout-warning").forEach(function (el) {
+            el.classList.remove("svg-layout-warning");
+        });
+    }
+
+    function elementBBoxSafe(el) {
+        try {
+            return el.getBBox();
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function findLikelyContainerForText(textEl) {
+        var textBox = elementBBoxSafe(textEl);
+        if (!textBox) return null;
+
+        var candidates = Array.from(svgContent.querySelectorAll("rect,image"));
+        var best = null;
+        var bestArea = Infinity;
+
+        candidates.forEach(function (candidate) {
+            if (candidate === textEl) return;
+            var box = elementBBoxSafe(candidate);
+            if (!box || box.width <= 0 || box.height <= 0) return;
+            var contains =
+                textBox.x >= box.x - 2 &&
+                textBox.y >= box.y - 2 &&
+                textBox.x + textBox.width <= box.x + box.width + 2 &&
+                textBox.y + textBox.height <= box.y + box.height + 2;
+            if (!contains) return;
+            var area = box.width * box.height;
+            if (area < bestArea) {
+                best = { element: candidate, box: box };
+                bestArea = area;
+            }
+        });
+
+        return best;
+    }
+
+    function collectTextLayoutIssues(el) {
+        if (!EditorLogic || !el) return [];
+        var box = elementBBoxSafe(el);
+        if (!box) return [];
+        var style = window.getComputedStyle(el);
+        var fontSizePx = parseFloat(style.fontSize || el.getAttribute("font-size") || "0") || 0;
+        var container = findLikelyContainerForText(el);
+        return EditorLogic.detectTextLayoutIssues({
+            fontSizePx: fontSizePx,
+            textLength: (el.textContent || "").trim().length,
+            textBox: { width: box.width, height: box.height },
+            containerBox: container ? { width: container.box.width, height: container.box.height } : null,
+            containerTolerance: 2
+        });
+    }
+
+    function issueTitle(issue) {
+        if (issue.kind === "overflow") return LANG === "zh" ? "文字可能溢出" : "Possible overflow";
+        if (issue.kind === "font_too_small") return LANG === "zh" ? "字号可能过小" : "Font may be too small";
+        if (issue.kind === "font_too_large") return LANG === "zh" ? "字号可能过大" : "Font may be too large";
+        return LANG === "zh" ? "排版问题" : "Layout issue";
+    }
+
+    function suggestionForIssue(issue) {
+        return LANG === "zh" ? (issue.suggestion_zh || issue.message) : (issue.suggestion_en || issue.message);
+    }
+
+    function renderLayoutIssuesForSelection() {
+        clearLayoutIssueVisuals();
+        currentLayoutIssues = [];
+
+        if (selectedElementIds.size !== 1) {
+            layoutIssuesEl.style.display = "none";
+            layoutIssuesListEl.innerHTML = "";
+            layoutIssuesActionsEl.innerHTML = "";
+            return;
+        }
+
+        var eid = selectedElementIds.values().next().value;
+        var el = svgContent.querySelector("#" + CSS.escape(eid));
+        if (!el) {
+            layoutIssuesEl.style.display = "none";
+            return;
+        }
+
+        var tag = el.tagName.toLowerCase();
+        if (tag !== "text" && tag !== "tspan") {
+            layoutIssuesEl.style.display = "none";
+            layoutIssuesListEl.innerHTML = "";
+            layoutIssuesActionsEl.innerHTML = "";
+            return;
+        }
+
+        currentLayoutIssues = collectTextLayoutIssues(el);
+        if (!currentLayoutIssues.length) {
+            layoutIssuesEl.style.display = "none";
+            layoutIssuesListEl.innerHTML = "";
+            layoutIssuesActionsEl.innerHTML = "";
+            return;
+        }
+
+        el.classList.add("svg-layout-warning");
+        layoutIssuesEl.style.display = "block";
+        layoutIssuesListEl.innerHTML = "";
+        layoutIssuesActionsEl.innerHTML = "";
+
+        currentLayoutIssues.forEach(function (issue, idx) {
+            var item = document.createElement("div");
+            item.className = "layout-issue";
+            item.innerHTML =
+                '<div class="layout-issue-title">' + escapeHtml(issueTitle(issue)) + '</div>' +
+                '<div class="layout-issue-text">' + escapeHtml(issue.message) + '</div>';
+            layoutIssuesListEl.appendChild(item);
+
+            var action = document.createElement("button");
+            action.type = "button";
+            action.className = "layout-issue-action";
+            action.textContent = LANG === "zh" ? ("生成建议批注 " + (idx + 1)) : ("Suggest annotation " + (idx + 1));
+            action.addEventListener("click", function () {
+                var targetId = getCurrentTargetId();
+                if (targetId) {
+                    getCurrentPreviewTextHints()[targetId] = [suggestionForIssue(issue)];
+                    updateMergedAnnotationForCurrentTarget();
+                } else {
+                    annotationInput.style.display = "block";
+                    annotationText.value = suggestionForIssue(issue);
+                }
+                annotationText.focus();
+            });
+            layoutIssuesActionsEl.appendChild(action);
+        });
     }
 
     // ================================================================
@@ -845,6 +1609,7 @@
                 if (data.error) {
                     modalMessage.textContent = t("err_save") + data.error;
                 } else {
+                    resetPreviewOffsets(true);
                     modalMessage.textContent = t("modal_success_submit");
                     loadSlides();
                 }
