@@ -11,11 +11,17 @@ Usage:
 The release layout intentionally mirrors the upstream ``skills/ppt-master/``
 subtree shape while using local release metadata and support files by default:
 
+- ``ppt-master/.gitignore``
+- ``ppt-master/README.md``
+- ``ppt-master/LICENSE``
+- ``ppt-master/THIRD_PARTY_NOTICES.md``
 - ``ppt-master/SKILL.md``
 - ``ppt-master/VERSION``
 - ``ppt-master/RELEASE_META.json``
 - ``ppt-master/.env.example``
 - ``ppt-master/requirements.txt``
+- ``ppt-master/docs/README.md``
+- ``ppt-master/docs/THIRD_PARTY_NOTICES.md``
 - ``ppt-master/references/``
 - ``ppt-master/scripts/``
 - ``ppt-master/templates/``
@@ -50,9 +56,15 @@ DEFAULT_UPSTREAM_REPO = "ppt-master"
 DEFAULT_UPSTREAM_REF = "main"
 
 LOCAL_RELEASE_ITEMS = (
+    ".gitignore",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
     "SKILL.md",
     "VERSION",
     "RELEASE_META.json",
+    "docs/README.md",
+    "docs/THIRD_PARTY_NOTICES.md",
     "references",
     "scripts",
     "templates",
@@ -77,7 +89,6 @@ EXCLUDED_DIR_NAMES = {
 }
 EXCLUDED_FILE_NAMES = {
     ".DS_Store",
-    ".gitignore",
     ".synced_hash",
     "Thumbs.db",
 }
@@ -437,20 +448,27 @@ def build_zip(staging_root: Path, output_path: Path) -> int:
 
 def verify_release_zip(zip_path: Path, package_dirname: str) -> None:
     required_entries = [
+        f"{package_dirname}/.gitignore",
+        f"{package_dirname}/README.md",
+        f"{package_dirname}/LICENSE",
+        f"{package_dirname}/THIRD_PARTY_NOTICES.md",
         f"{package_dirname}/SKILL.md",
         f"{package_dirname}/VERSION",
         f"{package_dirname}/RELEASE_META.json",
         f"{package_dirname}/.env.example",
         f"{package_dirname}/requirements.txt",
+        f"{package_dirname}/docs/README.md",
+        f"{package_dirname}/docs/THIRD_PARTY_NOTICES.md",
         f"{package_dirname}/references/",
         f"{package_dirname}/scripts/",
         f"{package_dirname}/templates/",
         f"{package_dirname}/workflows/",
     ]
     forbidden_entries = [
-        f"{package_dirname}/.gitignore",
         f"{package_dirname}/.synced_hash",
-        f"{package_dirname}/docs/",
+        f"{package_dirname}/docs/adr/",
+        f"{package_dirname}/docs/plan/",
+        f"{package_dirname}/docs/superpowers/",
         f"{package_dirname}/plan/",
         f"{package_dirname}/.git/",
         f"{package_dirname}/.venv/",

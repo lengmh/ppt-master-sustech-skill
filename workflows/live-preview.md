@@ -37,7 +37,12 @@ python3 ${SKILL_DIR}/scripts/svg_editor/server.py <project_path>
 The server binds `127.0.0.1:5050`, opens the browser on a local desktop, and edits `<project_path>/svg_output/` in place. After it prints `SVG Editor running at http://localhost:5050`, tell the user in their language, in one short message:
 
 - editor is at `http://localhost:5050`
-- click an element → write the change → click **Submit annotations** → return to the chat and say `apply my annotations` (or quote the browser prompt)
+- drag selected elements to generate move annotations
+- drag current corner handle to generate scale annotations for the currently selected object
+- single selected text elements may show `Layout issues` and suggestion buttons
+- repeated drag / scale / layout suggestions on the same object are merged locally into one final annotation before save
+- drag preview stays where dropped until **Reset preview** / reload / successful **Submit annotations**
+- after confirming, click **Add annotation** → **Submit annotations** → return to the chat and say `apply my annotations`
 - to skip the editor, just describe the change in chat
 
 Do not wait for confirmation before launching — the user already asked for preview, so launching is the response. Port conflicts → `--port <other>` and report the new URL. Remote access → see the appendix.
@@ -73,6 +78,7 @@ Triggered by the user signals listed in "When to Run".
 
 - **UI**: bilingual (EN/中); auto-detects from `navigator.language`, persists in `localStorage`, toggled via the **中 / EN** button on the right panel. Slide navigation: first/prev/next/last buttons at the top of the center panel, plus `←` / `→` / `Home` / `End` (suppressed while typing in the annotation textarea).
 - **Buttons**: `Add annotation` stages locally; `Submit annotations` writes to disk and keeps the service running; `Exit preview` is the only UI action that stops Flask.
+- **Left-bottom utility**: `Reset preview` clears the temporary drag preview state for the current slide without touching saved annotations.
 - **Stop conditions**: once started, the service runs until the user clicks **Exit preview** in the browser, or asks in chat to stop it.
 - **Port**: default `5050`; override with `--port <other>`.
 - **Idle timeout**: plain mode `900s`, `--live` mode `0` (disabled); override with `--timeout <seconds>`.

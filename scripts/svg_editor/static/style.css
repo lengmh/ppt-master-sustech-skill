@@ -50,6 +50,31 @@ html, body {
     padding: 8px 0;
 }
 
+#panel-left-actions {
+    padding: 10px 12px 14px;
+    border-top: 1px solid #2a2a4a;
+    flex-shrink: 0;
+}
+
+#btn-reset-preview {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #c0c0d8;
+    background: transparent;
+    border: 1px solid #3a3a5a;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+#btn-reset-preview:hover {
+    color: #ffffff;
+    background: #2a2a4a;
+    border-color: #5a5a7a;
+}
+
 .slide-list-empty {
     padding: 12px 16px;
     color: #5a5a7a;
@@ -242,6 +267,36 @@ html, body {
     outline-offset: 2px;
 }
 
+.svg-drag-preview {
+    outline: 2px dashed #22c55e !important;
+    outline-offset: 3px;
+    opacity: 0.92;
+}
+
+.svg-layout-warning {
+    outline: 2px solid #f59e0b !important;
+    outline-offset: 3px;
+}
+
+#scale-handle-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 30;
+}
+
+.scale-handle {
+    position: fixed;
+    width: 12px;
+    height: 12px;
+    background: #ffffff;
+    border: 2px solid #2563eb;
+    border-radius: 3px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    pointer-events: auto;
+    cursor: nwse-resize;
+}
+
 /* ======================== RIGHT PANEL ======================== */
 #panel-right {
     width: 280px;
@@ -302,6 +357,90 @@ html, body {
 #selected-element .el-id {
     font-size: 12px;
     color: #a0a0c0;
+}
+
+#selected-element-actions {
+    margin-top: 10px;
+}
+
+#btn-toggle-selection-mode {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #ffffff;
+    background: #2563eb;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+#btn-toggle-selection-mode:hover {
+    background: #1d4ed8;
+}
+
+#selection-path {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #a0a0c0;
+    line-height: 1.45;
+    word-break: break-all;
+}
+
+#selected-element-help {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #8a8aaa;
+    line-height: 1.5;
+}
+
+#layout-issues {
+    padding: 12px 16px;
+    border-bottom: 1px solid #2a2a4a;
+    flex-shrink: 0;
+}
+
+#layout-issues-list,
+#layout-issues-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.layout-issue {
+    background: #201b33;
+    border: 1px solid #4a3a6a;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+.layout-issue-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #f5c542;
+    margin-bottom: 4px;
+}
+
+.layout-issue-text {
+    font-size: 12px;
+    color: #cfcfe6;
+    line-height: 1.45;
+}
+
+.layout-issue-action {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    background: #6d5efc;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.layout-issue-action:hover {
+    background: #5a4bea;
 }
 
 /* --- Annotation input --- */
