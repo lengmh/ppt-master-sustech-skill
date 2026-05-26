@@ -30,11 +30,13 @@ python3 scripts/animation_config.py scaffold <project_path>  # optional object-l
 python3 scripts/svg_to_pptx.py <project_path>
 ```
 
-Repository update:
+PPT text normalize:
 
 ```bash
-python3 scripts/update_repo.py
+python3 scripts/ppt_text_normalize/scan.py <deck.pptx> --task normalize_demo
+python3 scripts/ppt_text_normalize/apply.py <deck.pptx> --rules <workdir>/ppt_text_normalize/normalize_demo/rules.json --task normalize_demo
 ```
+
 
 ## Script Index
 
@@ -45,7 +47,7 @@ python3 scripts/update_repo.py
 | SVG pipeline | `finalize_svg.py`, `svg_to_pptx.py`, `total_md_split.py`, `svg_quality_checker.py`, `animation_config.py`, `notes_to_audio.py` | [docs/svg-pipeline.md](./docs/svg-pipeline.md) |
 | Spec maintenance | `update_spec.py` | [docs/update_spec.md](./docs/update_spec.md) |
 | Image tools | `image_gen.py`, `latex_render.py`, `analyze_images.py`, `gemini_watermark_remover.py` | [docs/image.md](./docs/image.md) |
-| Repo maintenance | `update_repo.py` | README install/update section |
+| PPT text normalize | `ppt_text_normalize/scan.py`, `ppt_text_normalize/apply.py` | [docs/ppt-text-normalize.md](./docs/ppt-text-normalize.md) |
 | Troubleshooting | validation, preview, export, dependency issues | [docs/troubleshooting.md](./docs/troubleshooting.md) |
 
 ## High-Frequency Commands
@@ -94,11 +96,11 @@ python3 scripts/image_gen.py --list-backends
 python3 scripts/analyze_images.py <project_path>/images
 ```
 
-Repository update:
+PPT text normalize:
 
 ```bash
-python3 scripts/update_repo.py
-python3 scripts/update_repo.py --skip-pip
+python3 scripts/ppt_text_normalize/scan.py <deck.pptx> --task normalize_demo
+python3 scripts/ppt_text_normalize/apply.py <deck.pptx> --rules <workdir>/ppt_text_normalize/normalize_demo/rules.json --task normalize_demo
 ```
 
 ## Recommendations

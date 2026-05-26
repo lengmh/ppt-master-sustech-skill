@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "input_fingerprint",
+    "summary",
+    "blocks"
+  ],
+  "properties": {
+    "input_fingerprint": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/block_report"
+      }
+    }
+  },
+  "$defs": {
+    "style": {
+      "type": "object",
+      "properties": {
+        "font_family": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "east_asia_font_family": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "font_size_pt": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "bold": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "italic": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "block_report": {
+      "type": "object",
+      "required": [
+        "block_id",
+        "slide_index",
+        "before_style",
+        "target_style",
+        "applied_fields",
+        "preserved_fields",
+        "result"
+      ],
+      "properties": {
+        "block_id": {
+          "type": "string"
+        },
+        "slide_index": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "resolved_page_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolved_page_submode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolved_object_slot": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolved_slot_variant": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "content_intent_role": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mutation_permission_profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hero_slot_confidence": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "before_style": {
+          "$ref": "#/$defs/style"
+        },
+        "target_style": {
+          "$ref": "#/$defs/style"
+        },
+        "applied_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "preserved_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fallback_steps_used": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "layout_risk": {
+          "type": "string"
+        },
+        "result": {
+          "enum": [
+            "applied",
+            "applied_with_fallback",
+            "frozen",
+            "skipped"
+          ]
+        },
+        "skip_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

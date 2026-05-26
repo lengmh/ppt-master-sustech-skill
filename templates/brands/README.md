@@ -29,7 +29,7 @@ Read skills/ppt-master/workflows/create-brand.md
 
 Three input paths are supported: brand asset (logo / brand site URL / branded PPTX / brand PDF), verbal spec dictated in chat, or empty skeleton for the user to fill in later.
 
-## Package structure
+## Directory structure
 
 Every brand directory is self-contained:
 

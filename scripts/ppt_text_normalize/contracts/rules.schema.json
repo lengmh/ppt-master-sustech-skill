@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "version",
+    "input_fingerprint",
+    "defaults",
+    "page_rules",
+    "slot_rules",
+    "canonical_styles",
+    "fallback_policy",
+    "hero_policy"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.2"
+    },
+    "input_fingerprint": {
+      "type": "object",
+      "required": [
+        "filename",
+        "slide_count"
+      ],
+      "properties": {
+        "filename": {
+          "type": "string"
+        },
+        "slide_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "page_rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/page_rule"
+      }
+    },
+    "slot_rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/slot_rule"
+      }
+    },
+    "canonical_styles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/canonical_style"
+      }
+    },
+    "fallback_policy": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "hero_policy": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "page_type": {
+      "enum": [
+        "cover",
+        "chapter",
+        "toc",
+        "content",
+        "ending",
+        "hero",
+        "unknown"
+      ]
+    },
+    "page_submode": {
+      "enum": [
+        "cover@standard",
+        "cover@hero_like",
+        "toc@uniform_list",
+        "toc@uniform_grid",
+        "toc@freeform_composition",
+        "chapter@uniform_series",
+        "chapter@freeform_hero",
+        "content@standard",
+        "content@hero_mixed",
+        "ending@standard",
+        "ending@hero_like",
+        "unknown@default"
+      ]
+    },
+    "object_slot": {
+      "enum": [
+        "page_title",
+        "section_title",
+        "header",
+        "footer",
+        "toc_title",
+        "toc_item",
+        "chapter_title",
+        "chapter_marker",
+        "content_body",
+        "content_label",
+        "content_emphasis",
+        "content_caption",
+        "content_stat",
+        "table_text",
+        "hero",
+        "unknown"
+      ]
+    },
+    "permission_profile": {
+      "enum": [
+        "frozen",
+        "typography_only",
+        "conservative_text",
+        "slot_standard",
+        "list_standard",
+        "series_standard",
+        "preserve_emphasis"
+      ]
+    },
+    "style": {
+      "type": "object",
+      "properties": {
+        "font_family": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "east_asia_font_family": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "font_size_pt": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "bold": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "italic": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "page_rule": {
+      "type": "object",
+      "required": [
+        "slide_index",
+        "resolved_page_type",
+        "resolved_page_submode",
+        "page_normalization_mode",
+        "source"
+      ],
+      "properties": {
+        "slide_index": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "resolved_page_type": {
+          "$ref": "#/$defs/page_type"
+        },
+        "page_type_confidence": {
+          "type": "number"
+        },
+        "resolved_page_submode": {
+          "$ref": "#/$defs/page_submode"
+        },
+        "page_submode_confidence": {
+          "type": "number"
+        },
+        "hero_page_confidence": {
+          "type": "number"
+        },
+        "page_normalization_mode": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "slot_rule": {
+      "type": "object",
+      "required": [
+        "slide_index",
+        "block_id",
+        "resolved_object_slot",
+        "resolved_slot_variant",
+        "uniformity_eligible",
+        "mutation_permission_profile",
+        "source"
+      ],
+      "properties": {
+        "slide_index": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "block_id": {
+          "type": "string"
+        },
+        "resolved_object_slot": {
+          "$ref": "#/$defs/object_slot"
+        },
+        "slot_confidence": {
+          "type": "number"
+        },
+        "resolved_slot_variant": {
+          "type": "string"
+        },
+        "slot_variant_confidence": {
+          "type": "number"
+        },
+        "content_intent_role": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hero_slot_confidence": {
+          "type": "number"
+        },
+        "uniformity_eligible": {
+          "type": "boolean"
+        },
+        "mutation_permission_profile": {
+          "$ref": "#/$defs/permission_profile"
+        },
+        "skip_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "canonical_style": {
+      "type": "object",
+      "required": [
+        "page_type",
+        "object_slot",
+        "slot_variant",
+        "source",
+        "support",
+        "style",
+        "permission_profile",
+        "weak_canonical"
+      ],
+      "properties": {
+        "page_type": {
+          "$ref": "#/$defs/page_type"
+        },
+        "object_slot": {
+          "$ref": "#/$defs/object_slot"
+        },
+        "slot_variant": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "support": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "style": {
+          "$ref": "#/$defs/style"
+        },
+        "permission_profile": {
+          "$ref": "#/$defs/permission_profile"
+        },
+        "weak_canonical": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

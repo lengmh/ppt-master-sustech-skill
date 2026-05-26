@@ -353,7 +353,7 @@ Generate local preview artefacts before registration so visual defects are caugh
 ```bash
 python3 skills/ppt-master/scripts/template_preview.py \
   "skills/ppt-master/templates/<kind_dir>/<template_id>" \
-  --output-root "/home/sustech/TempFiles/ppt-master-template-preview"
+  --output-root "<workdir>/ppt-master-template-preview"
 ```
 
 Review the generated preview contact sheet / per-page images against the Step 3 brief and `brief_lock.json`:
@@ -364,7 +364,7 @@ Review the generated preview contact sheet / per-page images against the Step 3 
 - [ ] Literal / mirror pages preserve load-bearing geometry and sprite-sheet crops
 - [ ] Placeholder text is legible and placed inside intended content regions
 
-If preview feedback requires changes, modify the template package, rerun Step 5, then regenerate preview. Keep preview outputs under `/home/sustech/TempFiles`; do not commit them.
+If preview feedback requires changes, modify the template package, rerun Step 5, then regenerate preview. Keep preview outputs in a task work directory outside the template source; do not commit them.
 
 ---
 

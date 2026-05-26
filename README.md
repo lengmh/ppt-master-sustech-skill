@@ -1,59 +1,102 @@
-# PPT Master SUSTech-Enhanced Version
+# PPT Master SUSTech 增强版 Skill
 
-这是基于上游 `ppt-master` 的 SUSTech 增强版 skill 发布源码，用于将 PDF、DOCX、PPTX、网页、Markdown、Excel 等材料转换为高质量、可编辑的 PPTX 演示文稿。  
-该版本围绕内容理解、设计规范生成、SVG 页面构建、后处理与 PPTX 导出建立了一条完整工作流，适合在 Claude Code、Cursor、Codex 等具备 agent 能力的环境中使用。
+`ppt-master` 是一个面向 agent 环境的演示文稿生成 skill，可将 PDF、DOCX、PPTX、网页、Markdown、Excel 等材料转换为高质量 SVG 页面，并导出为可编辑 PPTX。
 
-## 主要特性
+本仓库提供 SUSTech 增强版本线源码，适合在 Claude Code、Codex、Cursor 等具备 agent 能力的环境中使用。
 
-- 支持 PDF、Word、PPTX、网页、Markdown、Excel 等多种输入源
-- 基于 `design_spec.md` 与 `spec_lock.md` 驱动页面设计与执行约束
-- 输出可编辑 PPTX，而非单纯图片化页面
-- 支持模板复用、模板创建、模板自检与模板预览
-- 支持图像获取、AI 生图、图表校验、speaker notes 与后处理流水线
-- 支持本地版本化发布与可复现的 release contract
+## 版本信息
 
-## 发布身份
+| 项目 | 值 |
+|---|---|
+| Release Version | `r2.8.0-v0.1.1` |
+| Upstream Baseline | `hugohe3/ppt-master@v2.8.0` |
+| Upstream Commit | `0c0bdaf0dd953afc2c00322e92f26dc02fc1c51f` |
+| Tracked Range | `v2.8.0..a8802cedc1477a0fecc7aa276b396508ba85bb79` |
+| Root Directory | `ppt-master/` |
 
-- **Release Version**: `r2.8.0-v0.1.0`
-- **Upstream Baseline**: `hugohe3/ppt-master@v2.8.0`
-- **Package Root Dir**: `ppt-master/`
+下载：
 
-## 这个仓库包含什么
+- <https://github.com/lengmh/ppt-master-sustech-skill/releases/tag/r2.8.0-v0.1.1>
 
-这是面向公开发布的、清理后的 SUSTech 增强版 skill 源码内容，包含：
+## 功能亮点
 
-- `SKILL.md`
-- `VERSION`
-- `RELEASE_META.json`
-- `.env.example`
-- `requirements.txt`
-- `references/`
-- `scripts/`
-- `templates/`
-- `workflows/`
+- 支持 PDF、DOCX、PPTX、网页、Markdown、Excel 等多种输入源。
+- 通过 `design_spec.md` 和 `spec_lock.md` 驱动设计意图与执行约束。
+- 采用 SVG-first 页面构建流程，并导出可编辑 PPTX。
+- 支持浏览器 live preview，用于查看页面和提交标注。
+- 支持 `brand / layout / deck` 三分模板体系。
+- 支持 AI image manifest 工作流和图像 prompt catalog。
+- 内置 chart templates、图表校验指引、speaker notes、动画与导出辅助能力。
+- 支持 opt-in `visual-review`，用于渲染后页面检查。
+- 支持 LaTeX 公式渲染：通过 `scripts/latex_render.py` 和 `images/formula_manifest.json` 生成公式 PNG 资产。
 
-## 这个仓库不包含什么
+## SUSTech 增强内容
 
-本仓库**不包含**本地运行产物、临时计划文档、私有环境文件和本地工作区元数据。
+本版本保留上游 v2.8.0 能力，并叠加以下 SUSTech 增强：
 
-例如：
+- live-preview 编辑辅助：group / child selection、拖拽 preview、缩放 handles、merged annotations、text-layout issue 检测。
+- 模板创建审计流：`brief_lock.json`、strict validation mode、template preview feedback。
+- SUSTech 与组织模板统一整理为 `templates/decks/` 条目。
+- 已清理旧品牌类 `templates/layouts/`；该目录现在只保留结构型 layout presets。
+- 通过 `VERSION` 和 `RELEASE_META.json` 记录版本、上游基线和追踪范围。
+- 通过 [`docs/Roadmap.md`](docs/Roadmap.md) 记录 SUSTech 增强清单和上游兼容关注项。
 
-- `.env`
-- `.synced_hash`
-- `projects/`
-- `tmp/`
-- `cache/`
-- `docs/plan/`
-- 本地虚拟环境目录
+## 目录结构
 
-## 许可证
+```text
+SKILL.md                 # agent 主入口
+VERSION                  # 当前 release 版本
+RELEASE_META.json         # 版本、上游基线与追踪范围元数据
+.env.example              # 环境变量示例
+requirements.txt          # Python 依赖列表
+references/               # agent 角色参考与生成指引
+scripts/                  # 转换、渲染、预览、导出、模板等辅助脚本
+templates/                # brands / layouts / decks / charts / icons
+workflows/                # live-preview、create-template、visual-review、图表校验等流程
+docs/                     # 使用与设计文档
+```
 
-本仓库沿用上游项目的 MIT License。详见 [LICENSE](./LICENSE)。
+## 快速开始
 
-## 第三方说明
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+```
 
-部分内置或引用的图标、品牌标记、来源图片和模板资源，可能仍然遵循其各自的上游许可证或署名要求。详见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。
+然后根据需要在 `.env` 中配置模型、图像生成、搜索、TTS 等 provider。
 
-## 说明
+agent 主入口：
 
-本公开仓库用于承载 SUSTech 增强版本线的 release-quality 源码，不承载日常私有计划、运行状态或本地工作区信息。
+```text
+SKILL.md
+```
+
+常用 CLI 检查：
+
+```bash
+python3 scripts/svg_to_pptx.py --help
+python3 scripts/svg_editor/server.py --help
+python3 scripts/latex_render.py --help
+python3 scripts/visual_review.py --help
+python3 scripts/register_template.py --help
+```
+
+说明：`visual-review` 只有在执行真实浏览器渲染时才需要 Playwright / Chromium；基础安装不强制要求。
+
+## 更多文档
+
+- [文档索引](docs/README.md)
+- [SUSTech 增强路线图](docs/Roadmap.md)
+- [技术设计](docs/technical-design.md)
+- [模板架构](docs/templates-architecture.md)
+- [第三方说明](THIRD_PARTY_NOTICES.md)
+
+## License
+
+本仓库沿用上游 MIT License。详见 [LICENSE](LICENSE)。
+
+## Third-party Notices
+
+内置或引用的图标、品牌标记、来源图片和模板资产可能遵循各自的上游许可证或署名要求。详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
