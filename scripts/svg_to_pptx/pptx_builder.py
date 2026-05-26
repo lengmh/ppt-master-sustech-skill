@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import mimetypes
 import os
 import re
+import posixpath
 import shutil
 import tempfile
 import zipfile
@@ -209,11 +211,13 @@ def _build_sequence_targets(
     for seq_idx, (_has_order, _order, _original_idx, _svg_id, group_cfg) in enumerate(ordered):
         shape_id = int(group_cfg['_shape_id'])
         raw_effect = group_cfg.get('effect')
-        if raw_effect in ('mixed', 'random'):
-            effect = pick_animation_effect(str(raw_effect), seq_idx, mixed_animation_offset)
+        if raw_effect in ('auto', 'mixed', 'random'):
+            effect = pick_animation_effect(
+                str(raw_effect), seq_idx, mixed_animation_offset, group_id=_svg_id,
+            )
         else:
             effect = str(raw_effect or pick_animation_effect(
-                animation, seq_idx, mixed_animation_offset,
+                animation, seq_idx, mixed_animation_offset, group_id=_svg_id,
             ))
         item_duration = _to_float(group_cfg.get('duration'), duration)
         delay_seconds = _to_float(
@@ -225,6 +229,12 @@ def _build_sequence_targets(
     mixed_count = 0
     if animation == 'mixed':
         mixed_count = sum(1 for _target in seq_targets[1:])
+    elif animation == 'auto':
+        # 'auto' accumulates a cross-slide offset so the image pool and the
+        # unmatched-id fallback rotate as the deck advances. Single-effect
+        # semantic matches (title→fade, chart→wipe etc.) are unaffected
+        # because they ignore the offset.
+        mixed_count = len(seq_targets)
     return seq_targets, mixed_count
 
 
@@ -283,6 +293,40 @@ def _prerender_legacy_pngs(
     return results
 
 
+_REL_TARGET_RE = re.compile(r'<Relationship\b[^/]*?/>', re.DOTALL)
+_TARGET_ATTR_RE = re.compile(r'Target="([^"]+)"')
+_TARGET_MODE_EXT_RE = re.compile(r'TargetMode="External"')
+
+
+def _verify_internal_rels_targets(extract_dir: Path) -> list[str]:
+    """Return a list of dangling internal Targets across every .rels in the package.
+
+    Each entry is formatted as "<rels-path> -> <missing-target>". An empty list
+    means every internal Target resolves to a real file in the package.
+    """
+    problems: list[str] = []
+    for rels_path in extract_dir.rglob('*.rels'):
+        rels_rel = rels_path.relative_to(extract_dir).as_posix()
+        # `_rels/foo.xml.rels` lives one level below its referent's directory;
+        # Targets resolve relative to the parent of that `_rels` folder.
+        base_dir = posixpath.dirname(posixpath.dirname(rels_rel))
+        content = rels_path.read_text(encoding='utf-8')
+        for match in _REL_TARGET_RE.finditer(content):
+            element = match.group(0)
+            if _TARGET_MODE_EXT_RE.search(element):
+                continue
+            target_match = _TARGET_ATTR_RE.search(element)
+            if not target_match:
+                continue
+            target = target_match.group(1)
+            if target.startswith(('http://', 'https://', 'mailto:')):
+                continue
+            resolved = posixpath.normpath(posixpath.join(base_dir, target)) if base_dir else posixpath.normpath(target)
+            if not (extract_dir / resolved).exists():
+                problems.append(f'{rels_rel} -> {resolved}')
+    return problems
+
+
 def create_pptx_with_native_svg(
     svg_files: list[Path],
     output_path: Path,
@@ -306,6 +350,8 @@ def create_pptx_with_native_svg(
     narration_padding: float = 0.5,
     cache_dir: Path | None = None,
     workers: int | None = None,
+    merge_paragraphs: bool = False,
+    conversion_trace_path: Path | None = None,
 ) -> bool:
     """Create a PPTX file with native SVG.
 
@@ -333,6 +379,7 @@ def create_pptx_with_native_svg(
         narration_audio: Optional dict mapping SVG stem to narration audio file.
         use_narration_timings: Whether to set slide auto-advance from audio duration.
         narration_padding: Extra seconds added after each narration before advancing.
+        conversion_trace_path: Optional JSON path for native conversion diagnostics.
 
     Returns:
         Whether all slides were successfully created.
@@ -445,6 +492,7 @@ def create_pptx_with_native_svg(
         narration_slides_created: set[int] = set()
         audio_exts_used: set[str] = set()
         mixed_animation_offset = 0
+        conversion_trace: list[dict[str, Any]] | None = [] if conversion_trace_path else None
 
         for i, svg_path in enumerate(svg_files, 1):
             slide_num = i
@@ -456,6 +504,8 @@ def create_pptx_with_native_svg(
                     slide_xml, media_files_dict, rel_entries, anim_targets = (
                         convert_svg_to_slide_shapes(
                             svg_path, slide_num=slide_num, verbose=verbose,
+                            merge_paragraphs=merge_paragraphs,
+                            trace_out=conversion_trace,
                         )
                     )
                     slide_transition, slide_transition_duration, slide_auto_advance = (
@@ -508,7 +558,7 @@ def create_pptx_with_native_svg(
                             slide_animation_stagger,
                             mixed_animation_offset,
                         )
-                        if slide_animation == 'mixed':
+                        if slide_animation in ('mixed', 'auto'):
                             mixed_animation_offset += mixed_count
                         timing_xml = '\n' + create_sequence_timing_xml(
                             seq_targets, duration=slide_animation_duration,
@@ -791,6 +841,14 @@ def create_pptx_with_native_svg(
             with open(content_types_path, 'w', encoding='utf-8') as f:
                 f.write(content_types)
 
+        rels_problems = _verify_internal_rels_targets(extract_dir)
+        if rels_problems:
+            details = '\n'.join(f'  - {p}' for p in rels_problems)
+            raise RuntimeError(
+                'PPTX package contains dangling internal relationship targets; '
+                'PowerPoint will report the file as corrupt:\n' + details
+            )
+
         # Repackage PPTX to a temporary file first. The public output path is
         # replaced only after every slide and relationship has succeeded.
         temp_output_path = temp_dir / 'result.pptx'
@@ -801,9 +859,23 @@ def create_pptx_with_native_svg(
                     zf.write(file_path, arcname)
         shutil.move(str(temp_output_path), str(output_path))
 
+        if conversion_trace_path and conversion_trace is not None:
+            conversion_trace_path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                'output': str(output_path),
+                'slide_count': len(svg_files),
+                'slides': conversion_trace,
+            }
+            conversion_trace_path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2),
+                encoding='utf-8',
+            )
+
         if verbose:
             print()
             print(f"[Done] Saved: {output_path}")
+            if conversion_trace_path and conversion_trace is not None:
+                print(f"  Trace: {conversion_trace_path}")
             print(f"  Succeeded: {success_count}, Failed: {len(svg_files) - success_count}")
             if use_compat_mode and has_any_image:
                 print(f"  Mode: Office compatibility mode (supports all Office versions)")

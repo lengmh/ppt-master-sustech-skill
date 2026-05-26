@@ -37,12 +37,7 @@ python3 ${SKILL_DIR}/scripts/svg_editor/server.py <project_path>
 The server binds `127.0.0.1:5050`, opens the browser on a local desktop, and edits `<project_path>/svg_output/` in place. After it prints `SVG Editor running at http://localhost:5050`, tell the user in their language, in one short message:
 
 - editor is at `http://localhost:5050`
-- drag selected elements to generate move annotations
-- drag current corner handle to generate scale annotations for the currently selected object
-- single selected text elements may show `Layout issues` and suggestion buttons
-- repeated drag / scale / layout suggestions on the same object are merged locally into one final annotation before save
-- drag preview stays where dropped until **Reset preview** / reload / successful **Submit annotations**
-- after confirming, click **Add annotation** → **Submit annotations** → return to the chat and say `apply my annotations`
+- click an element → write the change → click **Submit annotations** → return to the chat and say `apply my annotations` (or quote the browser prompt)
 - to skip the editor, just describe the change in chat
 
 Do not wait for confirmation before launching — the user already asked for preview, so launching is the response. Port conflicts → `--port <other>` and report the new URL. Remote access → see the appendix.
@@ -77,11 +72,16 @@ Triggered by the user signals listed in "When to Run".
 ## Notes (editor invariants — referenced from SKILL.md Step 6)
 
 - **UI**: bilingual (EN/中); auto-detects from `navigator.language`, persists in `localStorage`, toggled via the **中 / EN** button on the right panel. Slide navigation: first/prev/next/last buttons at the top of the center panel, plus `←` / `→` / `Home` / `End` (suppressed while typing in the annotation textarea).
+- **Selection**: default group-level selection uses top-level semantic groups; when one group is selected, **Enter child elements** switches into child selection for text / rect / image / simple path edits; **Return to group** goes back to the containing group.
+- **Visual edit assists**: selected elements can be dragged in the browser to preview position changes; single selected elements show scale handles for resize preview; **Reset preview** clears unsaved move / scale previews on the current slide. These previews do not mutate the SVG until the user submits an annotation and the chat agent applies it.
+- **Annotation synthesis**: drag / scale previews generate or merge movement / resize instructions into the annotation textarea. Multi-selection drag creates one merged annotation for all selected ids.
+- **Text layout issue detection**: selecting text runs a lightweight layout check for overflow / cramped text / suspicious container fit. The Layout issues panel can inject a suggested annotation into the textarea.
 - **Buttons**: `Add annotation` stages locally; `Submit annotations` writes to disk and keeps the service running; `Exit preview` is the only UI action that stops Flask.
-- **Left-bottom utility**: `Reset preview` clears the temporary drag preview state for the current slide without touching saved annotations.
-- **Stop conditions**: once started, the service runs until the user clicks **Exit preview** in the browser, or asks in chat to stop it.
+- **Live refresh**: in live mode the slide list polls the server; if the current slide changes on disk, a reload banner appears instead of silently replacing the page under the user's cursor. Parse warnings (for example missing SVG width/height or icon inline failures) surface as banners.
+- **Stop conditions**: the service stops when the user clicks **Exit preview** in the browser, asks in chat to stop it, the idle timeout fires, or the process is killed externally.
 - **Port**: default `5050`; override with `--port <other>`.
-- **Idle timeout**: plain mode `900s`, `--live` mode `0` (disabled); override with `--timeout <seconds>`.
+- **Idle timeout**: plain mode `900s`, `--live` mode `7200s`; override with `--timeout <seconds>` (`0` disables).
+- **Single instance per project**: `<project_path>/.live_preview.lock` records the running pid + port. A second launch against the same project refuses to start and prints the existing URL; stale locks (dead pid) are overwritten on the next launch. Delete the file by hand only if the process is gone but the lock remains (rare — `kill -9` is the only common cause).
 - **Transient ids**: each element gets a temporary `_edit_N` id while the editor is running. On save, only annotated elements keep their id; unannotated `_edit_N` ids are stripped before write-back.
 - **Browser preview**: the server inlines `<use data-icon>` placeholders and serves `images/*` so SVG renders correctly; the on-disk SVG is unchanged by this preview.
 

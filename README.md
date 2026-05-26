@@ -14,8 +14,8 @@
 
 ## 发布身份
 
-- **Release Version**: `r2.7.0-v0.1.1`
-- **Upstream Baseline**: `hugohe3/ppt-master@v2.7.0`
+- **Release Version**: `r2.8.0-v0.1.0`
+- **Upstream Baseline**: `hugohe3/ppt-master@v2.8.0`
 - **Package Root Dir**: `ppt-master/`
 
 ## 这个仓库包含什么

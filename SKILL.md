@@ -34,6 +34,12 @@ description: >
 > - **Response language**: match the user's input and source materials. Explicit user override (e.g., "请用英文回答") takes precedence.
 > - **Template format**: `design_spec.md` MUST follow its original English template structure (section headings, field names) regardless of conversation language. Content values may be in the user's language.
 
+
+> [!NOTE]
+> ## SUSTech Release Identity
+>
+> This local skill source follows the SUSTech release contract `r<upstream-version>-v<local-version>`. Current release identity is `r2.8.0-v0.1.0` on upstream baseline `hugohe3/ppt-master@v2.8.0`. Keep `VERSION`, `RELEASE_META.json`, `README.md`, `docs/README.md`, `requirements.txt`, and `.env.example` aligned when preparing a release; use `scripts/package_release.py` for strict-local packaging.
+
 > [!IMPORTANT]
 > ## 🔌 Compatibility With Generic Coding Skills
 >
@@ -52,6 +58,7 @@ description: >
 | `${SKILL_DIR}/scripts/source_to_md/web_to_md.py` | Web page to Markdown (supports WeChat via `curl_cffi`) |
 | `${SKILL_DIR}/scripts/project_manager.py` | Project init / validate / manage |
 | `${SKILL_DIR}/scripts/analyze_images.py` | Image analysis |
+| `${SKILL_DIR}/scripts/latex_render.py` | LaTeX formula rendering (manifest-driven PNG assets) |
 | `${SKILL_DIR}/scripts/image_gen.py` | AI image generation (multi-provider) |
 | `${SKILL_DIR}/scripts/svg_quality_checker.py` | SVG quality check |
 | `${SKILL_DIR}/scripts/total_md_split.py` | Speaker notes splitting |
@@ -66,6 +73,7 @@ For complete tool documentation, see `${SKILL_DIR}/scripts/README.md`.
 | Index | Path | Purpose |
 |-------|------|---------|
 | Layout templates | `${SKILL_DIR}/templates/layouts/layouts_index.json` | Query available page layout templates |
+| Brand presets | `${SKILL_DIR}/templates/brands/brands_index.json` | Query available brand identity presets (color / typography / logo / voice) |
 | Visualization templates | `${SKILL_DIR}/templates/charts/charts_index.json` | Query available visualization SVG templates (charts, infographics, diagrams, frameworks) |
 | Icon library | `${SKILL_DIR}/templates/icons/` | See `${SKILL_DIR}/templates/icons/README.md`; search icons on demand with `ls templates/icons/<library>/ \| grep <keyword>` |
 
@@ -74,11 +82,13 @@ For complete tool documentation, see `${SKILL_DIR}/scripts/README.md`.
 | Workflow | Path | Purpose |
 |----------|------|---------|
 | `topic-research` | `workflows/topic-research.md` | Pre-pipeline — gather web sources when the user supplies only a topic with no source files |
-| `create-template` | `workflows/create-template.md` | Standalone template creation workflow |
+| `create-template` | `workflows/create-template.md` | Standalone layout/deck template creation workflow |
+| `create-brand` | `workflows/create-brand.md` | Standalone brand-only template creation (identity preset; no SVG page roster) |
 | `resume-execute` | `workflows/resume-execute.md` | Phase B entry — resume execution in a fresh chat after Phase A (Step 1–5) completed in another session (split mode) |
 | `verify-charts` | `workflows/verify-charts.md` | Chart coordinate calibration — run after SVG generation if the deck contains data charts |
 | `customize-animations` | `workflows/customize-animations.md` | Object-level PPTX animation customization — run only when the user explicitly asks to tune animation order/effects/timing |
 | `live-preview` | `workflows/live-preview.md` | Browser-based live preview — auto-started during generation and re-enterable any time the user mentions "live preview", "preview", "看效果", or wants to click/select a slide element |
+| `visual-review` | `workflows/visual-review.md` | Per-page rubric-based visual self-check — run only when the user explicitly asks for a visual re-pass on the generated SVGs (between Executor and post-processing). Opt-in only; never invoked by the main pipeline. |
 
 ---
 
@@ -103,6 +113,20 @@ When the user provides non-Markdown content, convert immediately:
 | Web link | `python3 ${SKILL_DIR}/scripts/source_to_md/web_to_md.py <URL>` |
 | WeChat / high-security site | `python3 ${SKILL_DIR}/scripts/source_to_md/web_to_md.py <URL>` (requires `curl_cffi`, included in `requirements.txt`) |
 | Markdown | Read directly |
+
+> **Office vector assets (EMF/WMF) from DOCX/PPTX sources**:
+> `doc_to_md.py` / `ppt_to_md.py` extract embedded Office vector images (.emf/.wmf)
+> alongside bitmap images. After `import-sources`, these land in `images/`
+> together with `image_manifest.json` and are first-class assets in §VIII Image Resource List.
+>
+> **Do NOT convert EMF/WMF to PNG.** The PPT Master pipeline preserves them as external
+> references (`finalize_svg.py` skips them) and `svg_to_pptx.py` embeds them as
+> PPTX-native media via `image/x-emf` / `image/x-wmf` MIME — PowerPoint renders them at full vector fidelity.
+> Converting via LibreOffice/Inkscape introduces CJK font substitution drift and
+> rasterization loss; the original EMF/WMF is always higher fidelity than the converted PNG.
+>
+> Browser-based live preview cannot render EMF (will show blank) — this is expected;
+> the PPTX output is the source of truth.
 
 **✅ Checkpoint — Confirm source content is ready, proceed to Step 2.**
 
@@ -135,36 +159,112 @@ Import source content (choose based on the situation):
 
 🚧 **GATE**: Step 2 complete; project directory structure is ready.
 
-**Default — free design.** Proceed directly to Step 4. Do NOT query `layouts_index.json` unless triggered. Do NOT ask the user. Do NOT proactively suggest, hint at, or fuzzy-match any template based on content, slug-like words, or vague style descriptions.
+**Default — free design.** Proceed directly to Step 4. Do NOT query any `*_index.json` unless triggered. Do NOT ask the user. Do NOT proactively suggest, hint at, or fuzzy-match any template based on content, slug-like words, or vague style descriptions.
 
-**Template flow triggers ONLY on an explicit template directory path** supplied by the user in their initial message. The trigger rule is mechanical, not interpretive:
+**Template flow triggers ONLY on explicit directory paths** supplied by the user in their initial message. The trigger rule is mechanical, not interpretive:
 
 | User input contains | Step 3 action |
 |---|---|
-| An explicit path to a template directory (e.g. `skills/ppt-master/templates/layouts/academic_defense/`, `projects/foo/template/`, or any other absolute / relative path that resolves to a directory containing `design_spec.md` and one or more page SVGs) | Copy that directory's SVGs + `design_spec.md` + assets into the project, advance |
-| Anything else — including bare template names ("用 academic_defense 模板"), style descriptions ("麦肯锡风格" / "Google style"), brand mentions ("招商银行风格"), vague intent ("想用个模板"), or silence | Skip Step 3, free design |
+| One or more explicit template directory paths (each resolves to a directory containing `design_spec.md` with `kind: brand` / `kind: layout` / `kind: deck` in its YAML frontmatter) | Read each spec's `kind`, dispatch per the kind matrix below, fuse if multiple |
+| Anything else — bare template names ("用 academic_defense"), style descriptions ("麦肯锡风格"), brand mentions ("招商银行风格"), vague intent ("想用个模板"), or silence | Skip Step 3, free design |
 
-There is no slug matching, no name lookup, no fuzzy resolution. A template name without a path does not trigger — the user must give a path the AI can `cd` into.
+There is no slug matching, no name lookup, no fuzzy resolution. A name without a path does not trigger — the user must give a path the AI can `cd` into.
 
-The path may live anywhere — `skills/ppt-master/templates/layouts/<name>/` (the built-in library), `projects/<other_project>/template/` (reusing a previous project's templates), or any other location. Location is irrelevant; what matters is that the user named the path.
+> Style descriptions ("麦肯锡风格" / "Keynote 风" / "极简风" / etc.) never trigger Step 3. They flow into Strategist's Eight Confirmations as a style brief (color / typography / tone in confirmations e–g).
+
+> Bare names ("academic_defense", "招商银行", "anthropic") do NOT trigger Step 3 even if a matching directory exists in the library. The user must give a path. AI must not "helpfully" resolve a name to a path.
+
+> "What templates exist?" is out-of-band Q&A — answer by listing entries from `brands_index.json` / `layouts_index.json` / `decks_index.json` together with their paths. Listing alone does not advance the pipeline; the user must send a path back to trigger Step 3.
+
+> To create a new layout or deck, read [`workflows/create-template.md`](workflows/create-template.md). To create a new brand, read [`workflows/create-brand.md`](workflows/create-brand.md).
+
+#### Three template kinds
+
+The architecture has three independent reference bundles. Full schema in [`docs/zh/templates-architecture.md`](docs/zh/templates-architecture.md). Summary:
+
+| Kind | Physical dir | Contains | Frontmatter |
+|---|---|---|---|
+| **brand** | `templates/brands/<id>/` | identity-only segment: color / typography / logo / voice / icon style | `kind: brand` |
+| **layout** | `templates/layouts/<id>/` | structure-only segment: canvas / page structure / page types / SVG roster | `kind: layout` |
+| **deck** | `templates/decks/<id>/` | full replica: identity + structure + middle (template overview) segments | `kind: deck` |
+
+**Segment ownership** (governs fusion override priority):
+
+| Segment | Sections | Owner kind on fusion |
+|---|---|---|
+| Identity | Color Scheme / Typography / Logo / Voice & Tone / Icon Style | brand |
+| Structure | Canvas / Page Structure / Page Types / SVG Roster | layout |
+| Middle | Template Overview (use cases / design intent) | deck (no other kind writes this) |
+
+#### Single-path dispatch
+
+| User path's `kind` | Step 3 action |
+|---|---|
+| `kind: brand` | Copy `design_spec.md` + logo files + asset subdirs (`images/` / `illustrations/` / `icons/`) into `<project>/templates/`. Strategist locks identity segment as truth; structure stays free. |
+| `kind: layout` | Copy `design_spec.md` + SVG roster + asset files into `<project>/templates/`. Strategist locks structure; identity decided in Eight Confirmations e–g. |
+| `kind: deck` | Copy everything (`design_spec.md` + SVGs + logos + assets) into `<project>/templates/`. Strategist locks all segments; Eight Confirmations narrows to deck-content fields (audience / page count / outline / tone tweaks). |
 
 ```bash
 TEMPLATE_DIR=<user-supplied path>
-cp ${TEMPLATE_DIR}/*.svg <project_path>/templates/
-cp ${TEMPLATE_DIR}/design_spec.md <project_path>/templates/
-cp ${TEMPLATE_DIR}/*.png <project_path>/images/ 2>/dev/null || true
-cp ${TEMPLATE_DIR}/*.jpg <project_path>/images/ 2>/dev/null || true
+cp -r ${TEMPLATE_DIR}/* <project_path>/templates/
 ```
 
-> Style descriptions ("麦肯锡风格" / "Keynote 风" / "极简风" / etc.) never trigger Step 3. They flow naturally into Strategist's Eight Confirmations as part of the user's input — Strategist uses them as a style brief when proposing color / typography / tone in confirmations e and g.
+The single-line copy suffices for all three kinds — the spec's `kind` field tells Strategist how to read it; downstream code doesn't distinguish.
 
-> Bare template names ("academic_defense", "招商银行") do NOT trigger Step 3 even if a folder by that name exists in the library. The user must give a path. AI must not "helpfully" resolve a name to a path.
+#### Multi-path fusion
 
-> "What templates exist?" is out-of-band Q&A — answer by listing entries from `layouts_index.json` together with their paths. Listing alone does not advance the pipeline; the user still has to send a path to trigger the Step 3 copy.
+When the user gives two or more paths of **different kinds**, Step 3 fuses them into a single `<project>/templates/design_spec.md`. **Default granularity is segment-level integer replacement** — entire identity / structure / middle segments are taken from the highest-priority source for that segment, no implicit field-level mixing.
 
-> To create a new template, read `workflows/create-template.md`.
+Override priority by segment:
 
-**✅ Checkpoint — Default path proceeds to Step 4 without user interaction. If the user's input contains an explicit template directory path, that directory is copied before advancing.**
+| Combination | Identity from | Structure from | Middle from |
+|---|---|---|---|
+| brand only | brand | (free design) | (none) |
+| layout only | (free design) | layout | (none) |
+| deck only | deck | deck | deck |
+| brand + layout | brand | layout | (none) |
+| brand + deck | brand (overrides deck) | deck | deck |
+| layout + deck | deck | layout (overrides deck) | deck |
+| brand + layout + deck | brand | layout | deck |
+
+Field-level micro-adjustment (e.g. "use anthropic brand but primary changed to #FF0000") is **not** part of Step 3 fusion — it flows into Strategist Eight Confirmations e–g as a normal user request.
+
+#### Same-kind multiple paths — conflict resolution
+
+When the user gives two paths of the **same kind** (e.g. `brands/anthropic` + `brands/google`), Step 3 surfaces a conflict prompt before fusing — like resolving a git merge conflict:
+
+```
+AI: 你给了两个 brand，检测到段级冲突：
+    - Color Scheme（Anthropic 橙红 vs Google 多色）
+    - Typography（Styrene/AnthropicSans vs GoogleSans/Roboto）
+    - Logo（Anthropic 标 vs Google 标）
+    - Voice & Tone（restrained vs friendly）
+    - Icon Style（stroke vs filled）
+
+    要 (a) 全部按 Anthropic / (b) 全部按 Google / (c) 逐段挑？
+```
+
+Rules:
+- Default: no implicit ordering — every cross-source segment difference is reported as a conflict
+- Only when the user picks `(c)` does AI walk through each segment one by one
+- Field-level conflicts are out of scope — segment-level only
+- Three or more same-kind paths are not supported — ask the user to converge to at most two
+
+#### Fused spec provenance
+
+When fusion happens (any multi-path case), the resulting `<project>/templates/design_spec.md` carries a provenance block immediately under its H1:
+
+```markdown
+> **Fused from:**
+> - deck: `templates/decks/招商银行/` （base）
+> - brand: `templates/brands/anthropic/` （identity override）
+> - layout: `templates/layouts/academic_defense/` （structure override）
+> - conflicts resolved: Color Scheme from anthropic（user picked a）
+```
+
+Single-path Step 3 does **not** add provenance (the source is self-evident from the copied files).
+
+**✅ Checkpoint — Default path proceeds to Step 4 without user interaction. If the user supplied one or more explicit template paths, those have been dispatched (or fused) into `<project_path>/templates/` before advancing.**
 
 ---
 
@@ -189,7 +289,7 @@ Read references/strategist.md
 4. Style objective
 5. Color scheme
 6. Icon usage approach
-7. Typography plan
+7. Typography plan, including formula rendering policy
 8. Image usage approach
 
 **Mandatory — split-mode note** (not a ninth confirmation): after listing the eight confirmation details, you MUST append exactly one short line (rendered in the user's language, prefixed with 💡) about generation mode. Pick the variant by qualitative read of Phase A signals — recommended page count, source-material bulk, whether `topic-research` ran with substantial web-fetch accumulation:
@@ -201,7 +301,27 @@ Read references/strategist.md
 
 This line is required output every run — the user must always see the mode choice exists. Whether to act on it is the user's call.
 
-If the user provided images, run analysis **before outputting the design spec**:
+**Formula rendering policy lives inside item 7 (Typography plan)**:
+
+| Policy | Behavior |
+|---|---|
+| `mixed` (default) | Strategist renders complex formula-worthy expressions as PNG assets; simple inline expressions remain editable text / Unicode |
+| `render-all` | Strategist renders every formula-worthy expression as PNG assets |
+| `text-only` | No formula rendering; formulas remain editable text / Unicode |
+
+After the Eight Confirmations are approved and **before outputting `design_spec.md` / `spec_lock.md`**, if the confirmed formula policy is `mixed` or `render-all` and the content contains formula-worthy expressions, Strategist MUST:
+
+1. Identify explicit LaTeX and any source expressions that should be faithfully structured as formulas.
+2. Write `<project_path>/images/formula_manifest.json` with only the formulas selected for rendering.
+3. Run:
+   ```bash
+   python3 ${SKILL_DIR}/scripts/latex_render.py <project_path>
+   ```
+4. Include the rendered formula PNGs as `Acquire Via: formula`, `Status: Rendered`, `Type: Latex Formula` rows in `design_spec.md §VIII Image Resource List`; also list them in `spec_lock.md images` with `| no-crop`.
+
+The formula renderer uses a provider fallback chain by default: `codecogs,quicklatex,mathpad,wikimedia`. The first three are color-aware; Wikimedia is an availability fallback. Formula PNGs are transparent by default: manifest `background` is the temporary render matte and transparency-removal reference, not a retained final background unless `transparent: false` is set for that item. Do not scan `spec_lock.md` for `$...$` or `$$...$$`. Dollar-delimited math in source material is only a signal for Strategist; the renderer consumes the explicit manifest.
+
+If the user provided images or formula PNGs were rendered, run analysis **before outputting the design spec**:
 ```bash
 python3 ${SKILL_DIR}/scripts/analyze_images.py <project_path>/images
 ```
@@ -226,9 +346,9 @@ python3 ${SKILL_DIR}/scripts/analyze_images.py <project_path>/images
 
 ### Step 5: Image Acquisition Phase (Conditional)
 
-🚧 **GATE**: Step 4 complete; Design Specification & Content Outline generated and user confirmed.
+🚧 **GATE**: Step 4 complete; Design Specification & Content Outline generated and user confirmed. Any formula rows already have `Acquire Via: formula` and `Status: Rendered`.
 
-> **Trigger**: At least one row in the resource list has `Acquire Via: ai` and/or `Acquire Via: web`. If every row is `user` or `placeholder`, skip to Step 6.
+> **Trigger**: At least one row in the resource list has `Acquire Via: ai` and/or `Acquire Via: web`. If every row is `user`, `formula`, or `placeholder`, skip to Step 6.
 
 **Always load the common framework**:
 
@@ -333,6 +453,8 @@ python3 ${SKILL_DIR}/scripts/svg_quality_checker.py <project_path>
 
 > **Chart pages?** If this deck contains data charts (bar / line / pie / radar / etc.), run the standalone [`verify-charts`](workflows/verify-charts.md) workflow before Step 7 to calibrate coordinates. AI models routinely introduce 10–50 px errors when mapping data to pixel positions; verify-charts eliminates that class of error. Skip if no chart pages.
 
+> **Visual self-check (opt-in)?** If the user explicitly asked for a per-page visual re-pass on the SVGs ("跑一下视觉自检 / 视觉回看", "visual review", "check pages visually", etc.), run the standalone [`visual-review`](workflows/visual-review.md) workflow before Step 7. Do NOT run it by default and do NOT recommend it based on inferred model capability or deck size — trigger is user request only.
+
 ---
 
 ### Step 7: Post-processing & Export
@@ -361,23 +483,34 @@ python3 ${SKILL_DIR}/scripts/finalize_svg.py <project_path>
 **Step 7.3** — Export PPTX (embeds speaker notes by default):
 ```bash
 python3 ${SKILL_DIR}/scripts/svg_to_pptx.py <project_path>
-# Output:
-#   exports/<project_name>_<timestamp>.pptx           ← main native pptx (reads svg_output/, high fidelity)
-#   backup/<timestamp>/<project_name>_svg.pptx        ← SVG preview pptx (reads svg_final/)
-#   backup/<timestamp>/svg_output/                    ← Executor SVG source backup
+# Output (default-flow mode):
+#   exports/<project_name>_<timestamp>.pptx           ← native pptx (canonical output, reads svg_output/)
+#   backup/<timestamp>/svg_output/                    ← Executor SVG source backup (always written)
+#
+# Add --svg-snapshot to additionally emit the SVG-image preview pptx alongside the native pptx:
+#   exports/<project_name>_<timestamp>_svg.pptx      ← SVG preview pptx (reads svg_final/)
 ```
 
-> The two products now read from different sources by design: native pptx
-> consumes `svg_output/` so the converter can preserve high-fidelity primitives
-> (icon `<use>` placeholders, image `preserveAspectRatio` → `srcRect`, rounded
-> rect `rx/ry` → `prstGeom roundRect`). The legacy/preview pptx still consumes
-> `svg_final/` because PowerPoint's internal SVG parser cannot handle those
-> primitives. Pass `-s output` or `-s final` to force a single source on both
-> products if you need the older single-source behaviour.
+> The native pptx consumes `svg_output/` directly so the converter can preserve
+> high-fidelity primitives (icon `<use>` placeholders, image `preserveAspectRatio`
+> → `srcRect`, rounded rect `rx/ry` → `prstGeom roundRect`). The `svg_output/`
+> snapshot in `backup/<timestamp>/` is always written so the project can be
+> re-exported from frozen SVG sources without re-running the LLM. The SVG-rendered
+> preview pptx is opt-in via `--svg-snapshot` — live preview already provides the
+> SVG visual reference, so it's only needed when you want a self-contained file
+> to share. Pass `-s output` or `-s final` to force a single source if you need it.
+
+> **Paragraph editability vs line fidelity** — by default every dy-stacked line is
+> its own PowerPoint text frame, preserving exact SVG layout. Add `--merge-paragraphs`
+> only when the user explicitly asks for an editable / wrap-friendly export (e.g.
+> "I want to edit the abstract as one block", "make text boxes resizable / reflow"):
+> mergeable paragraph blocks collapse into one editable text frame with multiple
+> `<a:p>`, at the cost of PowerPoint re-wrapping inside each box. Default off keeps
+> pixel-fidelity; turn it on per the user's request, not on your own judgement.
 
 **Optional animation flags** (the defaults already enable rich entrance animations — adjust only when the user asks for something different):
 - `-t <effect>` — page transition. Default `fade`. Options: `fade` / `push` / `wipe` / `split` / `strips` / `cover` / `random` / `none`.
-- `-a <effect>` — per-element entrance animation. Default `mixed` (auto-vary across the deck). Pass `none` to disable, or pick a specific effect like `fade`. Requires top-level `<g id="...">` groups (already required by Executor).
+- `-a <effect>` — per-element entrance animation. Default `auto` (map effect from group id: chart→wipe, card-/step-/pillar-→fly, title/takeaway→fade; image-like ids `hero` / `figure-` / `image` / `img-` / `kpi` cycle a richer pool — zoom / dissolve / circle / box / diamond / wheel — so multiple images vary across the deck). Pass `none` to disable, a specific effect like `fade`, or `mixed` for the legacy 16-effect cycle. Requires top-level `<g id="...">` groups (already required by Executor).
 - `--animation-trigger {on-click,with-previous,after-previous}` — Start mode (matches PowerPoint's animation-pane Start dropdown). Default `after-previous` (click-free cascade; pace via `--animation-stagger`). Use `on-click` for presenter-paced reveals, or `with-previous` for all-at-once.
 - `--animation-config <path>` — optional object-level sidecar. Default: `<project_path>/animations.json` when present.
 - `--auto-advance <seconds>` — kiosk-style auto-play.
@@ -422,7 +555,8 @@ Before switching roles, **MUST first read** the corresponding reference file. Ou
 |----------|------|
 | Shared technical constraints | `references/shared-standards.md` |
 | Canvas format specification | `references/canvas-formats.md` |
-| Image layout specification | `references/image-layout-spec.md` |
+| Image-text layout patterns (Primary structures + Modifier layers — combine freely) | `references/image-layout-patterns.md` |
+| Image layout sizing (math for side-by-side container dimensions) | `references/image-layout-spec.md` |
 | SVG image embedding | `references/svg-image-embedding.md` |
 | Icon library | `templates/icons/README.md` |
 
@@ -431,4 +565,4 @@ Before switching roles, **MUST first read** the corresponding reference file. Ou
 ## Notes
 
 - Local preview: `python3 -m http.server -d <project_path>/svg_final 8000`
-- **Troubleshooting**: on generation issues (layout overflow, export errors, blank images, etc.), check [`scripts/docs/troubleshooting.md`](scripts/docs/troubleshooting.md) for known solutions
+- **Troubleshooting**: on generation issues (layout overflow, export errors, blank images, etc.), check `docs/faq.md` for known solutions

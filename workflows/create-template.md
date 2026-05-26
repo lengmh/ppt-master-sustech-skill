@@ -1,19 +1,32 @@
 ---
-description: Generate a new PPT layout template based on existing project files or reference templates
+description: Generate a new layout or deck template based on existing project files or reference templates
 ---
 
 # Create New Template Workflow
 
 > **Role invoked**: [Template_Designer](../references/template-designer.md)
 
-Generate a complete set of reusable PPT layout templates for the **global template library**.
+Generate a complete set of reusable PPT templates for the **global template library**.
 
-> This workflow is for **library asset creation**, not project-level one-off customization. The output must be reusable by future PPT projects and discoverable from `templates/layouts/layouts_index.json`.
+> This workflow is for **library asset creation**, not project-level one-off customization. The output must be reusable by future PPT projects and discoverable from the appropriate index file.
+
+> **Companion workflow**: identity-only locking (colors / typography / logo / voice without SVG pages) is handled by [`create-brand.md`](./create-brand.md). Use that when the user wants brand identity but free page layout; use this when fixed page structures are required.
+
+## Kind decision — deck (default) vs layout
+
+This workflow produces one of two kinds of templates depending on whether the source PPT carries a specific brand identity:
+
+| Kind | When | Output dir | What `design_spec.md` writes |
+|---|---|---|---|
+| **deck** (default) | Source is a specific organization's branded PPT (e.g. company report, university defense template); the visual identity is part of the replica | `templates/decks/<id>/` | Full segments: identity + structure + middle |
+| **layout** | Source is a generic stylistic template (no specific brand); only the structural skeleton should be reusable; color / typography decided per-deck downstream | `templates/layouts/<id>/` | Structure segments only (canvas / page structure / page types / SVG roster); identity segment omitted |
+
+Default to **deck** unless the user explicitly says "structure only" / "layout only" / "no brand identity". When in doubt, lean deck — losing identity later is easy; reconstructing it from a layout-mode strip is not. See [`docs/zh/templates-architecture.md`](../docs/zh/templates-architecture.md) for the full kind / schema / fusion model.
 
 ## Process Overview
 
 ```
-Reference Intake & Analysis -> Fact-Based Brief Proposal -> User Confirmation Gate -> Create Directory + Invoke Template_Designer -> Enhanced Validate -> Template Preview Feedback -> Register Index -> Output
+Reference Intake & Analysis -> Fact-Based Brief Proposal -> User Confirmation Gate -> Write brief_lock.json -> Create Directory + Invoke Template_Designer -> Enhanced Validate -> Template Preview Feedback -> Register Index -> Output
 ```
 
 The first three steps derive the brief from facts, not guesses. **No final template directory may be created and no template SVG / `design_spec.md` may be written until `[TEMPLATE_BRIEF_CONFIRMED]` is emitted in Step 3.** Reference-analysis intermediates produced by `pptx_template_import.py` (typically under `/tmp/pptx_template_import/`) are explicitly **not** subject to this gate — they are temporary workspaces feeding Step 2.
@@ -22,7 +35,7 @@ The first three steps derive the brief from facts, not guesses. **No final templ
 
 ## Step 1: Reference Intake & Analysis
 
-Branch by the type of reference source the user supplied. This step produces analysis artefacts only — it does **not** create the final template directory, write `design_spec.md`, or touch `layouts_index.json`.
+Branch by the type of reference source the user supplied. This step produces analysis artefacts only — it does **not** create the final template directory, write `design_spec.md`, or touch `decks_index.json` / `layouts_index.json`.
 
 ### Input source taxonomy
 
@@ -134,187 +147,314 @@ Skip the analysis. Step 2 will list every Required item as `[decision]`; nothing
 Compose a single message that surfaces every Required brief item to the user, **labelling each value's provenance**:
 
 - **`[fact]`** — extracted from Step 1 analysis (e.g. theme color from `manifest.json`)
-- **`[suggested]`** — professional recommendation inferred from the source, but not directly extractable as fact
-- **`[decision]`** — user choice required; the workflow cannot safely infer it
+- **`[suggested]`** — AI-inferred from analysis or context (e.g. tone summary, applicable scenarios; visually estimated values from type C)
+- **`[decision]`** — pure user choice, no analysis substitute (e.g. `template_id`, `replication mode`, `category`)
 
-The proposal must include, at minimum:
+Items to surface:
 
-- Template ID
-- Display name
-- Category
-- Applicable scenarios
-- Tone summary
-- Theme mode
-- Canvas format
-- Replication mode (`standard` / `fidelity` / `mirror`)
-- Fidelity level (`literal` / `adapted`) when replication mode is `standard` or `fidelity`; omit for `mirror`
-- Keywords
-- Theme color / typography direction / asset packaging notes when known
-- For type A `.pptx`: the exact `svg/master_*.svg`, `svg/layout_*.svg`, `svg/slide_*.svg` filenames you read (proof of the hard read gate)
-- A one-line summary of the master / layout structure you extracted
+| Item | Required | Provenance by input type |
+|------|----------|--------------------------|
+| New template ID | Yes | `[decision]` — user chooses ASCII slug; if Chinese brand name, must be filesystem-safe and match the selected kind index exactly |
+| Template display name | Yes | `[decision]` (often the source deck title — `[suggested]` from `summary.md` for type A) |
+| Category | Yes | `[decision]` — one of `brand` / `general` / `scenario` / `government` / `special` |
+| Applicable scenarios | Yes | `[suggested]` from analysis; user confirms |
+| Tone summary | Yes | `[suggested]` from analysis (e.g. `Modern, restrained, data-driven`) |
+| Theme mode | Yes | A: `[fact]` from `manifest.json` background colors. B: `[fact]` from SVG `fill`. C: `[suggested]` from visual estimate. D: `[decision]` |
+| Canvas format | Yes | A/B: `[fact]` from slide size or SVG `viewBox`. C: `[suggested]` from image aspect ratio. D: `[decision]`, default `ppt169` |
+| Replication mode | Yes | `[decision]` — `standard` always available; `fidelity` and `mirror` available for type A (canonical, manifest-anchored) and type B (AI visual clustering / direct 1:1 copy — see Step 1 caveats); reject `fidelity` / `mirror` upfront for type C / D |
+| Visual fidelity for fixed pages | Yes for `standard` / `fidelity` when reference exists; **N/A for `mirror`** (mirror is implicitly literal) | `[decision]` — `literal` (preserve original geometry / decoration / sprite crops as-is; for cover / chapter / ending especially) or `adapted` (use the reference for tone/structure but allow design evolution). Different page types may take different settings |
+| Reference source | Optional | already known if Step 1 ran |
+| Theme color | Optional | A: `[fact]` from theme XML. B: `[fact]` from dominant SVG `fill`. C: `[suggested]` from visual estimate (HEX is approximate). D: `[decision]` |
+| Fonts | Optional | A: `[fact]` from `manifest.json`. B: `[fact]` from SVG `font-family`. C / D: not derivable — `[decision]` if user wants a custom stack |
+| Design style | Optional | `[suggested]` from analysis |
+| Assets list | Optional | A: `[fact]` from `assets/` listing; user picks which to bundle. B / C: `[decision]` per file. D: none |
+| Keywords | Yes | `[suggested]` from analysis (3–5 short tags); user confirms |
 
-The goal of Step 2 is to move every user-visible brief field into one explicit bundle before the blocking confirmation gate.
+For type A, also include in this message:
+
+- the exact `svg/master_*.svg`, `svg/layout_*.svg`, `svg/slide_*.svg` filenames you read (proof of the hard read gate)
+- a one-line summary of the master / layout structure you extracted
+
+The user replies with corrections, additions, or "all good".
+
+> **Persist the brief into `design_spec.md`**. When the Template_Designer writes `design_spec.md` in Step 4, declare a YAML frontmatter block at the top with the confirmed brief (`template_id`, `category`, `summary`, `keywords`, `primary_color`, `canvas_format`, `replication_mode`, etc.). `register_template.py` reads this in Step 7, so the brief flows directly into the index without the AI re-deriving it from prose. See Step 7 for the recommended frontmatter shape.
 
 ---
 
 ## Step 3: User Confirmation Gate
 
-🚧 **GATE**: Step 1 and Step 2 complete.
+**MANDATORY interactive gate — this step BLOCKS Steps 4 onward.**
 
-First, read the confirmation reference:
+1. Echo back the finalized brief (post-corrections) in a single message
+2. Emit the marker `[TEMPLATE_BRIEF_CONFIRMED]` on its own line
 
-```
-Read references/template-brief-confirmation.md
-```
+Skipping this gate — including silently inferring values from the reference source, opened IDE file, or prior conversation — is a workflow violation. Even if the user said "用这个 .pptx 做模板" upfront, you MUST still surface Step 2 with provenance labels and obtain explicit confirmation here. The reference source informs the brief; it does not substitute for it.
 
-⛔ **BLOCKING**: Present the complete **Template Brief** to the user as one bundled package, then **wait for explicit confirmation or modifications**.
+**Required outcome of Step 3** (all must be true before emitting `[TEMPLATE_BRIEF_CONFIRMED]`):
 
-> **Execution discipline**: This is the single user-facing blocking checkpoint in `/create-template`. Before the user confirms, the AI MUST NOT create template files, MUST NOT invoke `Template_Designer`, and MUST NOT register anything into `layouts_index.json`.
+- [ ] User has been shown every Required item in Step 2 with provenance labels
+- [ ] User has replied with values or explicit acceptance of suggested defaults
+- [ ] The template is clearly positioned as a **global library template**
+- [ ] The canvas format is fixed before SVG generation
+- [ ] Replication mode is consistent with the input type (`fidelity` / `mirror` allowed for A and B with B's caveats noted; forbidden for C / D)
+- [ ] The template metadata is complete enough to register into `decks_index.json` or `layouts_index.json`
+- [ ] Marker `[TEMPLATE_BRIEF_CONFIRMED]` emitted on its own line after the echoed brief
 
-The Template Brief MUST:
-
-- follow the structure defined in `references/template-brief-confirmation.md`
-- cover all required metadata from Step 2
-- incorporate relevant extracted facts from the reference source when available
-- clearly separate factual extraction from stylistic judgment
-
-**Revision loop (mandatory)**:
-
-1. If the user gives modification feedback, update the affected recommendations / assumptions
-2. Re-present the **full revised Template Brief** (not only the changed lines)
-3. Wait again for explicit confirmation
-
-Repeat until the user sends an explicit approval message in the current conversation language — for example, `确认` in Chinese or `confirm` / `approved` in English.
-
-Partial agreement, silence, or inferred acceptance do **not** count as confirmation.
-
-After explicit confirmation, treat the confirmed Template Brief as the locked downstream input and emit `[TEMPLATE_BRIEF_CONFIRMED]`. `brief_lock.json` is written only after Step 4 creates the final template directory.
-
-**✅ Checkpoint — Confirm the brief gate is closed, then proceed to Step 4**:
-
-```markdown
-## ✅ Template Brief Confirmation Complete
-- [x] Bundled Template Brief presented
-- [x] User feedback incorporated (if any)
-- [x] Explicit confirmation received
-- [x] `[TEMPLATE_BRIEF_CONFIRMED]` emitted
-- [ ] **Next**: Auto-proceed to Create Directory / Template_Designer
-```
+Step 4 MUST NOT run until `[TEMPLATE_BRIEF_CONFIRMED]` has been emitted in the current conversation.
 
 ---
 
 ## Step 4: Create Template Directory + Invoke Template_Designer
 
+> **Precondition**: `[TEMPLATE_BRIEF_CONFIRMED]` was emitted in Step 3. If not, return to Step 3.
+
+Create the final template directory by confirmed kind:
+
 ```bash
+# deck (default)
+mkdir -p "skills/ppt-master/templates/decks/<template_id>"
+
+# layout
 mkdir -p "skills/ppt-master/templates/layouts/<template_id>"
 ```
 
-> **Output location**: Global templates go to `skills/ppt-master/templates/layouts/`; project templates go to `projects/<project>/templates/`
+> **Output location**: Global deck templates go to `skills/ppt-master/templates/decks/`; structure-only layout templates go to `skills/ppt-master/templates/layouts/`; project templates go to `projects/<project>/templates/`.
 >
-> The generated directory name must match the final template ID used in `layouts_index.json`. After Step 3 confirmation and directory creation, write the single current-state machine contract `brief_lock.json` into `templates/layouts/<template_id>/` before invoking `Template_Designer`.
+> The generated directory name must match the final template ID used in `decks_index.json` or `layouts_index.json`.
 
-**Switch to the Template_Designer role** and generate per role definition. The role input is the **confirmed Template Brief from Step 3** plus the just-written `brief_lock.json`, not a project design spec.
+Immediately persist the confirmed brief before generating assets. This makes the confirmation gate auditable and prevents later metadata drift:
 
-Pass the appropriate internal package based on Step 1 source type:
+Create `skills/ppt-master/templates/<kind_dir>/<template_id>/brief_lock.json` using the schema from `references/template-brief-confirmation.md` and validate it with the helper module:
 
-- Type A `.pptx`: confirmed Template Brief + `brief_lock.json` + `manifest.json` + `summary.md` + `assets/` + `svg/master_*.svg` + `svg/layout_*.svg` + `svg/slide_NN.svg` + `svg/inheritance.json` + `svg-flat/slide_NN.svg` + optional screenshots
-- Type B SVG assets: confirmed Template Brief + `brief_lock.json` + source SVGs + any accompanying `design_spec.md` / `spec_lock.md`
-- Type C images: confirmed Template Brief + `brief_lock.json` + image file list + visual analysis notes
-- Type D no source: confirmed Template Brief + `brief_lock.json`
+```bash
+python3 - <<'PY'
+import json
+from pathlib import Path
+from scripts.template_brief_lock import write_brief_lock
+
+template_dir = Path("skills/ppt-master/templates/<kind_dir>/<template_id>")
+# Distill the confirmed Step 3 brief into the minimum JSON shape documented in
+# references/template-brief-confirmation.md. For mirror mode, omit
+# replication.fidelity_level or set it to "literal".
+brief = { ... }
+write_brief_lock(template_dir, brief)
+PY
+```
+
+Expected file: `skills/ppt-master/templates/<kind_dir>/<template_id>/brief_lock.json`. Treat this file as the source of truth for Step 4 generation. If the brief changes, return to Step 3 and rewrite the lock; do not silently edit generated files against an unlocked brief.
+
+**Switch to the Template_Designer role** and generate per role definition. The role input is the finalized brief from Step 3 plus the analysis bundle from Step 1.
+
+If the input source is type A, pass the following internal package to the role:
+
+- finalized brief from Step 3
+- `manifest.json`
+- `summary.md` (orientation only)
+- exported `assets/`
+- cleaned slide SVG references from `svg/`
+- optional screenshots, if available
+
+For type B, pass the SVG file list, any companion `design_spec.md` / `spec_lock.md`, and the analysis notes.
+For type C, pass the image file list and the visual analysis notes.
+For type D, pass only the finalized brief.
 
 The role uses the analysis bundle to anchor objective facts such as theme colors, fonts, reusable backgrounds, and common branding assets, then rebuilds the final SVG templates in a simplified, maintainable form.
 
 **Apply the visual-fidelity decision from Step 3**: pages marked `literal` (typically cover / chapter / ending) must reproduce the reference's geometry, decoration, and sprite-sheet crops as-is — "simplified, maintainable form" applies only to genuinely redundant structure, not to load-bearing layout. Pages marked `adapted` may use the reference for tone and structural rhythm but evolve the design.
 
+**Sprite-sheet preservation (do NOT simplify away)**: PPTX-exported assets are often sprite sheets — a single tall/large image referenced from multiple slides, each cropping a different region via nested `<svg ... viewBox="...">` wrappers around `<image width="1" height="1">`. This nesting is **load-bearing geometry**, not redundant structure. When rebuilding, preserve the exact `viewBox` crop and the outer `<svg>` placement for every image; do not flatten to a single `<image>` with direct `x/y/width/height`. Verify by sampling: if any asset's pixel dimensions don't match the on-page display aspect, it is a sprite and the wrapper must stay.
+
 **Mirror-mode override** (type A or B): when `Replication mode: mirror`, this step is a **verbatim copy** rather than a reconstruction. The Template_Designer role:
 
-1. Copies the source pages into the template directory **without any modification** other than filename change and asset-path rewrites.
-2. Renames each file using `<NNN>_<page_type>.svg`, zero-padded to 3 digits.
-3. Copies bundled assets into the template directory and rewrites `<image href="...">` paths consistently.
-4. Writes `design_spec.md` per `template-designer.md` — in mirror mode, **§V Page Roster is load-bearing** because the SVGs themselves contain no placeholder contract.
+1. **Copies the source pages** into the template directory **without any modification** — no placeholder insertion, no decorative simplification, no chrome/content reorganization. The SVG that ships in the template is byte-for-byte the source page (modulo filename change and asset path rewrites).
+   - Type A: source is `<import_workspace>/svg-flat/slide_NN.svg`
+   - Type B: source is each `*.svg` in the input directory (already self-contained)
+2. **Renames each file** using the source-order-first convention `<NNN>_<page_type>.svg`, where `<NNN>` is the source-order index zero-padded to 3 digits and `<page_type>` is typically `cover` / `toc` / `chapter` / `content` / `ending` (fall back to `content` when the type cannot be confidently classified). Examples: `001_cover.svg`, `002_toc.svg`, `003_content.svg`, ..., `050_ending.svg`.
+   - Type A: derive `<page_type>` from `manifest.json.pageTypeCandidates`
+   - Type B: derive `<page_type>` from the source filename when it follows the PPT Master convention (`01_cover.svg` → `cover`, `03a_content_two_col.svg` → `content`); otherwise infer from page content or fall back to `content`
+3. **Copies bundled assets** into the template directory and rewrites the `<image href="...">` paths inside each copied SVG to point at the local copies. Asset filenames may be renamed to semantic names (`brand_emblem.png` instead of `image3.png`) when it improves readability — but the rewrite must be consistent across every page.
+   - Type A: assets come from `<import_workspace>/assets/`
+   - Type B: resolve relative paths in source `<image href="...">` against the source SVG location and copy each unique asset; if the source already follows PPT Master conventions (assets co-located with SVGs in the same directory), copy the whole asset set and then rewrite paths
+4. Writes `design_spec.md` per [template-designer.md](../references/template-designer.md) §1 — the **§V Page Roster description per page is the load-bearing artifact** because mirror has no placeholders to advertise the per-page contract; downstream Strategist selects pages purely from these descriptions.
 
-If later preview feedback changes any **brief-level** field (identity, scenarios, keywords, tone/style, theme mode/color, canvas format, asset policy, replication mode, fidelity level, or designer constraints), return to Step 3, reconfirm the revised full brief, overwrite `brief_lock.json`, and increment `revision` before generating again. If feedback is **implementation-level** only, revise `design_spec.md` / SVG outputs directly without changing `brief_lock.json`.
+Mirror mode does **not** invoke the "reconstruct into clean SVG" pathway. The sprite-sheet preservation rule still applies (because the flat SVGs already contain the original sprite wrappers — do not flatten them when copying).
 
-> **Role details**: See [template-designer.md](../references/template-designer.md)
+**Expected outputs from this step** (full spec → [template-designer.md](../references/template-designer.md)):
+
+1. `design_spec.md` — **personality only**. Required sections: Template Overview, Color Scheme, Signature Design Elements, Page Roster (matching the actual SVG files on disk). Skip Typography / Assets / Placeholder Overrides when they would just restate defaults. Declare brief frontmatter for `register_template.py`. **Do not** restate generic SVG constraints, layout pattern libraries, font-size ratio bands, the canonical placeholder table, or content methodology — those are sourced from `shared-standards.md` / `design_spec_reference.md` / `strategist.md` and are already in the downstream reader's context. Full scope rule and skeleton: [template-designer.md §1](../references/template-designer.md#1-must-generate-design_specmd).
+2. Page roster — see [Page Roster](../references/template-designer.md#page-roster) for `standard` / `fidelity` / `mirror` mode rosters, variant naming, and TOC handling
+3. Placeholder vocabulary — pages should adopt the conventional names (`{{TITLE}}`, `{{CONTENT_AREA}}`, ...) when they fit. Full reference: [Placeholder Reference](../references/template-designer.md#4-placeholder-reference-canonical-convention-overridable-per-template). When a template style legitimately needs different vocabulary (consulting → `{{KEY_MESSAGE}}`, branded cover → `{{BRAND_LOGO}}`), declare a `placeholders:` block in `design_spec.md` frontmatter so the registrar and quality checker treat it as the template's authoritative contract. **Avoid** one-off indexed families such as `{{CHAPTER_01_TITLE}}` — use the indexed TOC pattern instead.
+4. Template assets (optional) — Logos / PNG / JPG / reference SVG bundled with the template package
 
 ---
 
-## Step 5: Enhanced Validate
+## Step 5: Enhanced Validate Template Assets
 
 ```bash
-ls -la "skills/ppt-master/templates/layouts/<template_id>"
+# Replace <kind_dir> with "decks" or "layouts" depending on the kind decided above
+ls -la "skills/ppt-master/templates/<kind_dir>/<template_id>"
 ```
 
-Run the template self-check first:
+First verify the brief lock still parses against the local contract:
 
 ```bash
-python3 skills/ppt-master/scripts/template_quality_checker.py "skills/ppt-master/templates/layouts/<template_id>" --format <canvas_format>
+python3 - <<'PY'
+from pathlib import Path
+from scripts.template_brief_lock import load_brief_lock
+load_brief_lock(Path("skills/ppt-master/templates/<kind_dir>/<template_id>"))
+print("brief_lock ok")
+PY
 ```
 
-This self-check must cover:
+Run SVG validation on the template directory:
 
-- `brief_lock.json` → `design_spec.md` consistency
-- `design_spec.md` → SVG / asset consistency
-- upstream template-mode SVG validation via `svg_quality_checker.py`
-- registrar preflight readiness (`register_template.py --dry-run`)
+```bash
+python3 skills/ppt-master/scripts/svg_quality_checker.py "skills/ppt-master/templates/<kind_dir>/<template_id>" --template-mode --format <canvas_format>
+```
+
+Run the template-specific quality gate as well. It checks brief/design-spec alignment, SVG roster consistency, placeholder hygiene, and common template package mistakes that the generic SVG checker does not own:
+
+```bash
+python3 skills/ppt-master/scripts/template_quality_checker.py \
+  "skills/ppt-master/templates/<kind_dir>/<template_id>" \
+  --format <canvas_format> \
+  --require-brief-lock
+```
+
+`--require-brief-lock` is mandatory for new `/create-template` outputs because the confirmed Step 3 brief is part of the SUSTech audit contract. For upstream or legacy template packages that were not created by this workflow, run the checker without `--require-brief-lock`; in that compatibility mode `design_spec.md` frontmatter / prose and registrar dry-run become the metadata source.
+
+`--template-mode` makes the checker:
+
+- glob `*.svg` in the template directory directly (templates do not live under `svg_output/`)
+- skip `spec_lock.md` drift checks (templates do not ship a spec_lock)
+- enforce roster ↔ `design_spec.md` consistency as **errors** (orphan files / missing files break the selected kind index)
+- emit advisory **warnings** when a page lacks a conventional placeholder — these are hints, not failures. Declare a `placeholders:` block in `design_spec.md` frontmatter to silence them when your template intentionally uses a different vocabulary
 
 **Checklist**:
 
-- [ ] `brief_lock.json` exists and matches the confirmed brief-level contract
-- [ ] `design_spec.md` follows the personality-only template skeleton (Overview / Color / Signature / Page Roster); generic constraints are **not** redundantly restated
-- [ ] Every page declared in `design_spec.md §V Page Roster` exists as an SVG file in the template directory (and vice versa)
-- [ ] Placeholder names follow the canonical convention where applicable; overrides are declared explicitly when needed
+- [ ] `design_spec.md` follows the personality-only skeleton (Overview / Color / Signature / Page Roster); generic constraints (SVG rules, pattern libraries, ratio bands, canonical placeholder table) are NOT restated. §V Page Roster lists every emitted page
+- [ ] Every page declared in `design_spec.md §V Page Roster` exists as an SVG file in the template directory (and vice versa — no orphan files)
+- [ ] Variant filenames follow the letter-suffix convention (e.g. `03a_content_two_col.svg`); variants typically reuse the parent type's placeholder set unless the spec frontmatter declares otherwise
+- [ ] If TOC exists, placeholder pattern uses the canonical indexed form
 - [ ] SVG viewBox matches the chosen canvas format (for `ppt169`: `0 0 1280 720`)
+- [ ] Placeholder names follow the canonical convention where applicable; templates with intentionally different vocabularies (e.g. `{{KEY_MESSAGE}}` instead of `{{PAGE_TITLE}}`) should declare a `placeholders:` frontmatter block to silence advisory warnings
 - [ ] Asset files referenced by SVGs actually exist in the template package
-- [ ] For `fidelity` mode: sprite-sheet crop wrappers are preserved when required
-- [ ] For `mirror` mode: file count matches the source page count and copied SVGs contain **no** `{{...}}` placeholders
+- [ ] For `fidelity` mode: every sprite-sheet asset retains its nested `<svg viewBox=...>` crop wrapper; no image whose file aspect differs from its on-page aspect was flattened to a bare `<image>`
+- [ ] For `mirror` mode: file count equals source page count (type A: `ls templates/<kind_dir>/<id>/*_*.svg | wc -l` matches `<import_workspace>/svg-flat/slide_*.svg | wc -l`; type B: matches the source SVG count); filenames follow the `<NNN>_<page_type>.svg` convention; **no `{{...}}` placeholder strings appear in any copied SVG** (`grep -l "{{" templates/<kind_dir>/<id>/*.svg` should return nothing — if the type B source itself contains placeholders, the user should be in `standard` mode, not `mirror`); §V Page Roster in `design_spec.md` lists every emitted file with a one-line description of what the page contains and what content slot it suits
 
-This step is a **hard gate**. Do not proceed to preview or registration until validation passes.
+This step is a **hard gate**. Do not register the template into the library index until validation passes.
 
 ---
 
-## Step 5.5: Template Preview Feedback
+## Step 6: Template Preview Feedback
 
-🚧 **GATE**: Step 5 complete; the template directory passes validation.
-
-⛔ **BLOCKING**: Before registration, export a preview workspace under the user's current working directory and wait for explicit feedback or confirmation.
+Generate local preview artefacts before registration so visual defects are caught while the template is still cheap to adjust:
 
 ```bash
-python3 skills/ppt-master/scripts/template_preview.py "skills/ppt-master/templates/layouts/<template_id>"
+python3 skills/ppt-master/scripts/template_preview.py \
+  "skills/ppt-master/templates/<kind_dir>/<template_id>" \
+  --output-root "/home/sustech/TempFiles/ppt-master-template-preview"
 ```
 
-The command exports a timestamped preview workspace containing `svg_output/` and `svg_final/`. Point the user to `<preview_workspace>/svg_final/` for review.
+Review the generated preview contact sheet / per-page images against the Step 3 brief and `brief_lock.json`:
 
-**Feedback routing rule**:
+- [ ] Page roster visually matches `design_spec.md` §V
+- [ ] Fixed brand / deck identity is present for `kind: deck`
+- [ ] Structure-only templates do not accidentally lock a specific brand identity for `kind: layout`
+- [ ] Literal / mirror pages preserve load-bearing geometry and sprite-sheet crops
+- [ ] Placeholder text is legible and placed inside intended content regions
 
-- If feedback is **implementation-level** only (spacing, alignment, local hierarchy, asset placement, page polish), return to Step 4 / Step 5, revise `design_spec.md` / SVG outputs, re-run validation, and re-export the preview. Do **not** rewrite `brief_lock.json`.
-- If feedback changes any **brief-level** contract (identity, scenarios, keywords, tone/style, theme mode/color, canvas format, asset policy, replication mode, fidelity level, or designer constraints), return to Step 3, reconfirm the revised full brief, overwrite `brief_lock.json`, increment `revision`, then regenerate, revalidate, and re-export the preview.
-
-Proceed to Step 6 only after the user explicitly confirms the preview result.
+If preview feedback requires changes, modify the template package, rerun Step 5, then regenerate preview. Keep preview outputs under `/home/sustech/TempFiles`; do not commit them.
 
 ---
 
-## Step 6: Register Template in Library Index
+## Step 7: Register Template in Library Index
 
-Run the unified registrar; it derives the `layouts_index.json` entry and refreshes the `README.md` Quick Index from `design_spec.md` (frontmatter when present, prose fallback otherwise) plus the actual SVG file list:
+Run the unified registrar with the kind flag; it derives the corresponding index entry from `design_spec.md` (frontmatter when present, prose fallback otherwise) plus the actual SVG file list. Always run a dry-run preflight first:
 
 ```bash
-python3 skills/ppt-master/scripts/register_template.py <template_id>
+# Dry-run preflight
+python3 skills/ppt-master/scripts/register_template.py <template_id> --kind <deck|layout> --dry-run
+
+# For deck (default)
+python3 skills/ppt-master/scripts/register_template.py <template_id> --kind deck
+
+# For layout
+python3 skills/ppt-master/scripts/register_template.py <template_id> --kind layout
 ```
 
-Outputs:
+Outputs by kind (the JSON index is the single source of truth — READMEs describe the kind in prose but do not enumerate templates):
 
-- updates `skills/ppt-master/templates/layouts/layouts_index.json`
-- refreshes the auto-managed Quick Index inside `skills/ppt-master/templates/layouts/README.md`
-- prints a "Template Creation Complete" card you can reuse directly in Step 7
+| `--kind` | Index updated |
+|---|---|
+| `deck` | `templates/decks/decks_index.json` |
+| `layout` | `templates/layouts/layouts_index.json` |
+| `brand` | `templates/brands/brands_index.json` |
 
-`layouts_index.json` is a **discovery index** — it lets the AI answer "what templates are available?" by listing names and paths. It is **not** consulted to trigger template consumption later; users still trigger template usage by passing an explicit directory path.
+The completion card's file roster is collected by globbing `*.svg` in the template directory.
+
+The index file is a **discovery index** — it lets the AI answer "what templates are available?" by listing names and paths. It is **not** consulted to trigger Step 3 (SKILL.md). Step 3 triggers on an explicit directory path supplied by the user, regardless of whether that path is registered. A template directory that has not been run through `register_template.py` still works fine when the user gives its path; it just won't appear in discovery listings.
+
+> **Recommended for new templates**: declare a YAML frontmatter block at the top of `design_spec.md`. The registrar prefers it over prose extraction:
+>
+> ```yaml
+> # deck example
+> ---
+> deck_id: my_deck
+> kind: deck
+> summary: ...
+> canvas_format: ppt169
+> page_count: 5
+> primary_color: "#005587"
+> ---
+>
+> # layout example
+> ---
+> layout_id: my_layout
+> kind: layout
+> summary: ...
+> canvas_format: ppt169
+> page_count: 5
+> page_types: [cover, toc, chapter, content, ending]
+> ---
+> ```
+
+> To rebuild every entry at once (e.g. after editing many specs), run:
+>
+> ```bash
+> python3 skills/ppt-master/scripts/register_template.py --kind deck --rebuild-all
+> python3 skills/ppt-master/scripts/register_template.py --kind layout --rebuild-all
+> ```
+
+README files describe each kind in prose only — they do not list templates. Discovery happens against the JSON index file; the registrar does not touch READMEs.
 
 ---
 
-## Step 7: Output Confirmation
+## Step 8: Output Confirmation
 
-`register_template.py` already printed a "Template Creation Complete" card during Step 6 — copy it verbatim into the conversation. The card includes the template name, path, category, primary color, index status, and the full SVG file roster collected from disk.
+`register_template.py` already printed a "Template Creation Complete" card during Step 7 — copy it verbatim into the conversation. The card includes the template name, path, category, primary color, index status, and the full SVG file roster (auto-collected from disk, so `fidelity`-mode variant pages and TOC pages are listed correctly without manual editing).
+
+For a standard-mode template the card looks like:
+
+```markdown
+## Template Creation Complete
+
+**Template Name**: <template_id> (<display_name>)
+**Kind**: deck | layout
+**Template Path**: `templates/<kind_dir>/<template_id>/`
+**Primary Color**: <hex>  ← deck only; omit for layout
+**Index Registration**: Done
+
+### Files Included
+
+| File | Status |
+|------|--------|
+| `01_cover.svg` | Done |
+| `02_chapter.svg` | Done |
+| `02_toc.svg` | Done |
+| `03_content.svg` | Done |
+| `04_ending.svg` | Done |
+```
 
 ---
 
@@ -331,8 +471,9 @@ Outputs:
 
 ## Notes
 
-1. **SVG technical constraints**: See [shared-standards.md](../references/shared-standards.md) — do not restate them in template `design_spec.md`
+1. **SVG technical constraints**: See [shared-standards.md](../references/shared-standards.md) — do not restate them in the template's `design_spec.md`
 2. **Color consistency**: All SVG files must use the same color scheme as `design_spec.md §II Color Scheme`
-3. **Placeholder consistency**: Use the canonical placeholder contract unless the template explicitly documents an override
-4. **Mirror mode warning**: Mirror templates inherit any import limitations present in `pptx_template_import.py` / `pptx_to_svg`
-5. **Troubleshooting**: If a `.pptx` import behaves unexpectedly, run `python3 skills/ppt-master/scripts/pptx_template_import.py <file> --inheritance-mode both` manually and inspect `manifest.json`, `svg/`, and `svg-flat/`
+3. **Placeholder convention**: `{{}}` format only; default names listed in [Placeholder Reference](../references/template-designer.md#4-placeholder-reference-canonical-convention-overridable-per-template). Override per template via `placeholders:` frontmatter when needed.
+4. **Discovery requirement**: A template directory is only discoverable after `register_template.py` has been run against it (Step 7)
+
+> **Full role specification**: [template-designer.md](../references/template-designer.md)

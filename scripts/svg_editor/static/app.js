@@ -43,6 +43,11 @@
             err_add_annotation: "Failed to add annotation: ",
             err_remove_annotation: "Failed to remove annotation: ",
             err_save: "Save failed: ",
+            err_empty_svg: "Slide loaded but the canvas is empty. The SVG may be malformed or missing a root <svg> element.",
+            warn_icon_inline: "{count} icon(s) failed to render: {names}",
+            warn_svg_no_dims: "SVG is missing width/height attributes. Please ask the AI to strictly follow shared-standards.md §4 and include width & height in the SVG root element.",
+            slide_error_tooltip: "Failed to parse this slide: ",
+            reload_banner: "This slide was updated on disk. Click to reload.",
             modal_confirm_submit: "Submit annotations to disk?\n\nThe preview service will keep running. Click Exit preview when you want to stop it.",
             modal_success_submit: "Annotations saved.\n\nReturn to the chat and tell the AI to apply them (e.g. \"apply my annotations\"). The preview service is still running.",
             modal_confirm_exit: "Exit preview and stop the local server?\n\nUnsaved annotations will be discarded.",
@@ -92,6 +97,11 @@
             err_add_annotation: "添加标注失败:",
             err_remove_annotation: "删除标注失败:",
             err_save: "保存失败:",
+            err_empty_svg: "幻灯片已加载但画布为空。SVG 可能损坏或缺少根 <svg> 元素。",
+            warn_icon_inline: "{count} 个图标渲染失败:{names}",
+            warn_svg_no_dims: "SVG 缺少 width/height 属性，预览可能异常。请让 AI 严格遵守 shared-standards.md §4 规范，在 SVG 根元素中补全 width 和 height。",
+            slide_error_tooltip: "该幻灯片解析失败:",
+            reload_banner: "当前页已在磁盘上更新,点此重新加载。",
             modal_confirm_submit: "确认将标注保存到磁盘?\n\n预览服务会继续运行。需要关闭时请点击退出预览。",
             modal_success_submit: "标注已保存。\n\n请回到对话窗口并告诉 AI 应用这些标注(例如\"应用我的标注\")。预览服务仍在运行。",
             modal_confirm_exit: "退出预览并停止本地服务?\n\n未保存的标注将被丢弃。",
@@ -202,6 +212,8 @@
     var liveMode          = false;
     var slidePollTimer    = null;
     var pendingModalAction = "submit";
+    var slideMtimes       = {};     // {name: mtime} — last-seen mtime for each slide
+    var reloadBannerEl    = null;   // singleton banner element shown when currentSlide mtime drifts
     var suppressNextElementClick = false;
     var EditorLogic       = window.PptSvgEditorLogic || null;
     var previewOffsetsBySlide = {};
@@ -707,10 +719,28 @@
                 }
 
                 var currentExists = false;
+                var currentMtimeChanged = false;
                 slides.forEach(function (s) {
-                    if (s.name === currentSlide) currentExists = true;
+                    if (s.name === currentSlide) {
+                        currentExists = true;
+                        // Compare against the mtime we recorded when we last rendered this slide.
+                        var lastSeen = slideMtimes[s.name];
+                        if (lastSeen !== undefined && s.mtime && s.mtime !== lastSeen) {
+                            currentMtimeChanged = true;
+                        }
+                    }
+                    // Track every slide's mtime for the next poll (only update non-current here;
+                    // currentSlide's mtime is updated by selectSlide so we can detect drift).
+                    if (s.name !== currentSlide && s.mtime !== undefined) {
+                        slideMtimes[s.name] = s.mtime;
+                    }
+
                     var item = document.createElement("div");
                     item.className = "slide-item" + (s.name === currentSlide ? " active" : "");
+                    if (s.ok === false) {
+                        item.className += " slide-error";
+                        item.title = t("slide_error_tooltip") + (s.error || "");
+                    }
                     item.setAttribute("data-name", s.name);
 
                     var nameSpan = document.createElement("span");
@@ -733,6 +763,8 @@
 
                 if (!currentSlide || !currentExists) {
                     selectSlide(slides[0].name);
+                } else if (currentMtimeChanged) {
+                    showReloadBanner(currentSlide);
                 }
                 updateNavLabel();
             })
@@ -767,11 +799,19 @@
         cancelRubberBand();
         clearSelection();
 
+        // Selecting a slide implicitly dismisses any stale "page updated" banner.
+        hideReloadBanner();
+
+        // Remove any stale spec-violation banner from a previous load.
+        var oldSpecBanner = document.getElementById("spec-banner");
+        if (oldSpecBanner) oldSpecBanner.remove();
+
         fetch("/api/slide/" + encodeURIComponent(name))
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 if (data.error) {
                     console.error("selectSlide:", data.error);
+                    showError(t("err_load_slide") + data.error);
                     if (liveMode) {
                         currentSlide = null;
                         svgPlaceholder.style.display = "block";
@@ -784,6 +824,56 @@
                 svgPlaceholder.style.display = "none";
                 svgContent.style.display = "block";
                 svgContent.innerHTML = sanitizeSvg(data.content);
+
+                // Empty-canvas guard: surface a clear error if the SVG parsed
+                // to nothing renderable (issue #115's silent-blank scenario).
+                var rootSvg = svgContent.querySelector("svg");
+                // Spec observability: missing width/height → red banner only
+                if (rootSvg && (!rootSvg.hasAttribute("width") || !rootSvg.hasAttribute("height"))) {
+                    var specBanner = document.createElement("div");
+                    specBanner.id = "spec-banner";
+                    specBanner.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);"
+                        + "background:#fee2e2;color:#b91c1c;border:2px solid #f87171;border-radius:8px;"
+                        + "padding:24px 36px;font-size:16px;font-weight:bold;text-align:center;z-index:9999;"
+                        + "width:420px;line-height:1.6;box-shadow:0 4px 12px rgba(0,0,0,0.15);";
+                    specBanner.textContent = t("warn_svg_no_dims");
+                    document.body.appendChild(specBanner);
+                }
+                var hasContent = false;
+                if (rootSvg) {
+                    var children = rootSvg.querySelectorAll("*");
+                    for (var i = 0; i < children.length; i++) {
+                        var ctag = children[i].tagName.toLowerCase();
+                        if (ctag !== "defs" && ctag !== "style" && ctag !== "title" && ctag !== "desc") {
+                            hasContent = true;
+                            break;
+                        }
+                    }
+                }
+                if (!rootSvg || !hasContent) {
+                    showError(t("err_empty_svg"));
+                    svgPlaceholder.style.display = "block";
+                    svgPlaceholder.textContent = t("err_empty_svg");
+                    svgContent.style.display = "none";
+                    return;
+                }
+
+                // Non-fatal warnings (e.g. icon inline failures): surface as a
+                // single combined toast so users know why something looks off.
+                if (data.warnings && data.warnings.length > 0) {
+                    var names = data.warnings.map(function (w) {
+                        return w.icon || "(unknown)";
+                    }).join(", ");
+                    showWarning(t("warn_icon_inline", {
+                        count: data.warnings.length,
+                        names: names,
+                    }));
+                }
+
+                // Record the mtime so the next poll can detect on-disk drift.
+                if (data.mtime !== undefined) {
+                    slideMtimes[name] = data.mtime;
+                }
 
                 // Build annotations map from response
                 (data.annotations || []).forEach(function (a) {
@@ -1659,6 +1749,42 @@
         banner.onclick = function () { banner.remove(); };
         document.body.appendChild(banner);
         setTimeout(function () { banner.remove(); }, 5000);
+    }
+
+    function showWarning(msg) {
+        // Amber, non-fatal counterpart to showError. Stacks below an existing
+        // error banner because z-index is identical and DOM order wins.
+        var banner = document.createElement("div");
+        banner.style.cssText = "position:fixed;top:38px;left:0;right:0;padding:8px 16px;background:#f59e0b;color:#1f1300;font-size:12px;text-align:center;z-index:998;cursor:pointer;";
+        banner.textContent = msg;
+        banner.onclick = function () { banner.remove(); };
+        document.body.appendChild(banner);
+        setTimeout(function () { banner.remove(); }, 6000);
+    }
+
+    function showReloadBanner(name) {
+        // Singleton: replace any prior banner so we never stack reloads.
+        hideReloadBanner();
+        var banner = document.createElement("div");
+        banner.id = "reload-banner";
+        banner.style.cssText = "position:fixed;top:0;left:0;right:0;padding:10px 16px;background:#2563eb;color:#fff;font-size:13px;text-align:center;z-index:1000;cursor:pointer;";
+        banner.textContent = t("reload_banner");
+        banner.onclick = function () {
+            hideReloadBanner();
+            // Re-fetch via selectSlide so all post-load logic (annotation merge,
+            // warnings, mtime update) runs the same way as a manual click.
+            var item = slideListEl.querySelector('.slide-item[data-name="' + cssAttr(name) + '"]');
+            selectSlide(name, item || undefined);
+        };
+        document.body.appendChild(banner);
+        reloadBannerEl = banner;
+    }
+
+    function hideReloadBanner() {
+        if (reloadBannerEl) {
+            reloadBannerEl.remove();
+            reloadBannerEl = null;
+        }
     }
 
     function escapeHtml(str) {
