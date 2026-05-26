@@ -32,6 +32,10 @@ venv/
 # New features projects
 .idea/
 ppt_text_normalize/
+!/scripts/ppt_text_normalize/
+!/scripts/ppt_text_normalize/**
+/scripts/ppt_text_normalize/**/__pycache__/
+/scripts/ppt_text_normalize/**/*.py[cod]
 
 # Common logs / temp files
 *.log

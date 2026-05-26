@@ -1,64 +1,29 @@
-# PPT Master SUSTech-Enhanced Version
+# 文档索引
 
-This repository contains the SUSTech-enhanced public release source for `ppt-master`, used to turn PDF, DOCX, PPTX, web pages, Markdown, Excel workbooks, and similar inputs into high-quality, editable PPTX presentations.  
-This enhanced line preserves the full workflow across content understanding, design-spec generation, SVG page construction, post-processing, and PPTX export, and is intended for agent-capable environments such as Claude Code, Cursor, and Codex.
+本目录提供 SUSTech 增强版 `ppt-master` 的文档入口。
 
-## Key Features
+## 版本信息
 
-- Supports multiple input types including PDF, Word, PPTX, web pages, Markdown, and Excel
-- Uses `design_spec.md` and `spec_lock.md` to drive both design intent and execution constraints
-- Exports editable PPTX decks instead of image-only slide output
-- Supports template reuse, template creation, template validation, and template preview
-- Includes image acquisition, AI image generation, chart verification, speaker notes, and post-processing workflows
-- Includes a versioned, reproducible local release contract for packaging and distribution
+| 项目 | 值 |
+|---|---|
+| Release Version | `r2.8.0-v0.1.1` |
+| Upstream Baseline | `hugohe3/ppt-master@v2.8.0` |
+| Tracked Range | `v2.8.0..a8802cedc1477a0fecc7aa276b396508ba85bb79` |
+| Root Directory | `ppt-master/` |
 
-## SUSTech Roadmap
+## 文档列表
 
-- [Roadmap](./Roadmap.md) records the SUSTech enhancement inventory, current upstream baseline/tracking cutoff, and future upstream-fusion guard checklist.
-- Update `Roadmap.md` whenever release metadata changes, source behavior changes, or upstream code is fused.
+- [Roadmap](Roadmap.md) — SUSTech 增强清单、上游追踪状态和兼容关注项。
+- [技术设计](technical-design.md) — 系统架构和工作流设计。
+- [模板架构](templates-architecture.md) — `brand / layout / deck` 模板模型。
+- [第三方说明](THIRD_PARTY_NOTICES.md) — 内置或引用资产的许可证和署名说明。
+- [中文技术设计](zh/technical-design.md)
+- [中文模板架构](zh/templates-architecture.md)
 
-## Release Identity
+## 使用提示
 
-- **Release Version**: `r2.8.0-v0.1.0`
-- **Upstream Baseline**: `hugohe3/ppt-master@v2.8.0`
-- **Package Root Dir**: `ppt-master/`
+- 根目录 [`README.md`](../README.md) 是推荐起点。
+- `SKILL.md` 是 agent 主入口。
+- `VERSION` 和 `RELEASE_META.json` 记录版本、上游基线和追踪范围。
+- `docs/Roadmap.md` 记录 SUSTech 特有增强和上游兼容关注项。
 
-## What this repository contains
-
-This is a cleaned public release-source snapshot for the SUSTech-enhanced skill line. It includes:
-
-- `SKILL.md`
-- `VERSION`
-- `RELEASE_META.json`
-- `.env.example`
-- `requirements.txt`
-- `references/`
-- `scripts/`
-- `templates/`
-- `workflows/`
-
-## What this repository does not contain
-
-This repository does **not** include local runtime outputs, temporary planning files, private environment files, or local workspace metadata.
-
-Examples of excluded content:
-
-- `.env`
-- `.synced_hash`
-- `projects/`
-- `tmp/`
-- `cache/`
-- `docs/plan/`
-- local virtual environments
-
-## License
-
-This repository follows the upstream MIT License. See the root [LICENSE](../LICENSE).
-
-## Third-party notices
-
-Some bundled or referenced icons, brand marks, sourced images, and template assets may still carry their own upstream license or attribution requirements. See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
-
-## Notes
-
-This public-facing source tree is intended to track release-quality content for the SUSTech-enhanced line, not private day-to-day planning or local runtime state.
