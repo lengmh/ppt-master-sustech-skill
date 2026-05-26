@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720">
+  <rect width="1280" height="720" fill="#FFFFFF"/>
+  <image href="top_left_motif_standard.png" x="0" y="13" width="70" height="62" preserveAspectRatio="xMidYMid meet"/>
+  <image href="full_top_right_school_logo.png" x="1060" y="13" width="220" height="66" preserveAspectRatio="xMidYMid meet"/>
+  <line x1="92" y1="76" x2="1188" y2="76" stroke="#CECECE" stroke-width="1"/>
+  <text x="92" y="60" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="32" font-weight="bold">目录</text>
+  <text x="166" y="60" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">Contents</text>
+
+  <text x="100" y="166" fill="#003F43" fill-opacity="0.16" font-family="Arial, sans-serif" font-size="42" font-weight="bold">01</text>
+  <text x="170" y="162" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="27" font-weight="bold">{{TOC_ITEM_1_TITLE}}</text>
+  <text x="170" y="194" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">{{TOC_ITEM_1_DESC}}</text>
+
+  <text x="100" y="252" fill="#003F43" fill-opacity="0.16" font-family="Arial, sans-serif" font-size="42" font-weight="bold">02</text>
+  <text x="170" y="248" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="27" font-weight="bold">{{TOC_ITEM_2_TITLE}}</text>
+  <text x="170" y="280" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">{{TOC_ITEM_2_DESC}}</text>
+
+  <text x="100" y="338" fill="#003F43" fill-opacity="0.16" font-family="Arial, sans-serif" font-size="42" font-weight="bold">03</text>
+  <text x="170" y="334" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="27" font-weight="bold">{{TOC_ITEM_3_TITLE}}</text>
+  <text x="170" y="366" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">{{TOC_ITEM_3_DESC}}</text>
+
+  <text x="100" y="424" fill="#003F43" fill-opacity="0.16" font-family="Arial, sans-serif" font-size="42" font-weight="bold">04</text>
+  <text x="170" y="420" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="27" font-weight="bold">{{TOC_ITEM_4_TITLE}}</text>
+  <text x="170" y="452" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">{{TOC_ITEM_4_DESC}}</text>
+
+  <text x="100" y="510" fill="#003F43" fill-opacity="0.16" font-family="Arial, sans-serif" font-size="42" font-weight="bold">05</text>
+  <text x="170" y="506" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="27" font-weight="bold">{{TOC_ITEM_5_TITLE}}</text>
+  <text x="170" y="538" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">{{TOC_ITEM_5_DESC}}</text>
+
+  <text x="100" y="596" fill="#003F43" fill-opacity="0.16" font-family="Arial, sans-serif" font-size="42" font-weight="bold">06</text>
+  <text x="170" y="592" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="27" font-weight="bold">{{TOC_ITEM_6_TITLE}}</text>
+  <text x="170" y="624" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">{{TOC_ITEM_6_DESC}}</text>
+
+  <line x1="92" y1="688" x2="1188" y2="688" stroke="#CECECE" stroke-width="1"/>
+  <text x="92" y="704" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">Southern University of Science and Technology</text>
+</svg>

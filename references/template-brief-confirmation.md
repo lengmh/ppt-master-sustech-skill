@@ -32,7 +32,11 @@ Repeat until the user sends an explicit approval message in the current conversa
 
 **Do not treat** partial agreement, silence, or inferred acceptance as confirmation.
 
-After explicit confirmation, the confirmed brief becomes the single current-state machine-readable contract `templates/layouts/<template_id>/brief_lock.json`. This file is written only **after** Step 4 creates the final template directory — never during draft rounds.
+After explicit confirmation, the confirmed brief becomes the SUSTech `/create-template` audit lock at `templates/<kind_dir>/<template_id>/brief_lock.json`. This file is written only **after** Step 4 creates the final template directory — never during draft rounds.
+
+`brief_lock.json` is **not** the v2.8.0 template discovery or registration source of truth. The primary machine-readable metadata for the `brand` / `layout` / `deck` template system is the YAML frontmatter in `design_spec.md`; `register_template.py` reads that frontmatter first and falls back to prose only for compatibility.
+
+Use `brief_lock.json` to prove that a newly generated SUSTech template still matches the user-confirmed brief. Upstream and legacy templates may omit it; validate those in compatibility mode instead of treating the missing audit lock as a package failure.
 
 If later feedback changes any brief-level contract (identity, scenarios, keywords, tone/style, theme mode/color, canvas format, asset policy, replication mode, fidelity level, or designer constraints), return to `/create-template` **Step 3**, reconfirm the full revised brief, then overwrite `brief_lock.json` with `revision + 1`. If later feedback is implementation-level only (layout polish, spacing, alignment, local SVG cleanup, higher-resolution replacement of the same approved asset), revise the outputs directly without rewriting `brief_lock.json`.
 

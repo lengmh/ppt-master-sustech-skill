@@ -19,6 +19,7 @@ from pathlib import Path
 TOOLS_DIR = Path(__file__).resolve().parent
 SKILL_DIR = TOOLS_DIR.parent
 REPO_ROOT = SKILL_DIR.parent.parent
+REQUIREMENTS_FILE = REPO_ROOT / "requirements.txt"
 
 
 def parse_args() -> argparse.Namespace:
@@ -81,23 +82,13 @@ def get_head_revision() -> str:
     return result.stdout.strip()
 
 
-def resolve_requirements_file() -> Path | None:
-    skill_local = SKILL_DIR / "requirements.txt"
-    repo_root = REPO_ROOT / "requirements.txt"
-    if skill_local.exists():
-        return skill_local
-    if repo_root.exists():
-        return repo_root
-    return None
-
-
-def sync_python_dependencies(requirements_file: Path | None) -> None:
-    if requirements_file is None or not requirements_file.exists():
+def sync_python_dependencies() -> None:
+    if not REQUIREMENTS_FILE.exists():
         print("requirements.txt not found; skipping Python dependency sync.")
         return
 
-    print(f"requirements.txt changed. Syncing Python dependencies from: {requirements_file}")
-    result = run_command([sys.executable, "-m", "pip", "install", "-r", str(requirements_file)])
+    print("requirements.txt changed. Syncing Python dependencies...")
+    result = run_command([sys.executable, "-m", "pip", "install", "-r", str(REQUIREMENTS_FILE)])
     if result.stdout.strip():
         print(result.stdout.strip())
     if result.stderr.strip():
@@ -111,19 +102,10 @@ def main() -> int:
         ensure_git_available()
         ensure_clean_tracked_worktree()
 
-        requirements_file = resolve_requirements_file()
         before_head = get_head_revision()
-        before_requirements = file_digest(requirements_file) if requirements_file else None
+        before_requirements = file_digest(REQUIREMENTS_FILE)
 
         print(f"Repository: {REPO_ROOT}")
-        if requirements_file is not None:
-            if requirements_file.parent == SKILL_DIR:
-                print(f"Using skill-local requirements.txt: {requirements_file}")
-            else:
-                print(
-                    "Skill-local requirements.txt not found. Falling back to repo-root requirements.txt: "
-                    f"{requirements_file}"
-                )
         pull_result = run_command(["git", "pull", "--ff-only"])
         if pull_result.stdout.strip():
             print(pull_result.stdout.strip())
@@ -131,8 +113,7 @@ def main() -> int:
             print(pull_result.stderr.strip())
 
         after_head = get_head_revision()
-        requirements_file_after = resolve_requirements_file()
-        after_requirements = file_digest(requirements_file_after) if requirements_file_after else None
+        after_requirements = file_digest(REQUIREMENTS_FILE)
 
         if before_head == after_head:
             print("Repository is already up to date.")
@@ -142,7 +123,7 @@ def main() -> int:
         if args.skip_pip:
             print("Skipped Python dependency sync (--skip-pip).")
         elif before_requirements != after_requirements:
-            sync_python_dependencies(requirements_file_after)
+            sync_python_dependencies()
         else:
             print("requirements.txt unchanged. Skipping Python dependency sync.")
 

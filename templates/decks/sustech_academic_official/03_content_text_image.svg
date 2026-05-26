@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720">
+  <rect width="1280" height="720" fill="#FFFFFF"/>
+  <image href="top_left_motif_standard.png" x="0" y="13" width="70" height="62" preserveAspectRatio="xMidYMid meet"/>
+  <image href="full_top_right_school_logo.png" x="1060" y="13" width="220" height="66" preserveAspectRatio="xMidYMid meet"/>
+  <text x="92" y="60" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="32" font-weight="bold">{{PAGE_TITLE}}</text>
+  <line x1="92" y1="76" x2="280" y2="76" stroke="#E3660D" stroke-width="3"/>
+  <line x1="280" y1="76" x2="1188" y2="76" stroke="#CECECE" stroke-width="1"/>
+  <text x="92" y="106" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="26.7">{{SECTION_NAME}}</text>
+  <rect x="72" y="156" width="356" height="110" rx="18" fill="#FFFFFF" stroke="#CECECE" stroke-width="1.5"/>
+  <text x="100" y="198" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22" font-weight="bold">Image-led Layout</text>
+  <text x="100" y="228" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">Large figure first</text>
+  <text x="100" y="250" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">compact text guidance second</text>
+  <rect x="72" y="286" width="356" height="380" rx="18" fill="#F6EBDF"/>
+  <text x="250" y="462" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22">{{CONTENT_AREA}}</text>
+  <text x="250" y="492" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">Commentary / bullets / interpretation</text>
+  <rect x="452" y="156" width="756" height="510" rx="22" fill="#EAF1F0"/>
+  <rect x="452" y="156" width="756" height="510" rx="22" fill="none" stroke="#CECECE" stroke-width="1.2"/>
+  <text x="830" y="390" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="24">Image / Figure Main Area</text>
+  <rect x="484" y="622" width="692" height="28" rx="12" fill="#FFFFFF"/>
+  <text x="830" y="641" text-anchor="middle" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14">Primary visual holds the hierarchy; text supports guided reading</text>
+  <line x1="92" y1="688" x2="1188" y2="688" stroke="#CECECE" stroke-width="1"/>
+  <text x="92" y="704" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">Southern University of Science and Technology</text>
+  <text x="1188" y="704" text-anchor="end" fill="#003F43" font-family="Arial, sans-serif" font-size="16" font-weight="bold">{{PAGE_NUM}}</text>
+</svg>

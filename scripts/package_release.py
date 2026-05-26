@@ -21,7 +21,12 @@ subtree shape while using local release metadata and support files by default:
 - ``ppt-master/.env.example``
 - ``ppt-master/requirements.txt``
 - ``ppt-master/docs/README.md``
+- ``ppt-master/docs/Roadmap.md``
 - ``ppt-master/docs/THIRD_PARTY_NOTICES.md``
+- ``ppt-master/docs/technical-design.md``
+- ``ppt-master/docs/templates-architecture.md``
+- ``ppt-master/docs/zh/technical-design.md``
+- ``ppt-master/docs/zh/templates-architecture.md``
 - ``ppt-master/references/``
 - ``ppt-master/scripts/``
 - ``ppt-master/templates/``
@@ -64,7 +69,12 @@ LOCAL_RELEASE_ITEMS = (
     "VERSION",
     "RELEASE_META.json",
     "docs/README.md",
+    "docs/Roadmap.md",
     "docs/THIRD_PARTY_NOTICES.md",
+    "docs/technical-design.md",
+    "docs/templates-architecture.md",
+    "docs/zh/technical-design.md",
+    "docs/zh/templates-architecture.md",
     "references",
     "scripts",
     "templates",
@@ -446,6 +456,12 @@ def build_zip(staging_root: Path, output_path: Path) -> int:
     return file_count
 
 
+def _entry_present(names: list[str], entry: str) -> bool:
+    if entry.endswith("/"):
+        return any(name.startswith(entry) for name in names)
+    return entry in names or any(name.startswith(entry.rstrip("/") + "/") for name in names)
+
+
 def verify_release_zip(zip_path: Path, package_dirname: str) -> None:
     required_entries = [
         f"{package_dirname}/.gitignore",
@@ -458,16 +474,36 @@ def verify_release_zip(zip_path: Path, package_dirname: str) -> None:
         f"{package_dirname}/.env.example",
         f"{package_dirname}/requirements.txt",
         f"{package_dirname}/docs/README.md",
+        f"{package_dirname}/docs/Roadmap.md",
         f"{package_dirname}/docs/THIRD_PARTY_NOTICES.md",
+        f"{package_dirname}/docs/technical-design.md",
+        f"{package_dirname}/docs/templates-architecture.md",
+        f"{package_dirname}/docs/zh/technical-design.md",
+        f"{package_dirname}/docs/zh/templates-architecture.md",
         f"{package_dirname}/references/",
+        f"{package_dirname}/references/ai-image-comparison/",
+        f"{package_dirname}/references/image-palettes/",
+        f"{package_dirname}/references/image-renderings/",
+        f"{package_dirname}/references/image-type-templates/",
+        f"{package_dirname}/references/image-layout-patterns.md",
+        f"{package_dirname}/references/visual-review.md",
         f"{package_dirname}/scripts/",
+        f"{package_dirname}/scripts/visual_review.py",
+        f"{package_dirname}/scripts/latex_render.py",
         f"{package_dirname}/templates/",
+        f"{package_dirname}/templates/brands/brands_index.json",
+        f"{package_dirname}/templates/decks/decks_index.json",
+        f"{package_dirname}/templates/icons/phosphor-duotone/",
+        f"{package_dirname}/templates/icons/simple-icons/",
         f"{package_dirname}/workflows/",
+        f"{package_dirname}/workflows/create-brand.md",
+        f"{package_dirname}/workflows/visual-review.md",
     ]
     forbidden_entries = [
         f"{package_dirname}/.synced_hash",
         f"{package_dirname}/docs/adr/",
         f"{package_dirname}/docs/plan/",
+        f"{package_dirname}/docs/release/",
         f"{package_dirname}/docs/superpowers/",
         f"{package_dirname}/plan/",
         f"{package_dirname}/.git/",
@@ -481,10 +517,7 @@ def verify_release_zip(zip_path: Path, package_dirname: str) -> None:
 
     missing: list[str] = []
     for entry in required_entries:
-        if entry.endswith("/"):
-            if not any(name.startswith(entry) for name in names):
-                missing.append(entry)
-        elif entry not in names:
+        if not _entry_present(names, entry):
             missing.append(entry)
 
     present_forbidden: list[str] = []

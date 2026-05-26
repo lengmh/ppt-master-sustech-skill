@@ -12,10 +12,15 @@ This enhanced line preserves the full workflow across content understanding, des
 - Includes image acquisition, AI image generation, chart verification, speaker notes, and post-processing workflows
 - Includes a versioned, reproducible local release contract for packaging and distribution
 
+## SUSTech Roadmap
+
+- [Roadmap](./Roadmap.md) records the SUSTech enhancement inventory, current upstream baseline/tracking cutoff, and future upstream-fusion guard checklist.
+- Update `Roadmap.md` whenever release metadata changes, source behavior changes, or upstream code is fused.
+
 ## Release Identity
 
-- **Release Version**: `r2.7.0-v0.1.1`
-- **Upstream Baseline**: `hugohe3/ppt-master@v2.7.0`
+- **Release Version**: `r2.8.0-v0.1.0`
+- **Upstream Baseline**: `hugohe3/ppt-master@v2.8.0`
 - **Package Root Dir**: `ppt-master/`
 
 ## What this repository contains

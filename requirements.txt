@@ -1,6 +1,6 @@
 # PPT Master SUSTech custom skill dependencies
-# Baseline: hugohe3/ppt-master skills/ppt-master/requirements.txt @ v2.7.0
-# Release version: r2.7.0-v0.1.0
+# Baseline: hugohe3/ppt-master skills/ppt-master/requirements.txt @ v2.8.0
+# Release version: r2.8.0-v0.1.0
 
 # PPT Master Dependencies / PPT Master 依赖
 # =============================================

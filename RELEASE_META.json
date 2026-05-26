@@ -1,27 +1,28 @@
 {
   "schema_version": 1,
   "skill_name": "ppt-master",
-  "release_version": "r2.7.0-v0.1.1",
+  "release_version": "r2.8.0-v0.1.0",
   "upstream": {
     "repo": "hugohe3/ppt-master",
-    "version": "2.7.0",
-    "tag": "v2.7.0",
-    "ref": "main",
-    "commit": "9abdeff7188b50e6c993dc574e9ca04c4c972910"
+    "version": "2.8.0",
+    "tag": "v2.8.0",
+    "commit": "0c0bdaf0dd953afc2c00322e92f26dc02fc1c51f",
+    "tracked_ref": "main",
+    "tracked_commit": "a8802cedc1477a0fecc7aa276b396508ba85bb79",
+    "tracked_range": "v2.8.0..a8802cedc1477a0fecc7aa276b396508ba85bb79"
   },
   "local": {
-    "version": "0.1.1",
-    "synced_hash": "37e02d73b039ac622dec25ffb2cdb6db876ed5592c43b77da8f8e7d1949263e5"
+    "version": "0.1.0"
   },
   "support_files": {
     "requirements_source": "local",
     "env_example_source": "local",
-    "requirements_basis": "upstream skills/ppt-master/requirements.txt @ v2.7.0",
-    "env_example_basis": "upstream .env.example @ v2.7.0"
+    "requirements_basis": "upstream skills/ppt-master/requirements.txt @ v2.8.0 plus tracked patchset through a8802ced when applicable",
+    "env_example_basis": "upstream .env.example @ v2.8.0 plus tracked patchset through a8802ced when applicable"
   },
   "package": {
     "zip_name_pattern": "ppt-master-sustech-r<upstream>-v<local>-YYYY-MM-DD.zip",
     "root_dirname": "ppt-master"
   },
-  "notes": "SUSTech custom release line after upstream merge."
+  "notes": "SUSTech custom release line after upstream v2.8.0 merge plus tracked post-v2.8.0 patchset through fix(marketplace)."
 }

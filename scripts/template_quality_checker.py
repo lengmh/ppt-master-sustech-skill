@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Template-level validator for /create-template outputs.
+"""Template-level validator for template outputs.
 
-Checks the structural consistency between `brief_lock.json`, `design_spec.md`,
-SVG template files, and referenced asset files. Delegates low-level template
+Checks the structural consistency between `design_spec.md`, SVG template files,
+and referenced asset files. When `brief_lock.json` exists (or
+`--require-brief-lock` is passed), it also verifies the SUSTech create-template
+audit lock against the generated template package. Delegates low-level template
 SVG safety checks to `svg_quality_checker.py --template-mode`, while keeping
 local brief-level contract validation and registrar preflight checks.
 """
@@ -34,7 +36,6 @@ LEGACY_SPEC_SECTIONS = [
 ]
 
 REQUIRED_FRONTMATTER_KEYS = {
-    "template_id",
     "category",
     "summary",
     "keywords",
@@ -57,6 +58,19 @@ PLACEHOLDER_REQUIREMENTS = {
 }
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
+
+
+def _frontmatter_id(frontmatter: dict[str, Any], kind: str | None = None) -> Any:
+    """Return the declared template id from current or legacy frontmatter."""
+    if kind in {"brand", "layout", "deck"}:
+        value = frontmatter.get(f"{kind}_id")
+        if value is not None:
+            return value
+    for key in ("template_id", "deck_id", "layout_id", "brand_id"):
+        value = frontmatter.get(key)
+        if value is not None:
+            return value
+    return None
 
 
 def _read_spec(spec_path: Path) -> tuple[str | None, str]:
@@ -84,8 +98,22 @@ def _list_svg_files(template_dir: Path) -> list[Path]:
     return sorted(p for p in template_dir.glob("*.svg") if p.is_file())
 
 
+def _expected_kind(template_dir: Path, frontmatter: dict[str, Any]) -> str:
+    kind = frontmatter.get("kind")
+    if isinstance(kind, str) and kind in {"brand", "layout", "deck"}:
+        return kind
+    parts = set(template_dir.resolve().parts)
+    if "decks" in parts:
+        return "deck"
+    if "brands" in parts:
+        return "brand"
+    return "layout"
+
+
 def _extract_roster_entries(body: str) -> list[str]:
     section_start = body.find("## V. Page Roster")
+    if section_start == -1:
+        section_start = body.find("## V. SVG Page Roster")
     if section_start == -1:
         return []
     next_section = body.find("\n## ", section_start + 1)
@@ -105,27 +133,35 @@ def _check_design_spec_against_lock(
     spec_text: str,
     frontmatter: dict[str, Any],
     lock: dict[str, Any],
+    kind: str,
     errors: list[str],
     warnings: list[str],
 ) -> None:
     has_personality = all(heading in spec_text for heading in REQUIRED_PERSONALITY_SPEC_SECTIONS)
     has_legacy = all(heading in spec_text for heading in LEGACY_SPEC_SECTIONS)
+    has_upstream_roster = "## V. SVG Page Roster" in spec_text
     if has_personality:
         pass
     elif has_legacy:
         warnings.append("design_spec.md uses the legacy verbose template skeleton; new templates should migrate to the personality-only skeleton")
+    elif has_upstream_roster and "## I. Template Overview" in spec_text:
+        warnings.append("design_spec.md uses an upstream/compatibility template skeleton; strict SUSTech create-template checks require brief_lock.json")
     else:
         missing = [heading for heading in REQUIRED_PERSONALITY_SPEC_SECTIONS if heading not in spec_text]
-        errors.append(f"design_spec missing required sections for either current or legacy skeleton: {missing}")
+        if frontmatter:
+            warnings.append(f"design_spec missing current/legacy skeleton sections; relying on frontmatter and registrar checks: {missing}")
+        else:
+            errors.append(f"design_spec missing required sections for either current or legacy skeleton: {missing}")
 
     if frontmatter:
         missing = REQUIRED_FRONTMATTER_KEYS - set(frontmatter)
         if missing:
             errors.append(f"design_spec frontmatter missing keys: {sorted(missing)}")
-        if frontmatter.get("template_id") != lock["template_identity"]["template_id"]:
+        declared_id = _frontmatter_id(frontmatter, kind)
+        if declared_id != lock["template_identity"]["template_id"]:
             errors.append(
-                "design_spec frontmatter template_id mismatch: "
-                f"expected {lock['template_identity']['template_id']!r}, got {frontmatter.get('template_id')!r}"
+                "design_spec frontmatter id mismatch: "
+                f"expected {lock['template_identity']['template_id']!r}, got {declared_id!r}"
             )
         if frontmatter.get("category") != lock["template_identity"]["category"]:
             errors.append(
@@ -157,14 +193,68 @@ def _check_design_spec_against_lock(
         warnings.append("locked tone_summary not found verbatim in design_spec.md")
 
 
-def _check_svg_files(template_dir: Path, lock: dict[str, Any], frontmatter: dict[str, Any], body: str, errors: list[str], warnings: list[str]) -> None:
+def _check_design_spec_without_lock(
+    spec_text: str,
+    frontmatter: dict[str, Any],
+    template_dir: Path,
+    kind: str,
+    errors: list[str],
+    warnings: list[str],
+) -> None:
+    has_personality = all(heading in spec_text for heading in REQUIRED_PERSONALITY_SPEC_SECTIONS)
+    has_legacy = all(heading in spec_text for heading in LEGACY_SPEC_SECTIONS)
+    has_upstream_roster = "## V. SVG Page Roster" in spec_text
+    if has_personality:
+        pass
+    elif has_legacy:
+        warnings.append("design_spec.md uses the legacy verbose template skeleton; new templates should migrate to the personality-only skeleton")
+    elif has_upstream_roster and "## I. Template Overview" in spec_text:
+        warnings.append("design_spec.md uses an upstream/compatibility template skeleton; strict SUSTech create-template checks require brief_lock.json")
+    else:
+        missing = [heading for heading in REQUIRED_PERSONALITY_SPEC_SECTIONS if heading not in spec_text]
+        if frontmatter:
+            warnings.append(f"design_spec missing current/legacy skeleton sections; relying on frontmatter and registrar checks: {missing}")
+        else:
+            errors.append(f"design_spec missing required sections for either current or legacy skeleton: {missing}")
+
+    if not frontmatter:
+        warnings.append("design_spec.md has no YAML frontmatter; register_template.py will rely on prose fallback")
+        return
+
+    declared_kind = frontmatter.get("kind")
+    if declared_kind and declared_kind != kind:
+        errors.append(f"design_spec frontmatter kind mismatch: expected {kind!r}, got {declared_kind!r}")
+
+    id_key = {"brand": "brand_id", "layout": "layout_id", "deck": "deck_id"}[kind]
+    declared_id = _frontmatter_id(frontmatter, kind)
+    if declared_id is not None and str(declared_id) != template_dir.name:
+        errors.append(
+            f"design_spec frontmatter id mismatch: expected {template_dir.name!r}, got {declared_id!r}"
+        )
+
+    if not str(frontmatter.get("summary") or "").strip():
+        errors.append("design_spec frontmatter missing non-empty summary")
+
+    if kind in {"layout", "deck"} and not str(frontmatter.get("canvas_format") or "").strip():
+        errors.append("design_spec frontmatter missing non-empty canvas_format")
+
+
+def _check_svg_files(
+    template_dir: Path,
+    lock: dict[str, Any] | None,
+    frontmatter: dict[str, Any],
+    body: str,
+    kind: str,
+    errors: list[str],
+    warnings: list[str],
+) -> None:
     svg_files = _list_svg_files(template_dir)
     svg_names = [p.name for p in svg_files]
 
-    replication = lock.get("replication", {})
+    replication = lock.get("replication", {}) if lock else {}
     replication_mode = replication.get("mode") or frontmatter.get("replication_mode") or "standard"
 
-    if replication_mode == "standard":
+    if kind != "brand" and replication_mode == "standard":
         for svg_name in CORE_TEMPLATE_FILES:
             if svg_name not in svg_names:
                 errors.append(f"missing core template file: {svg_name}")
@@ -216,16 +306,17 @@ def _run_svg_quality_checker(template_dir: Path, expected_format: str, errors: l
         warnings.append("SVG quality checker reported template SVG warnings")
 
 
-def _run_register_preflight(template_dir: Path, errors: list[str], warnings: list[str]) -> None:
+def _run_register_preflight(template_dir: Path, kind: str, errors: list[str], warnings: list[str]) -> None:
     script_path = Path(__file__).with_name("register_template.py")
-    layouts_root = script_path.parent.parent.resolve() / "templates" / "layouts"
+    kind_dir = {"brand": "brands", "layout": "layouts", "deck": "decks"}[kind]
+    kind_root = script_path.parent.parent.resolve() / "templates" / kind_dir
     try:
-        template_dir.resolve().relative_to(layouts_root)
+        template_dir.resolve().relative_to(kind_root)
     except ValueError:
-        warnings.append("register preflight skipped: template_dir is outside templates/layouts/")
+        warnings.append(f"register preflight skipped: template_dir is outside templates/{kind_dir}/")
         return
     completed = subprocess.run(
-        [sys.executable, str(script_path), template_dir.name, "--dry-run"],
+        [sys.executable, str(script_path), template_dir.name, "--kind", kind, "--dry-run"],
         cwd=script_path.parent.parent,
         capture_output=True,
         text=True,
@@ -238,17 +329,24 @@ def _run_register_preflight(template_dir: Path, errors: list[str], warnings: lis
         warnings.append(f"register preflight emitted stderr: {completed.stderr.strip()}")
 
 
-def check_template_dir(template_dir: Path, expected_format: str) -> dict[str, Any]:
+def check_template_dir(template_dir: Path, expected_format: str, require_brief_lock: bool = False) -> dict[str, Any]:
     template_dir = Path(template_dir)
     errors: list[str] = []
     warnings: list[str] = []
 
     lock_path = template_dir / "brief_lock.json"
-    if not lock_path.exists():
+    lock: dict[str, Any] | None = None
+    if lock_path.exists():
+        try:
+            lock = load_brief_lock(template_dir)
+        except Exception as exc:
+            errors.append(f"Invalid brief_lock.json: {exc}")
+            return {"passed": False, "errors": errors, "warnings": warnings}
+    elif require_brief_lock:
         errors.append("Missing brief_lock.json")
         return {"passed": False, "errors": errors, "warnings": warnings}
-
-    lock = load_brief_lock(template_dir)
+    else:
+        warnings.append("Missing brief_lock.json; running frontmatter/prose compatibility checks")
 
     design_spec = template_dir / "design_spec.md"
     if not design_spec.exists():
@@ -259,30 +357,45 @@ def check_template_dir(template_dir: Path, expected_format: str) -> dict[str, An
     frontmatter = _parse_frontmatter_block(frontmatter_block)
     spec_text = design_spec.read_text(encoding="utf-8")
 
-    _check_design_spec_against_lock(spec_text, frontmatter, lock, errors, warnings)
-    _check_svg_files(template_dir, lock, frontmatter, body, errors, warnings)
+    kind = _expected_kind(template_dir, frontmatter)
+    if lock is not None:
+        _check_design_spec_against_lock(spec_text, frontmatter, lock, kind, errors, warnings)
+    else:
+        _check_design_spec_without_lock(spec_text, frontmatter, template_dir, kind, errors, warnings)
+    _check_svg_files(template_dir, lock, frontmatter, body, kind, errors, warnings)
     _run_svg_quality_checker(template_dir, expected_format=expected_format, errors=errors, warnings=warnings)
-    _run_register_preflight(template_dir, errors=errors, warnings=warnings)
+    _run_register_preflight(template_dir, kind, errors=errors, warnings=warnings)
 
     return {
         "passed": len(errors) == 0,
         "errors": errors,
         "warnings": warnings,
-        "lock_revision": lock["revision"],
+        "lock_revision": lock["revision"] if lock else "N/A",
         "template_dir": str(template_dir),
+        "kind": kind,
     }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate a create-template output directory")
-    parser.add_argument("template_dir", type=Path, help="Template directory under templates/layouts/")
+    parser.add_argument("template_dir", type=Path, help="Template directory under templates/layouts/ or templates/decks/")
     parser.add_argument("--format", dest="expected_format", required=True, help="Expected canvas format, e.g. ppt169")
+    parser.add_argument(
+        "--require-brief-lock",
+        action="store_true",
+        help="Require brief_lock.json. Use this for newly generated /create-template outputs.",
+    )
     args = parser.parse_args()
 
-    result = check_template_dir(args.template_dir, expected_format=args.expected_format)
+    result = check_template_dir(
+        args.template_dir,
+        expected_format=args.expected_format,
+        require_brief_lock=args.require_brief_lock,
+    )
 
     print(f"[CHECK] template: {args.template_dir}")
     print(f"[CHECK] brief_lock revision: {result.get('lock_revision', 'N/A')}")
+    print(f"[CHECK] kind: {result.get('kind', 'N/A')}")
     for error in result["errors"]:
         print(f"[ERROR] {error}")
     for warning in result["warnings"]:

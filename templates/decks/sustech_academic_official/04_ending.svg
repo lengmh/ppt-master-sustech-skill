@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720">
+  <image href="ending_campus_bg.jpg" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
+  <rect x="0" y="0" width="1280" height="720" fill="#FFFFFF" fill-opacity="0.18"/>
+  <image href="full_top_right_school_logo.png" x="1060" y="13" width="220" height="66" preserveAspectRatio="xMidYMid meet"/>
+  <rect x="310" y="236" width="660" height="214" rx="28" fill="#FFFFFF" fill-opacity="0.84"/>
+  <text x="640" y="346" text-anchor="middle" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="60" font-weight="bold">{{THANK_YOU}}</text>
+  <line x1="508" y1="382" x2="772" y2="382" stroke="#E3660D" stroke-width="4"/>
+  <rect x="0" y="670" width="1280" height="50" fill="#003F43" fill-opacity="0.70"/>
+  <text x="640" y="702" text-anchor="middle" fill="#FFFFFF" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14">Southern University of Science and Technology</text>
+</svg>
