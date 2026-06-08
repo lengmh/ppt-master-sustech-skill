@@ -8,15 +8,15 @@
 
 | 项目 | 值 |
 |---|---|
-| Release Version | `r2.8.0-v0.1.1` |
+| Release Version | `r2.8.0-v0.2.0` |
 | Upstream Baseline | `hugohe3/ppt-master@v2.8.0` |
 | Upstream Commit | `0c0bdaf0dd953afc2c00322e92f26dc02fc1c51f` |
 | Tracked Range | `v2.8.0..a8802cedc1477a0fecc7aa276b396508ba85bb79` |
 | Root Directory | `ppt-master/` |
 
-下载：
+Release page:
 
-- <https://github.com/lengmh/ppt-master-sustech-skill/releases/tag/r2.8.0-v0.1.1>
+- <https://github.com/lengmh/ppt-master-sustech-skill/releases>
 
 ## 功能亮点
 
@@ -27,6 +27,7 @@
 - 支持 `brand / layout / deck` 三分模板体系。
 - 支持 AI image manifest 工作流和图像 prompt catalog。
 - 内置 chart templates、图表校验指引、speaker notes、动画与导出辅助能力。
+- 内置 `ppt_text_normalize` Safe MVP：提供 `scan` / `apply` 两阶段 PPTX 文字样式归一化。
 - 支持 opt-in `visual-review`，用于渲染后页面检查。
 - 支持 LaTeX 公式渲染：通过 `scripts/latex_render.py` 和 `images/formula_manifest.json` 生成公式 PNG 资产。
 
@@ -38,8 +39,25 @@
 - 模板创建审计流：`brief_lock.json`、strict validation mode、template preview feedback。
 - SUSTech 与组织模板统一整理为 `templates/decks/` 条目。
 - 已清理旧品牌类 `templates/layouts/`；该目录现在只保留结构型 layout presets。
+- 正式纳入 `ppt_text_normalize` Safe MVP：以保守 `scan` / `apply` 流程处理 PPTX 文字样式漂移；visual review gate 仍属后续计划，尚未包含在当前发布面中。
 - 通过 `VERSION` 和 `RELEASE_META.json` 记录版本、上游基线和追踪范围。
 - 通过 [`docs/Roadmap.md`](docs/Roadmap.md) 记录 SUSTech 增强清单和上游兼容关注项。
+
+## `ppt_text_normalize` 当前发布面
+
+当前正式发布面包含：
+
+- `scripts/ppt_text_normalize/scan.py`
+- `scripts/ppt_text_normalize/apply.py`
+- Safe MVP 保守归一化语义与配套报告输出
+
+当前**不包含**：
+
+- visual review gate
+- `build_review_workspace`
+- `compile_review_decisions`
+- browser review panel
+- reviewed-rules flow
 
 ## 目录结构
 

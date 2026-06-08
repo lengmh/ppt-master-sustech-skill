@@ -1,6 +1,6 @@
-# PPT Text Normalize Prototype
+# PPT Text Normalize
 
-This context captures prototype-local language for the automation-first PPT text style normalization pipeline inside `ppt_text_normalize/`. It extends the root `CONTEXT.md` without redefining its higher-level release or normalization vocabulary.
+This context captures current domain language for the built-in Safe MVP text style normalization capability under `scripts/ppt_text_normalize/`. It extends the root `CONTEXT.md` without redefining its higher-level release or normalization vocabulary.
 
 ## Language
 
@@ -107,6 +107,10 @@ _Avoid_: Confident match, unknown block
 **Skip Reason**:
 The normalized reason code explaining why Apply chose not to mutate a Text Block.
 _Avoid_: Free-form excuse, hidden failure
+
+**Mutation Permission Gate**:
+The field-level safety decision that determines which style fields may be changed for one Text Block.
+_Avoid_: UI approval, final user permission, free-form style editing
 
 ## Relationships
 

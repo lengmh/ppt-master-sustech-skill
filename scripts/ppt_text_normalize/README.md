@@ -1,13 +1,13 @@
-# PPT Text Normalize Prototype
+# PPT Text Normalize
 
-Prototype workspace for an automation-first PPT text style normalization pipeline.
+Built-in Safe MVP tool for automation-first PPT text style normalization.
 
 ## Current contents
 
-- `CONTEXT.md` — prototype-local vocabulary aligned with the root `CONTEXT.md`
-- `design.md` — approved design for the prototype pipeline
+- `CONTEXT.md` — local vocabulary aligned with the root `CONTEXT.md`
+- `design.md` — current Safe MVP design and validation rationale
 
-## Intended pipeline
+## Current built-in pipeline
 
 1. `scan` — inspect PPTX, resolve page types / text roles, generate reports and `rules.json`
 2. `apply` — consume `rules.json`, normalize text styles conservatively, emit a new PPTX and reports
@@ -32,6 +32,19 @@ The default operating mode is end-to-end automatic processing:
 - `apply` auto-consumes it
 - manual edits remain optional, not required
 
+## Current command surface
+
+Current built-in commands:
+
+- `scan.py`
+- `apply.py`
+
+Not part of the current built-in command surface:
+
+- browser visual review gate
+- review workspace builders
+- reviewed-rules compilation flow
+
 ## Safe MVP behavior
 
 The first safe MVP targets multi-author PPT text-style drift without redesigning slides.
@@ -52,35 +65,33 @@ Defaults:
 
 ## Next implementation targets
 
-- `scan.py` will emit `scan_report.json`, `scan_report.md`, and `rules.json`
-- `apply.py` will emit a new normalized PPTX plus `apply_report.json` / `apply_report.md`
+- `scan.py` emits `scan_report.json`, `scan_report.md`, and `rules.json`
+- `apply.py` emits a new normalized PPTX plus `apply_report.json` / `apply_report.md`
 - runtime artifacts stay under the task work directory, for example `<workdir>/ppt_text_normalize/<task_name>/`
 
 ## Runtime artifact location
 
-Prototype code lives in this directory.
-
-Test PPTX files, reports, logs, and generated outputs should live under:
+Test PPTX files, reports, logs, and generated outputs should live under a task work directory outside the source tree:
 
 `<workdir>/ppt_text_normalize/<task_name>/`
 
-## Prototype commands
+## Commands
 
 ```bash
-python3 ppt_text_normalize/scan.py <input.pptx> --task demo
-python3 ppt_text_normalize/apply.py <input.pptx> --rules <rules.json> --task demo
+python3 scripts/ppt_text_normalize/scan.py <input.pptx> --task demo
+python3 scripts/ppt_text_normalize/apply.py <input.pptx> --rules <rules.json> --task demo
 ```
 
 
 ## Example run
 
 ```bash
-python3 ppt_text_normalize/scan.py \
+python3 scripts/ppt_text_normalize/scan.py \
   /path/to/input.pptx \
   --task normalize_demo \
   --workdir <workdir>/ppt_text_normalize/normalize_demo
 
-python3 ppt_text_normalize/apply.py \
+python3 scripts/ppt_text_normalize/apply.py \
   /path/to/input.pptx \
   --rules <workdir>/ppt_text_normalize/normalize_demo/rules.json \
   --task normalize_demo \

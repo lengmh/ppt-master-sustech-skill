@@ -1,8 +1,8 @@
-# PPT Text Normalize Prototype Design
+# PPT Text Normalize Safe MVP Design
 
 ## 1. Goal
 
-Build an **Automation-First Pipeline** inside `ppt_text_normalize/` that performs **Text Style Normalization** on existing `.pptx` files while preserving text content, text-box geometry, and overall page layout. The prototype targets only **Normalization Scope v1**:
+Build an **Automation-First Pipeline** inside `scripts/ppt_text_normalize/` that performs **Text Style Normalization** on existing `.pptx` files while preserving text content, text-box geometry, and overall page layout. The current built-in capability targets only **Normalization Scope v1**:
 
 - text boxes
 - title/body placeholders
@@ -27,7 +27,7 @@ The upgraded semantic goal is no longer “broadly unify text within a page type
 6. **Hero freeze by default** — hero-like pages and hero-like slots are reported, not mutated, unless a user explicitly overrides the freeze.
 7. **Series-aware reasoning** — TOC and chapter normalization depend on **Uniformity Eligibility** and **Series Cohesion**, not just single-page local votes.
 8. **Auditability** — every classification, canonical-style decision, mutation, fallback, freeze, and skip must be reportable.
-9. **Future migration readiness** — keep CLI shape, contracts, and module boundaries compatible with later migration into `scripts/`.
+9. **Conservative extension readiness** — keep CLI shape, contracts, and module boundaries stable for later built-in extensions.
 
 ## 3. Scope and non-goals
 
@@ -46,7 +46,7 @@ The upgraded semantic goal is no longer “broadly unify text within a page type
 - JSON + Markdown reporting for scan and apply
 - conservative fallback, freeze, and skip behavior for layout safety
 
-### Out of scope (prototype v1)
+### Out of scope (current Safe MVP)
 
 - SmartArt text normalization
 - chart-label normalization
@@ -58,10 +58,10 @@ The upgraded semantic goal is no longer “broadly unify text within a page type
 - forcing 100% mutation success on every text block
 - user-facing override UI beyond editable JSON contracts
 
-## 4. Prototype directory structure
+## 4. Module directory structure
 
 ```text
-ppt_text_normalize/
+scripts/ppt_text_normalize/
   CONTEXT.md
   design.md
   README.md
@@ -111,13 +111,13 @@ ppt_text_normalize/
 ### Scan
 
 ```bash
-python ppt_text_normalize/scan.py <input.pptx> --task <task_name>
+python scripts/ppt_text_normalize/scan.py <input.pptx> --task <task_name>
 ```
 
 Optional:
 
 ```bash
-python ppt_text_normalize/scan.py <input.pptx> \
+python scripts/ppt_text_normalize/scan.py <input.pptx> \
   --task demo \
   --workdir <workdir>/ppt_text_normalize/demo
 ```
@@ -125,13 +125,13 @@ python ppt_text_normalize/scan.py <input.pptx> \
 ### Apply
 
 ```bash
-python ppt_text_normalize/apply.py <input.pptx> --rules <rules.json> --task <task_name>
+python scripts/ppt_text_normalize/apply.py <input.pptx> --rules <rules.json> --task <task_name>
 ```
 
 Optional:
 
 ```bash
-python ppt_text_normalize/apply.py <input.pptx> \
+python scripts/ppt_text_normalize/apply.py <input.pptx> \
   --rules <workdir>/ppt_text_normalize/demo/rules.json \
   --task demo \
   --output <workdir>/ppt_text_normalize/demo/output/demo_normalized.pptx
@@ -142,7 +142,7 @@ python ppt_text_normalize/apply.py <input.pptx> \
 - `scan` never mutates the source PPTX.
 - `apply` never overwrites the source PPTX.
 - Generated artifacts default to `<workdir>/ppt_text_normalize/<task_name>/`.
-- The prototype code lives in this directory; test PPTX files, reports, and outputs should live in a task work directory outside the source tree.
+- The built-in code lives in this directory; test PPTX files, reports, and outputs should live in a task work directory outside the source tree.
 
 ## 6. Contracts
 
@@ -871,7 +871,7 @@ Use a paragraph/run hybrid mutation strategy:
 
 ### 10.3 Layout Risk model
 
-Prototype v1 uses heuristic estimation rather than renderer-accurate simulation.
+The current Safe MVP uses heuristic estimation rather than renderer-accurate simulation.
 
 Risk inputs:
 
@@ -958,7 +958,7 @@ Use normalized codes, e.g.
 
 ## 11. Validation strategy
 
-The prototype is successful only if it proves it is truly an automatic text-style normalization pipeline rather than a hidden layout editor.
+The current Safe MVP is successful only if it proves it is truly an automatic text-style normalization pipeline rather than a hidden layout editor.
 
 ### 11.1 Validation goals
 
@@ -1055,7 +1055,7 @@ Invariant metrics:
 
 ### 11.5 Acceptance bar
 
-Prototype v1 passes when:
+Safe MVP passes when:
 
 - the automation-first pipeline runs end-to-end by default
 - slot-appropriate typography improves without over-flattening content-area styling
@@ -1096,15 +1096,15 @@ Prototype v1 passes when:
 - guaranteeing zero skip blocks
 - forcing unique pages into traditional typography systems
 
-## 13. Migration path into the formal skill surface
+## 13. Evolution path inside the built-in skill surface
 
-### Phase A: prototype workspace
+### Phase A: current built-in slice
 
-Deliver in `ppt_text_normalize/`:
+Deliver in `scripts/ppt_text_normalize/`:
 
 - local `CONTEXT.md`
 - this design document
-- prototype code
+- built-in code
 - schemas
 - report examples
 
@@ -1115,15 +1115,15 @@ Once sample decks are stable:
 - freeze the main schema structure
 - normalize naming and reason codes
 - remove unused fields
-- verify page-submode and permission-profile vocabulary is stable enough to migrate
+- verify page-submode and permission-profile vocabulary is stable enough for broader built-in reuse
 
-### Phase C: integration into `scripts/`
+### Phase C: optional command-surface expansion
 
 Move toward:
 
-- `scripts/ppt_text_normalize.py`
-- `scripts/ppt_text_normalize/`
+- additional helper entrypoints only when the built-in contract genuinely expands
 - documentation updates in `scripts/README.md` and script docs
+- stricter review/apply contracts only after those commands are implemented
 
 ### Phase D: optional enhancements
 
@@ -1135,7 +1135,7 @@ Possible future enhancements:
 - deepen table-role refinement
 - add richer hero-override UI
 
-These are future enhancements, not prototype-v1 requirements.
+These are future enhancements, not current Safe MVP requirements.
 
 ## 14. Final alignment check
 
@@ -1148,7 +1148,7 @@ This design remains aligned with the revised objective:
 - it freezes hero-like design by default
 - it keeps content-area size and color changes conservative by default
 - it is **auditable**
-- it is structured for later migration into the formal `ppt-master` module surface
+- it is structured for conservative extension inside the built-in `ppt-master` tool surface
 
 ## 15. OOXML namespace preservation rule
 

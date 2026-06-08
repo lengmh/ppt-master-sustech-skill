@@ -1,1 +1,1 @@
-"""PPT text normalization prototype package."""
+"""PPT text normalization package."""
