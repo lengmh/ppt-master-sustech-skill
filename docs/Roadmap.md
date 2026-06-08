@@ -1,7 +1,7 @@
 # PPT Master SUSTech Enhancement Roadmap
 
-> Last updated: 2026-05-27  
-> Current release line: `r2.8.0-v0.1.1`  
+> Last updated: 2026-06-08  
+> Current release line: `r2.8.0-v0.2.0`  
 > Upstream baseline: `hugohe3/ppt-master@v2.8.0`  
 > Tracked upstream range: `v2.8.0..a8802cedc1477a0fecc7aa276b396508ba85bb79`
 
@@ -46,7 +46,7 @@ Key files:
 Current rules:
 
 - Version format is `r<upstream-version>-v<local-version>`.
-- Current version is `r2.8.0-v0.1.1`.
+- Current version is `r2.8.0-v0.2.0`.
 
 Fusion guard:
 
@@ -225,6 +225,33 @@ Fusion guard:
 - Do not import upstream full-repository `.claude-plugin/` content into the skill root unless the release identity is explicitly changed.
 - Keep `RELEASE_META.json.upstream.tracked_*` fields current when the tracked cutoff changes.
 
+### 8. Built-in PPT Text Normalize Safe MVP
+
+SUSTech now treats `scripts/ppt_text_normalize/` as a built-in repo capability with a conservative Safe MVP release surface.
+
+Key files:
+
+- `scripts/ppt_text_normalize/scan.py`
+- `scripts/ppt_text_normalize/apply.py`
+- `scripts/docs/ppt-text-normalize.md`
+- `scripts/ppt_text_normalize/README.md`
+- `scripts/ppt_text_normalize/CONTEXT.md`
+- `scripts/ppt_text_normalize/tests/`
+
+Current rules:
+
+- The formal capability release starts at `r2.8.0-v0.2.0`.
+- `r2.8.0-v0.1.1` release assets had included related files, but that version did not define `ppt_text_normalize` as a formal supported repo capability.
+- The current built-in command surface is `scan` + `apply` only.
+- The current release scope is the Safe MVP conservative normalization flow: `Object Slot` matching, hero freeze, weak-canonical restraint, safe field gating, report output, and OOXML namespace-preserving PPTX writes.
+- The following are not part of the current built-in release surface: visual review gate, `build_review_workspace`, `compile_review_decisions`, browser review panel, and reviewed-rules flow.
+
+Fusion guard:
+
+- Do not describe planned review-gate artifacts as shipped until the commands and browser flow actually exist in source and release docs.
+- Keep `scan` / `apply` semantics aligned with `scripts/docs/ppt-text-normalize.md`, `scripts/ppt_text_normalize/README.md`, and release notes.
+- Preserve the OOXML namespace-preservation rule and regression coverage when this module changes.
+
 ## Maintenance Rules
 
 Update this roadmap when any of the following happens:
@@ -260,10 +287,14 @@ Before accepting a future upstream update, verify:
 - [ ] Local icon and deck assets remain present.
 - [ ] Formula rendering, PDF vector figure crop, and PPTX notes guard are preserved if the tracked cutoff still includes them.
 
-## Current Public Release
+## Release Line Status
 
-As of 2026-05-27, `r2.8.0-v0.1.1` is published as the current public SUSTech-enhanced release line.
+As of 2026-06-08:
 
-Public release page:
+- Current source release line: `r2.8.0-v0.2.0`
+- `ppt_text_normalize` Safe MVP first enters the formal capability release line at `r2.8.0-v0.2.0`
+- `r2.8.0-v0.1.1` remains the previous published public release line before this release-prep sync
 
-- <https://github.com/lengmh/ppt-master-sustech-skill/releases/tag/r2.8.0-v0.1.1>
+Release pages:
+
+- <https://github.com/lengmh/ppt-master-sustech-skill/releases>

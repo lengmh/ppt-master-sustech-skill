@@ -4,6 +4,11 @@ Safe MVP tool for automatic PPTX text-style normalization.
 
 It targets multi-author font-family and font-weight drift while preserving slide content, geometry, hero compositions, and content-area hierarchy.
 
+Current built-in release surface:
+
+- included: `scan.py`, `apply.py`, reports, conservative normalization rules
+- not included: visual review gate, review workspace builder, reviewed-rules compilation, browser review panel
+
 ## Commands
 
 Scan a deck and generate v0.2 rules:

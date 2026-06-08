@@ -6,7 +6,7 @@
 
 | 项目 | 值 |
 |---|---|
-| Release Version | `r2.8.0-v0.1.1` |
+| Release Version | `r2.8.0-v0.2.0` |
 | Upstream Baseline | `hugohe3/ppt-master@v2.8.0` |
 | Tracked Range | `v2.8.0..a8802cedc1477a0fecc7aa276b396508ba85bb79` |
 | Root Directory | `ppt-master/` |
@@ -26,4 +26,5 @@
 - `SKILL.md` 是 agent 主入口。
 - `VERSION` 和 `RELEASE_META.json` 记录版本、上游基线和追踪范围。
 - `docs/Roadmap.md` 记录 SUSTech 特有增强和上游兼容关注项。
-
+- `scripts/docs/ppt-text-normalize.md` 记录当前内置 `ppt_text_normalize` Safe MVP 的命令面与安全边界。
+- `ppt_text_normalize` 当前正式发布面只覆盖 `scan` / `apply` Safe MVP；visual review gate 仍属后续计划。
