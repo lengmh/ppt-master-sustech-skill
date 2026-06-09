@@ -8,7 +8,7 @@
 
 | 项目 | 值 |
 |---|---|
-| Release Version | `r2.8.0-v0.2.1` |
+| Release Version | `r2.8.0-v0.2.2` |
 | Upstream Baseline | `hugohe3/ppt-master@v2.8.0` |
 | Upstream Commit | `0c0bdaf0dd953afc2c00322e92f26dc02fc1c51f` |
 | Tracked Range | `v2.8.0..a8802cedc1477a0fecc7aa276b396508ba85bb79` |
@@ -40,6 +40,7 @@ Release page:
 - SUSTech 与组织模板统一整理为 `templates/decks/` 条目。
 - 已清理旧品牌类 `templates/layouts/`；该目录现在只保留结构型 layout presets。
 - 正式纳入 `ppt_text_normalize` Safe MVP：以保守 `scan` / `apply` 流程处理 PPTX 文字样式漂移，并提供可选 visual review gate 作为人工审核层。
+- visual review gate 支持按文本块显式开放非常规字段，用于人工指定颜色等安全字段对齐；字号仍保持禁用。
 - 通过 `VERSION` 和 `RELEASE_META.json` 记录版本、上游基线和追踪范围。
 - 通过 [`docs/Roadmap.md`](docs/Roadmap.md) 记录 SUSTech 增强清单和上游兼容关注项。
 

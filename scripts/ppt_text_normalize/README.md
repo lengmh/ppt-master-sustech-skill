@@ -63,7 +63,14 @@ SVG geometry, or PPTX files. `apply.py` remains the only PPTX mutation path.
 Mutable fields in the visual-review MVP:
 - default: `font_family`, `bold`
 - optional: `color`, only when explicitly selected
+- advanced override: `override_field_gate` may open `font_family`, `bold`, and `color` for one reviewed block when the user explicitly chooses “开放非常规字段”
 - disabled: `font_size_pt`
+
+Advanced overrides are per-block review decisions. `override_frozen_skip` only
+lets a frozen/skipped block enter the mutation flow; `override_field_gate` only
+widens that block's editable field set, and the user must still choose the
+specific fields to mutate. Neither override makes `unsupported` blocks mutable,
+and neither override allows `font_size_pt` in this MVP.
 
 `font_family` means both DrawingML Latin and East Asian font channels where
 canonical values exist: `font_family` and `east_asia_font_family`.

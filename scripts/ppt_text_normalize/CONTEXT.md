@@ -173,3 +173,12 @@ _Avoid_: Mutated original `rules.json`, browser-authored rules, final PPTX outpu
 - "same object location" could have meant raw coordinate proximity — resolved: it means the same **Object Slot** plus compatible **Slot Variant**.
 - "content area" could have implied one undifferentiated body bucket — resolved: content-area text may refine into a **Content Intent Role** before normalization is decided.
 - "hero page" could have implied an all-or-nothing page label — resolved: **Hero Detection Policy** works at both page and slot level, with **Hero Freeze** as the default behavior.
+
+
+### Field Gate Override
+
+A per-block visual review decision that widens the editable field set after the
+user explicitly chooses advanced field override. It can open `font_family`,
+`bold`, and `color`, but never `font_size_pt` in the MVP and never for
+unsupported blocks. It does not itself mutate every opened field; it only
+widens the gate so the per-block `fields` decision can include those fields.

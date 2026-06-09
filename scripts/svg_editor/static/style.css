@@ -1007,10 +1007,23 @@ html, body {
 .review-new-group input::placeholder {
     color: #5a5a7a;
 }
-.review-override {
+.review-advanced-options {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
     margin: 12px 0;
+    padding: 12px;
+    border: 1px solid #3f3a22;
+    border-radius: 8px;
+    background: #171421;
+}
+.review-override {
+    margin: 0;
     font-size: 12px;
     color: #fbbf24;
+}
+.review-advanced-hint {
+    margin: -3px 0 4px 22px;
 }
 .review-actions {
     display: flex;

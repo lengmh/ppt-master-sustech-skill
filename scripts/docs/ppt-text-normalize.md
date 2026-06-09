@@ -51,6 +51,16 @@ The browser saves `review_decisions.json` only. It does not mutate the source
 PPTX, `rules.json`, SVG geometry, or `rules_reviewed.json`. Apply remains the
 only PPTX mutation path and must be run explicitly with reviewed rules.
 
+Review decisions support two explicit per-block advanced overrides:
+
+- `override_frozen_skip`: lets a frozen or skipped block enter the mutation flow.
+- `override_field_gate`: opens non-default fields for that block, limited to
+  `font_family`, `bold`, and `color` in this MVP. The user still chooses the
+  exact fields to mutate.
+
+Unsupported blocks remain immutable, and `font_size_pt` remains disabled even
+when advanced overrides are selected.
+
 ## Safety defaults
 
 - Canonical styles are inferred automatically from `majority_real_slide`.
