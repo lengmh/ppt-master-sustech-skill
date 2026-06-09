@@ -88,7 +88,13 @@
                     <div id="normalization-review-field-hint" class="review-muted"></div>
                     <div class="review-muted">字号（font_size_pt）在 MVP 阶段禁用。</div>
                 </div>
-                <label class="review-override"><input type="checkbox" id="normalization-review-override"> 覆盖冻结 / 已跳过文本块</label>
+                <div class="review-advanced-options">
+                    <div class="review-section-title">高级选项</div>
+                    <label class="review-override"><input type="checkbox" id="normalization-review-override"> 覆盖冻结 / 已跳过文本块</label>
+                    <div class="review-muted review-advanced-hint">允许当前块从 frozen/skipped 进入修改流程。</div>
+                    <label class="review-override"><input type="checkbox" id="normalization-review-field-override"> 开放非常规字段</label>
+                    <div class="review-muted review-advanced-hint">仅对当前文本块生效；可开放颜色等非常规字段，仍需在上方选择具体字段，字号仍禁用。</div>
+                </div>
                 <div class="review-actions">
                     <button id="normalization-review-apply" type="button">保存当前块决策</button>
                     <button id="normalization-review-undo" type="button">撤销最近决策</button>

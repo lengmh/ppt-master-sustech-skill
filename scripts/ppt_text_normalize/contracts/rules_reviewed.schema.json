@@ -2,19 +2,64 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ppt_text_normalize reviewed rules extension",
   "type": "object",
-  "required": ["review_gate", "reviewed_overrides"],
+  "required": [
+    "review_gate",
+    "reviewed_overrides"
+  ],
   "properties": {
     "review_gate": {
       "type": "object",
-      "required": ["type", "schema_version", "status"],
+      "required": [
+        "type",
+        "schema_version",
+        "status"
+      ],
       "properties": {
-        "type": {"const": "visual_live_preview"},
-        "schema_version": {"type": "string"},
-        "status": {"const": "reviewed"}
+        "type": {
+          "const": "visual_live_preview"
+        },
+        "schema_version": {
+          "type": "string"
+        },
+        "status": {
+          "const": "reviewed"
+        }
       },
       "additionalProperties": true
     },
-    "reviewed_overrides": {"type": "object"}
+    "reviewed_overrides": {
+      "type": "object",
+      "properties": {
+        "excluded_block_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "block_group_assignments": {
+          "type": "object"
+        },
+        "block_fields": {
+          "type": "object"
+        },
+        "user_groups": {
+          "type": "object"
+        },
+        "override_frozen_skip_block_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "override_field_gate_block_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
   },
   "additionalProperties": true
 }

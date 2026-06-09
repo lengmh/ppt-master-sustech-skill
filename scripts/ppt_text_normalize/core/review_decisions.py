@@ -34,6 +34,7 @@ def compile_reviewed_rules(
     block_fields: dict[str, list[str]] = {}
     user_groups: dict[str, dict[str, Any]] = _collect_user_groups(decisions, blocks)
     override_ids: set[str] = set()
+    override_field_gate_ids: set[str] = set()
 
     for decision in decisions:
         if not isinstance(decision, dict):
@@ -44,11 +45,14 @@ def compile_reviewed_rules(
         action = _require_str(decision, "action")
         block = blocks[block_id]
         override = bool(decision.get("override_frozen_skip"))
+        override_field_gate = bool(decision.get("override_field_gate"))
         fields = _normalize_fields(decision.get("fields") if "fields" in decision else None)
 
         if action == "exclude":
             if override:
                 raise ValueError("override_frozen_skip is invalid for exclude")
+            if override_field_gate:
+                raise ValueError("override_field_gate is invalid for exclude")
             excluded.add(block_id)
             continue
 
@@ -82,6 +86,7 @@ def compile_reviewed_rules(
                 "reference_block_id": reference_block_id,
                 "target_style": dict(reference.get("current_style") or {}),
                 "fields": fields if fields is not None else ["font_family", "bold"],
+                "override_field_gate": override_field_gate,
             }
             label = decision.get("label")
             if isinstance(label, str) and label.strip():
@@ -98,7 +103,9 @@ def compile_reviewed_rules(
                 fields = list(user_groups[group_id].get("fields") or ["font_family", "bold"])
             else:
                 fields = ["font_family"]
-        _validate_fields_allowed_for_decision(block_id, fields, block, groups.get(group_id), user_groups.get(group_id))
+        _validate_fields_allowed_for_decision(block_id, fields, block, groups.get(group_id), user_groups.get(group_id), override_field_gate=override_field_gate)
+        if override_field_gate:
+            override_field_gate_ids.add(block_id)
         assignments[block_id] = group_id
         block_fields[block_id] = fields
 
@@ -121,6 +128,7 @@ def compile_reviewed_rules(
         "block_fields": {key: block_fields[key] for key in sorted(block_fields)},
         "user_groups": {key: user_groups[key] for key in sorted(user_groups)},
         "override_frozen_skip_block_ids": sorted(override_ids),
+        "override_field_gate_block_ids": sorted(override_field_gate_ids),
     }
     return reviewed
 
@@ -146,7 +154,7 @@ def _collect_user_groups(decisions: list[Any], blocks: dict[str, dict[str, Any]]
             raise ValueError(f"at least one field is required for user group: {group_id}")
         if fields is None:
             fields = ["font_family", "bold"]
-        _validate_fields_allowed_for_block(reference_block_id, fields, reference)
+        _validate_fields_allowed_for_block(reference_block_id, fields, reference, override_field_gate=bool(decision.get("override_field_gate")))
         user_groups[group_id] = {
             "reference_block_id": reference_block_id,
             "target_style": dict(reference.get("current_style") or {}),
@@ -207,15 +215,19 @@ def _validate_fields_allowed_for_decision(
     block: dict[str, Any],
     group: dict[str, Any] | None,
     user_group: dict[str, Any] | None,
+    *,
+    override_field_gate: bool = False,
 ) -> None:
-    _validate_fields_allowed_for_block(block_id, fields, block)
-    group_allowed = _allowed_fields_for_group(group, user_group)
+    _validate_fields_allowed_for_block(block_id, fields, block, override_field_gate=override_field_gate)
+    group_allowed = _allowed_fields_for_group(group, user_group, override_field_gate=override_field_gate)
     for field in fields:
         if field not in group_allowed:
             raise ValueError(f"field not allowed for selected group {block_id}: {field}")
 
 
-def _allowed_fields_for_group(group: dict[str, Any] | None, user_group: dict[str, Any] | None) -> set[str]:
+def _allowed_fields_for_group(group: dict[str, Any] | None, user_group: dict[str, Any] | None, *, override_field_gate: bool = False) -> set[str]:
+    if override_field_gate:
+        return set(ALLOWED_REVIEW_FIELDS)
     if user_group is not None:
         return set(user_group.get("fields") or ALLOWED_REVIEW_FIELDS)
     if group is None:
@@ -228,8 +240,8 @@ def _allowed_fields_for_group(group: dict[str, Any] | None, user_group: dict[str
     return set(allowed)
 
 
-def _validate_fields_allowed_for_block(block_id: str, fields: list[str], block: dict[str, Any]) -> None:
-    allowed = block.get("allowed_fields")
+def _validate_fields_allowed_for_block(block_id: str, fields: list[str], block: dict[str, Any], *, override_field_gate: bool = False) -> None:
+    allowed = ALLOWED_REVIEW_FIELDS if override_field_gate else block.get("allowed_fields")
     if allowed is None:
         allowed = block.get("planned_fields")
     if allowed is None:

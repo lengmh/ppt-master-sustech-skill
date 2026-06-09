@@ -75,6 +75,11 @@
             override.dataset.bound = "1";
             override.addEventListener("change", refreshFieldAvailability);
         }
+        var fieldOverride = el("normalization-review-field-override");
+        if (fieldOverride && !fieldOverride.dataset.bound) {
+            fieldOverride.dataset.bound = "1";
+            fieldOverride.addEventListener("change", refreshFieldAvailability);
+        }
     }
 
     function renderSummary() {
@@ -181,6 +186,8 @@
         });
         var override = el("normalization-review-override");
         if (override) override.checked = !!(decision && decision.override_frozen_skip);
+        var fieldOverride = el("normalization-review-field-override");
+        if (fieldOverride) fieldOverride.checked = !!(decision && decision.override_field_gate);
         updateFieldAvailability(block);
     }
 
@@ -211,6 +218,8 @@
         var boxes = Array.from(document.querySelectorAll(".normalization-review-field"));
         var hint = el("normalization-review-field-hint");
         if (!boxes.length) return;
+        var action = selectedAction();
+        updateFieldOverrideAvailability(block, action);
         if (!block) {
             boxes.forEach(function (box) {
                 setFieldBoxAvailability(box, false, "");
@@ -219,7 +228,6 @@
             if (hint) hint.textContent = "请选择文本块后再选择字段。";
             return;
         }
-        var action = selectedAction();
         if (action === "exclude") {
             boxes.forEach(function (box) {
                 setFieldBoxAvailability(box, false, "排除时不需要选择字段");
@@ -253,6 +261,38 @@
         }
     }
 
+    function updateFieldOverrideAvailability(block, action) {
+        var fieldOverride = el("normalization-review-field-override");
+        if (!fieldOverride) return;
+        var reason = "";
+        if (!block) {
+            reason = "请选择文本块后再开放字段";
+        } else if (action === "exclude") {
+            reason = "排除 / 跳过不需要开放字段";
+        } else if (block.status === "unsupported") {
+            reason = "不支持的文本块不能开放字段";
+        } else if (["frozen", "skipped"].indexOf(block.status) !== -1 && !frozenSkipOverrideChecked()) {
+            reason = "冻结 / 已跳过文本块需先勾选覆盖冻结 / 已跳过文本块";
+        }
+        setOptionBoxAvailability(fieldOverride, !reason, reason);
+        if (reason) fieldOverride.checked = false;
+    }
+
+    function frozenSkipOverrideChecked() {
+        var override = el("normalization-review-override");
+        return !!(override && override.checked);
+    }
+
+    function setOptionBoxAvailability(box, enabled, reason) {
+        box.disabled = !enabled;
+        box.title = reason || "";
+        var label = box.closest ? box.closest("label") : box.parentNode;
+        if (label && label.classList) {
+            label.classList.toggle("review-field-disabled", !enabled);
+            label.title = reason || "";
+        }
+    }
+
     function setFieldBoxAvailability(box, enabled, reason) {
         box.disabled = !enabled;
         box.title = reason || "";
@@ -264,15 +304,22 @@
     }
 
     function allowedFieldsForDecision(block, action) {
-        var blockAllowed = allowedFieldsFromBlock(block);
+        var fieldOverrideActive = isFieldOverrideActive(block, action);
+        var blockAllowed = fieldOverrideActive ? overrideAllowedFieldsForBlock(block) : allowedFieldsFromBlock(block);
         var groupAllowed = null;
         if (action === "keep_auto") {
             groupAllowed = allowedFieldsFromGroup(groupById(block.planned_group_id || block.auto_group_id));
         } else if (action === "use_group") {
             groupAllowed = allowedFieldsFromGroup(groupById((el("normalization-review-group") || {}).value));
         }
+        if (fieldOverrideActive) groupAllowed = overrideAllowedFieldsForGroup(groupAllowed);
         if (!groupAllowed) return blockAllowed;
         return intersectFields(blockAllowed, groupAllowed);
+    }
+
+    function isFieldOverrideActive(block, action) {
+        var fieldOverride = el("normalization-review-field-override");
+        return !!(fieldOverride && fieldOverride.checked && !fieldOverride.disabled && block && action !== "exclude");
     }
 
     function allowedFieldsFromBlock(block) {
@@ -280,6 +327,21 @@
         if (Array.isArray(block.allowed_fields)) return normalizeFieldList(block.allowed_fields);
         if (Array.isArray(block.planned_fields)) return normalizeFieldList(block.planned_fields);
         return ["font_family", "bold", "color"];
+    }
+
+    function overrideAllowedFieldsForBlock(block) {
+        if (!block || block.status === "unsupported") return [];
+        return ["font_family", "bold", "color"];
+    }
+
+    function overrideAllowedFieldsForGroup(groupAllowed) {
+        var allowed = normalizeFieldList(groupAllowed || ["font_family", "bold", "color"]);
+        var allowedSet = {};
+        allowed.forEach(function (field) { allowedSet[field] = true; });
+        ["font_family", "bold", "color"].forEach(function (field) {
+            if (!allowedSet[field]) allowed.push(field);
+        });
+        return allowed;
     }
 
     function allowedFieldsFromGroup(group) {
@@ -356,6 +418,7 @@
         }
         var override = el("normalization-review-override");
         if (override && override.checked && action !== "exclude") decision.override_frozen_skip = true;
+        if (isFieldOverrideActive(block, action)) decision.override_field_gate = true;
         var nextPayload = cloneReviewDecisions();
         nextPayload.decisions = effectiveDecisionsFrom(previousPayload).filter(function (item) { return item.block_id !== block.block_id; });
         nextPayload.decisions.push(decision);
@@ -461,7 +524,7 @@
                 source: "user_review",
                 reference_block_id: decision.reference_block_id,
                 fields: normalizeFieldList(decision.fields || ["font_family", "bold"]),
-                allowed_fields: normalizeFieldList(decision.fields || ["font_family", "bold"]),
+                allowed_fields: decision.override_field_gate ? ["font_family", "bold", "color"] : normalizeFieldList(decision.fields || ["font_family", "bold"]),
                 color: userGroupColor(decision.new_group_id)
             };
         });

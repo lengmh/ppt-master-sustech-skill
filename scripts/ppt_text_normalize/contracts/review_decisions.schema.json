@@ -2,12 +2,47 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ppt_text_normalize review decisions",
   "type": "object",
-  "required": ["artifact_type", "schema_version", "decisions"],
+  "required": [
+    "artifact_type",
+    "schema_version",
+    "decisions"
+  ],
   "properties": {
-    "artifact_type": {"const": "ppt_text_normalize_review_decisions"},
-    "schema_version": {"type": "string"},
-    "review_model": {"type": "string"},
-    "decisions": {"type": "array"}
+    "artifact_type": {
+      "const": "ppt_text_normalize_review_decisions"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "review_model": {
+      "type": "string"
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "override_frozen_skip": {
+            "type": "boolean"
+          },
+          "override_field_gate": {
+            "type": "boolean"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "font_family",
+                "bold",
+                "color"
+              ]
+            },
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": true
+      }
+    }
   },
   "additionalProperties": true
 }

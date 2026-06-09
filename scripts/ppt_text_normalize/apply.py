@@ -44,6 +44,7 @@ def main(argv: list[str] | None = None) -> int:
     reviewed_overrides = rules.get("reviewed_overrides") or {}
     excluded_block_ids = set(reviewed_overrides.get("excluded_block_ids") or [])
     override_frozen_skip_block_ids = set(reviewed_overrides.get("override_frozen_skip_block_ids") or [])
+    override_field_gate_block_ids = set(reviewed_overrides.get("override_field_gate_block_ids") or [])
 
     xml_overrides: dict[str, bytes] = {}
     block_reports = []
@@ -112,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
                     canonical_entry,
                     slot_rule,
                 )
-                allowed_fields = _reviewed_fields_for_block(block.block_id, allowed_fields, reviewed_overrides)
+                allowed_fields = _reviewed_fields_for_block(block.block_id, allowed_fields, reviewed_overrides, override_field_gate=block.block_id in override_field_gate_block_ids)
                 risk = assess_layout_risk(block, target_style)
                 plan = choose_apply_plan(block, target_style, risk, allowed_fields=allowed_fields, freeze_reason=freeze_reason)
 
@@ -209,14 +210,16 @@ def _build_canonical_map(rules):
     return {canonical_key_for_rule_entry(entry): entry for entry in rules.get("canonical_styles", [])}
 
 
-def _reviewed_fields_for_block(block_id, allowed_fields, reviewed_overrides):
-    block_fields = (reviewed_overrides or {}).get("block_fields", {}) or {}
+def _reviewed_fields_for_block(block_id, allowed_fields, reviewed_overrides, *, override_field_gate=False):
+    reviewed_overrides = reviewed_overrides or {}
+    override_field_gate = override_field_gate or block_id in set(reviewed_overrides.get("override_field_gate_block_ids") or [])
+    block_fields = reviewed_overrides.get("block_fields", {}) or {}
     if block_id not in block_fields:
         return tuple(allowed_fields)
     requested = block_fields.get(block_id)
     if requested is None:
         return tuple(allowed_fields)
-    allowed = set(allowed_fields)
+    allowed = {"font_family", "bold", "color"} if override_field_gate else set(allowed_fields)
     out = []
     for field in requested:
         if field == "font_size_pt":

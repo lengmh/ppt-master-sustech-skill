@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "skill_name": "ppt-master",
-  "release_version": "r2.8.0-v0.2.1",
+  "release_version": "r2.8.0-v0.2.2",
   "upstream": {
     "repo": "hugohe3/ppt-master",
     "version": "2.8.0",
@@ -12,7 +12,7 @@
     "tracked_range": "v2.8.0..a8802cedc1477a0fecc7aa276b396508ba85bb79"
   },
   "local": {
-    "version": "0.2.1"
+    "version": "0.2.2"
   },
   "support_files": {
     "requirements_source": "local",
@@ -24,5 +24,5 @@
     "zip_name_pattern": "ppt-master-sustech-r<upstream>-v<local>-YYYY-MM-DD.zip",
     "root_dirname": "ppt-master"
   },
-  "notes": "SUSTech custom release line after upstream v2.8.0 merge plus tracked post-v2.8.0 patchset through fix(marketplace); v0.2.0 is the first formal Safe MVP release of built-in ppt_text_normalize scan/apply, and v0.2.1 adds the optional visual review gate as a formal release capability."
+  "notes": "SUSTech custom release line after upstream v2.8.0 merge plus tracked post-v2.8.0 patchset through fix(marketplace); v0.2.0 is the first formal Safe MVP release of built-in ppt_text_normalize scan/apply, v0.2.1 adds the optional visual review gate as a formal release capability, and v0.2.2 refines visual review with per-block field gate override for explicit manual color/style alignment."
 }

@@ -1,7 +1,7 @@
 # PPT Master SUSTech Enhancement Roadmap
 
 > Last updated: 2026-06-09  
-> Current release line: `r2.8.0-v0.2.1`  
+> Current release line: `r2.8.0-v0.2.2`
 > Upstream baseline: `hugohe3/ppt-master@v2.8.0`  
 > Tracked upstream range: `v2.8.0..a8802cedc1477a0fecc7aa276b396508ba85bb79`
 
@@ -46,7 +46,7 @@ Key files:
 Current rules:
 
 - Version format is `r<upstream-version>-v<local-version>`.
-- Current version is `r2.8.0-v0.2.1`.
+- Current version is `r2.8.0-v0.2.2`.
 
 Fusion guard:
 
@@ -244,9 +244,10 @@ Current rules:
 
 - The Safe MVP `scan` / `apply` capability release starts at `r2.8.0-v0.2.0`.
 - The optional visual review gate enters the formal release line at `r2.8.0-v0.2.1`.
+- `r2.8.0-v0.2.2` adds per-block visual-review field gate override for explicit manual color/style alignment while preserving Safe MVP field boundaries.
 - `r2.8.0-v0.1.1` release assets had included related files, but that version did not define `ppt_text_normalize` as a formal supported repo capability.
 - The current built-in command surface includes `scan`, optional `build_review_workspace`, optional `compile_review_decisions`, and `apply`.
-- The current release scope is the Safe MVP conservative normalization flow plus the optional visual review gate: `Object Slot` matching, hero freeze, weak-canonical restraint, safe field gating, review decisions, reviewed rules, report output, and OOXML namespace-preserving PPTX writes.
+- The current release scope is the Safe MVP conservative normalization flow plus the optional visual review gate: `Object Slot` matching, hero freeze, weak-canonical restraint, safe field gating, per-block field gate override, review decisions, reviewed rules, report output, and OOXML namespace-preserving PPTX writes.
 - Browser review remains a review layer only: it writes `review_decisions.json` and does not mutate `rules.json`, SVG geometry, or PPTX files.
 
 Fusion guard:
@@ -294,9 +295,10 @@ Before accepting a future upstream update, verify:
 
 As of 2026-06-09:
 
-- Current source release line: `r2.8.0-v0.2.1`
+- Current source release line: `r2.8.0-v0.2.2`
 - `ppt_text_normalize` Safe MVP first enters the formal capability release line at `r2.8.0-v0.2.0`
 - Optional visual review gate first enters the formal capability release line at `r2.8.0-v0.2.1`
+- Per-block visual review field gate override enters the formal capability release line at `r2.8.0-v0.2.2`
 - `r2.8.0-v0.2.0` remains the previous published Safe MVP release line
 
 Release pages:

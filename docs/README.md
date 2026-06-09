@@ -6,7 +6,7 @@
 
 | 项目 | 值 |
 |---|---|
-| Release Version | `r2.8.0-v0.2.1` |
+| Release Version | `r2.8.0-v0.2.2` |
 | Upstream Baseline | `hugohe3/ppt-master@v2.8.0` |
 | Tracked Range | `v2.8.0..a8802cedc1477a0fecc7aa276b396508ba85bb79` |
 | Root Directory | `ppt-master/` |
