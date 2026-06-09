@@ -21,12 +21,14 @@
             selected_help_drag: "Drag selected elements to generate move annotations.",
             label_edit_instruction: "Edit instruction",
             label_layout_issues: "Layout issues",
+            panel_review: "Review",
             placeholder_annotation: "Describe how the AI should modify this element...",
             placeholder_annotation_multi: "Describe how to modify all {count} elements...",
             btn_add_annotation: "Add annotation",
             btn_reset_preview: "Reset preview",
             label_annotations_on_slide: "Annotations on this slide",
             btn_submit_annotations: "Submit annotations",
+            btn_review_done: "Review done, return to chat",
             btn_exit_preview: "Exit preview",
             modal_submit: "Submit",
             modal_cancel: "Cancel",
@@ -50,9 +52,12 @@
             reload_banner: "This slide was updated on disk. Click to reload.",
             modal_confirm_submit: "Submit annotations to disk?\n\nThe preview service will keep running. Click Exit preview when you want to stop it.",
             modal_success_submit: "Annotations saved.\n\nReturn to the chat and tell the AI to apply them (e.g. \"apply my annotations\"). The preview service is still running.",
+            modal_review_done: "review_decisions.json is saved as you click each review decision.\n\nReturn to the chat and tell the AI to compile reviewed rules and apply normalization.",
+            modal_success_review_done: "Review decisions are ready.\n\nReturn to the chat and say: \"review complete, continue apply\".",
             modal_confirm_exit: "Exit preview and stop the local server?\n\nUnsaved annotations will be discarded.",
             modal_success_exit: "Preview stopped.\n\nYou can close this tab and return to the chat.",
             modal_stopping: "Stopping preview server...",
+            selected_help_review: "请选择文本框并保存审阅决策；浏览器只保存 review_decisions.json。",
             lang_toggle_title: "Switch language",
             nav_first: "First slide (Home)",
             nav_prev: "Previous slide (←)",
@@ -75,12 +80,14 @@
             selected_help_drag: "拖拽已选元素，可自动生成移动类批注。",
             label_edit_instruction: "修改说明",
             label_layout_issues: "排版问题",
+            panel_review: "审阅",
             placeholder_annotation: "描述希望 AI 如何修改该元素……",
             placeholder_annotation_multi: "描述希望如何修改所选 {count} 个元素……",
             btn_add_annotation: "添加标注",
             btn_reset_preview: "复位预览",
             label_annotations_on_slide: "本页标注",
             btn_submit_annotations: "提交标注",
+            btn_review_done: "审阅完成，回到对话应用",
             btn_exit_preview: "退出预览",
             modal_submit: "提交",
             modal_cancel: "取消",
@@ -104,9 +111,12 @@
             reload_banner: "当前页已在磁盘上更新,点此重新加载。",
             modal_confirm_submit: "确认将标注保存到磁盘?\n\n预览服务会继续运行。需要关闭时请点击退出预览。",
             modal_success_submit: "标注已保存。\n\n请回到对话窗口并告诉 AI 应用这些标注(例如\"应用我的标注\")。预览服务仍在运行。",
+            modal_review_done: "review_decisions.json 已保存；浏览器不会直接修改 PPTX。\n\n请回到对话窗口，让 AI 继续 compile + apply。",
+            modal_success_review_done: "审阅决策已就绪。\n\n请回到对话窗口并告诉 AI：审阅完成，继续应用。",
             modal_confirm_exit: "退出预览并停止本地服务?\n\n未保存的标注将被丢弃。",
             modal_success_exit: "预览已停止。\n\n可以关闭本标签页并回到对话窗口。",
             modal_stopping: "正在停止预览服务……",
+            selected_help_review: "请选择文本框并保存审阅决策；浏览器只保存 review_decisions.json。",
             lang_toggle_title: "切换语言",
             nav_first: "第一页 (Home)",
             nav_prev: "上一页 (←)",
@@ -159,6 +169,7 @@
         LANG = lang;
         try { window.localStorage.setItem("ppt_lang", lang); } catch (e) { /* ignore */ }
         applyI18n();
+        applyReviewModeUi();
         var toggleBtn = document.getElementById("btn-lang-toggle");
         if (toggleBtn) {
             toggleBtn.textContent = lang === "zh" ? "EN" : "中";
@@ -210,6 +221,7 @@
     var slideAnnotations  = {};     // {element_id: annotation_text} for current slide
     var currentLayoutIssues = [];
     var liveMode          = false;
+    var reviewMode        = false;
     var slidePollTimer    = null;
     var pendingModalAction = "submit";
     var slideMtimes       = {};     // {name: mtime} — last-seen mtime for each slide
@@ -881,6 +893,9 @@
                 });
 
                 setupSvgInteraction();
+                if (window.PptTextNormalizeReview) {
+                    window.PptTextNormalizeReview.onSlideLoaded(rootSvg);
+                }
                 markPreviewBaseTransforms();
                 applyPreviewOffsetsForCurrentSlide();
                 refreshAnnotationVisuals();
@@ -942,6 +957,7 @@
 
             el.addEventListener("mousedown", function (e) {
                 if (e.button !== 0) return;
+                if (reviewMode) return;
                 var target = resolveSelectionTarget(el);
                 if (target) {
                     beginDrag(target, e);
@@ -1051,7 +1067,9 @@
         selectionActionsEl.style.display = "none";
         selectionPathEl.style.display = "none";
         selectionPathEl.textContent = "";
-        selectedElementHelpEl.textContent = t("selected_help_drag");
+        selectedElementHelpEl.textContent = reviewMode ? t("selected_help_review") : t("selected_help_drag");
+
+        if (reviewMode) return;
 
         if (!selectedEl || selectedElementIds.size !== 1) return;
 
@@ -1060,7 +1078,7 @@
             btnToggleSelectionMode.textContent = t("btn_return_group_mode");
             selectionPathEl.style.display = "block";
             selectionPathEl.textContent = t("selection_path_label") + activeGroupId + " > " + activeChildId;
-            selectedElementHelpEl.textContent = t("selected_help_drag");
+            selectedElementHelpEl.textContent = reviewMode ? t("selected_help_review") : t("selected_help_drag");
             return;
         }
 
@@ -1088,7 +1106,10 @@
             selectionActionsEl.style.display = "none";
             selectionPathEl.style.display = "none";
             selectionPathEl.textContent = "";
-            selectedElementHelpEl.textContent = t("selected_help_drag");
+            selectedElementHelpEl.textContent = reviewMode ? t("selected_help_review") : t("selected_help_drag");
+            if (window.PptTextNormalizeReview) {
+                window.PptTextNormalizeReview.onSelectionChange([], svgContent);
+            }
             return;
         }
 
@@ -1113,6 +1134,22 @@
             propsEl.innerHTML = renderMultiSelectSummary(Array.from(selectedElementIds));
         }
 
+        if (reviewMode) {
+            annotationInput.style.display = "none";
+            annotationText.value = "";
+            propsEl.style.display = "none";
+            propsEl.innerHTML = "";
+            layoutIssuesEl.style.display = "none";
+            layoutIssuesListEl.innerHTML = "";
+            layoutIssuesActionsEl.innerHTML = "";
+            clearScaleHandles();
+            updateSelectionModeControls(currentEl);
+            if (window.PptTextNormalizeReview) {
+                window.PptTextNormalizeReview.onSelectionChange(Array.from(selectedElementIds), svgContent);
+            }
+            return;
+        }
+
         annotationInput.style.display = "block";
         annotationText.placeholder = count > 1
             ? t("placeholder_annotation_multi", { count: count })
@@ -1126,6 +1163,9 @@
         updateSelectionModeControls(currentEl);
         renderLayoutIssuesForSelection();
         renderScaleHandles();
+        if (window.PptTextNormalizeReview) {
+            window.PptTextNormalizeReview.onSelectionChange(Array.from(selectedElementIds), svgContent);
+        }
     }
 
     // ---- Rubber band selection ----
@@ -1142,6 +1182,7 @@
         container.addEventListener("mousedown", function (e) {
             // Only left mouse button
             if (e.button !== 0) return;
+            if (reviewMode) return;
             if (e.target && isSelectableElement(e.target)) return;
 
             // Always start tracking — rubber band only activates when
@@ -1153,6 +1194,7 @@
         });
 
         document.addEventListener("mousemove", function (e) {
+            if (reviewMode) return;
             if (scaleState.active) {
                 updateScalePreview(e);
                 return;
@@ -1195,6 +1237,7 @@
         });
 
         document.addEventListener("mouseup", function (e) {
+            if (reviewMode) return;
             if (scaleState.active) {
                 finishScale();
                 return;
@@ -1316,6 +1359,7 @@
                 if (document.activeElement === annotationText) return;
 
                 e.preventDefault();
+                if (reviewMode) return;
                 var svg = svgContent.querySelector("svg");
                 if (!svg) return;
 
@@ -1514,6 +1558,13 @@
         clearLayoutIssueVisuals();
         currentLayoutIssues = [];
 
+        if (reviewMode) {
+            layoutIssuesEl.style.display = "none";
+            layoutIssuesListEl.innerHTML = "";
+            layoutIssuesActionsEl.innerHTML = "";
+            return;
+        }
+
         if (selectedElementIds.size !== 1) {
             layoutIssuesEl.style.display = "none";
             layoutIssuesListEl.innerHTML = "";
@@ -1654,8 +1705,8 @@
     // ================================================================
     btnSave.addEventListener("click", function () {
         pendingModalAction = "submit";
-        modalMessage.textContent = t("modal_confirm_submit");
-        modalConfirm.textContent = t("modal_submit");
+        modalMessage.textContent = reviewMode ? t("modal_review_done") : t("modal_confirm_submit");
+        modalConfirm.textContent = reviewMode ? t("btn_review_done") : t("modal_submit");
         modalConfirm.style.display = "";
         modalCancel.style.display = "";
         modalOverlay.style.display = "flex";
@@ -1686,6 +1737,13 @@
                 .catch(function () {
                     modalMessage.textContent = t("modal_success_exit");
                 });
+            return;
+        }
+
+        if (reviewMode && pendingModalAction === "submit") {
+            modalConfirm.style.display = "none";
+            modalCancel.style.display = "none";
+            modalMessage.textContent = t("modal_success_review_done");
             return;
         }
 
@@ -1802,14 +1860,32 @@
         });
     }
 
+    function applyReviewModeUi() {
+        var panelRight = document.getElementById("panel-right");
+        if (panelRight) panelRight.classList.toggle("normalization-review-mode", reviewMode);
+        var panelHeader = panelRight ? panelRight.querySelector(".panel-header") : null;
+        if (panelHeader) panelHeader.textContent = reviewMode ? t("panel_review") : t("panel_annotations");
+        if (btnSave) btnSave.textContent = reviewMode ? t("btn_review_done") : t("btn_submit_annotations");
+        if (selectedElementHelpEl) {
+            selectedElementHelpEl.textContent = reviewMode ? t("selected_help_review") : t("selected_help_drag");
+        }
+    }
+
     function loadConfig() {
         return fetch("/api/config")
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 liveMode = !!data.live;
+                reviewMode = !!(data.normalization_review && data.normalization_review.enabled);
+                applyReviewModeUi();
+                if (data.normalization_review && window.PptTextNormalizeReview) {
+                    window.PptTextNormalizeReview.init(data.normalization_review);
+                }
             })
             .catch(function () {
                 liveMode = false;
+                reviewMode = false;
+                applyReviewModeUi();
             });
     }
 

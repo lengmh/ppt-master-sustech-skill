@@ -8,7 +8,7 @@
 
 | 项目 | 值 |
 |---|---|
-| Release Version | `r2.8.0-v0.2.0` |
+| Release Version | `r2.8.0-v0.2.1` |
 | Upstream Baseline | `hugohe3/ppt-master@v2.8.0` |
 | Upstream Commit | `0c0bdaf0dd953afc2c00322e92f26dc02fc1c51f` |
 | Tracked Range | `v2.8.0..a8802cedc1477a0fecc7aa276b396508ba85bb79` |
@@ -39,25 +39,20 @@ Release page:
 - 模板创建审计流：`brief_lock.json`、strict validation mode、template preview feedback。
 - SUSTech 与组织模板统一整理为 `templates/decks/` 条目。
 - 已清理旧品牌类 `templates/layouts/`；该目录现在只保留结构型 layout presets。
-- 正式纳入 `ppt_text_normalize` Safe MVP：以保守 `scan` / `apply` 流程处理 PPTX 文字样式漂移；visual review gate 仍属后续计划，尚未包含在当前发布面中。
+- 正式纳入 `ppt_text_normalize` Safe MVP：以保守 `scan` / `apply` 流程处理 PPTX 文字样式漂移，并提供可选 visual review gate 作为人工审核层。
 - 通过 `VERSION` 和 `RELEASE_META.json` 记录版本、上游基线和追踪范围。
 - 通过 [`docs/Roadmap.md`](docs/Roadmap.md) 记录 SUSTech 增强清单和上游兼容关注项。
 
-## `ppt_text_normalize` 当前发布面
+## `ppt_text_normalize` 当前源码命令面
 
-当前正式发布面包含：
+当前源码命令面包含：
 
 - `scripts/ppt_text_normalize/scan.py`
+- `scripts/ppt_text_normalize/build_review_workspace.py`
+- `scripts/ppt_text_normalize/compile_review_decisions.py`
 - `scripts/ppt_text_normalize/apply.py`
 - Safe MVP 保守归一化语义与配套报告输出
-
-当前**不包含**：
-
-- visual review gate
-- `build_review_workspace`
-- `compile_review_decisions`
-- browser review panel
-- reviewed-rules flow
+- 可选 visual review gate：浏览器只保存 `review_decisions.json`，`compile_review_decisions` 生成 `rules_reviewed.json`，最终仍由 `apply.py` 执行 PPTX 修改
 
 ## 目录结构
 

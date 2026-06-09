@@ -37,13 +37,36 @@ The default operating mode is end-to-end automatic processing:
 Current built-in commands:
 
 - `scan.py`
+- `build_review_workspace.py`
+- `compile_review_decisions.py`
 - `apply.py`
 
-Not part of the current built-in command surface:
+The visual review gate is an optional review layer between `scan` and `apply`.
+The original Safe MVP `scan -> apply` path remains valid when users do not need
+browser review.
 
-- browser visual review gate
-- review workspace builders
-- reviewed-rules compilation flow
+## Visual review gate
+
+Use this flow when users need to see, exclude, regroup, or explicitly approve
+normalization targets before any PPTX mutation:
+
+1. Run `scan` to write the original `rules.json` and `scan_report.json`.
+2. Run `build_review_workspace` to create `normalization_review_preview/`.
+3. Open the workspace with `scripts/svg_editor/server.py --live`.
+4. Review colored overlays in the browser and save structured `review_decisions.json`.
+5. Run `compile_review_decisions` to write `rules_reviewed.json`.
+6. Run `apply` only after explicit user instruction, using `rules_reviewed.json`.
+
+The browser writes `review_decisions.json` only. It does not mutate `rules.json`,
+SVG geometry, or PPTX files. `apply.py` remains the only PPTX mutation path.
+
+Mutable fields in the visual-review MVP:
+- default: `font_family`, `bold`
+- optional: `color`, only when explicitly selected
+- disabled: `font_size_pt`
+
+`font_family` means both DrawingML Latin and East Asian font channels where
+canonical values exist: `font_family` and `east_asia_font_family`.
 
 ## Safe MVP behavior
 
@@ -79,6 +102,8 @@ Test PPTX files, reports, logs, and generated outputs should live under a task w
 
 ```bash
 python3 scripts/ppt_text_normalize/scan.py <input.pptx> --task demo
+python3 scripts/ppt_text_normalize/build_review_workspace.py <input.pptx> --scan-dir <scan_dir> --workdir <scan_dir>/normalization_review_preview
+python3 scripts/ppt_text_normalize/compile_review_decisions.py --rules <scan_dir>/rules.json --review-model <scan_dir>/normalization_review_preview/review_model.json --decisions <scan_dir>/normalization_review_preview/review_decisions.json --output <scan_dir>/normalization_review_preview/rules_reviewed.json
 python3 scripts/ppt_text_normalize/apply.py <input.pptx> --rules <rules.json> --task demo
 ```
 

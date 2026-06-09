@@ -89,6 +89,7 @@ class TextBlock:
     source_level: str | None = None
     style: StyleFingerprint = field(default_factory=StyleFingerprint)
     runs: tuple[TextRunStyle, ...] = ()
+    unsupported_reason: str | None = None
 
 
 @dataclass(frozen=True)

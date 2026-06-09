@@ -257,7 +257,51 @@ def create_app(
     def get_config():
         return jsonify({
             'live': app.config['LIVE_MODE'],
+            'normalization_review': {
+                'enabled': (project_path / 'review_model.json').exists(),
+                'model_path': 'review_model.json',
+                'decisions_path': 'review_decisions.json',
+            },
         })
+
+    @app.route('/api/normalization-review/model')
+    def get_normalization_review_model():
+        path = project_path / 'review_model.json'
+        if not path.exists() or not path.is_file():
+            return jsonify({'error': 'review_model.json not found'}), 404
+        try:
+            return jsonify(json.loads(path.read_text(encoding='utf-8')))
+        except json.JSONDecodeError as exc:
+            return jsonify({'error': f'invalid review_model.json: {exc}'}), 500
+
+    @app.route('/api/normalization-review/decisions')
+    def get_normalization_review_decisions():
+        path = project_path / 'review_decisions.json'
+        if not path.exists():
+            return jsonify({
+                'artifact_type': 'ppt_text_normalize_review_decisions',
+                'schema_version': '0.1',
+                'review_model': 'review_model.json',
+                'decisions': [],
+            })
+        try:
+            return jsonify(json.loads(path.read_text(encoding='utf-8')))
+        except json.JSONDecodeError as exc:
+            return jsonify({'error': f'invalid review_decisions.json: {exc}'}), 500
+
+    @app.route('/api/normalization-review/decisions', methods=['POST'])
+    def post_normalization_review_decisions():
+        model_path = project_path / 'review_model.json'
+        if not model_path.exists() or not model_path.is_file():
+            return jsonify({'error': 'review_model.json not found'}), 404
+        data = request.get_json(silent=True) or {}
+        if data.get('artifact_type') != 'ppt_text_normalize_review_decisions':
+            return jsonify({'error': 'invalid artifact_type'}), 400
+        if not isinstance(data.get('decisions'), list):
+            return jsonify({'error': 'decisions must be a list'}), 400
+        path = project_path / 'review_decisions.json'
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+        return jsonify({'status': 'ok', 'path': 'review_decisions.json'})
 
     @app.route('/images/<path:filename>')
     def serve_image(filename: str):

@@ -112,6 +112,22 @@ _Avoid_: Free-form excuse, hidden failure
 The field-level safety decision that determines which style fields may be changed for one Text Block.
 _Avoid_: UI approval, final user permission, free-form style editing
 
+**Visual Review Gate**:
+The live-preview review layer that lets users inspect overlays, exclude blocks, change target groups, create user groups, and save structured Review Decisions before Apply mutates a PPTX.
+_Avoid_: Markdown-only confirmation, browser-side PPTX editing, geometry editor
+
+**Review Model**:
+The read-only browser input generated from current `rules.json`, `scan_report.json`, and extracted Text Blocks.
+_Avoid_: User decision file, mutable rules file, replacement for scan semantics
+
+**Review Decisions**:
+The structured browser output saved as `review_decisions.json`.
+_Avoid_: Free-form comments, SVG annotations, direct PPTX changes
+
+**Reviewed Rules**:
+The compiled `rules_reviewed.json` file that preserves original rules and adds `review_gate` plus `reviewed_overrides` for Apply.
+_Avoid_: Mutated original `rules.json`, browser-authored rules, final PPTX output
+
 ## Relationships
 
 - A **Text Block** has one **Style Fingerprint**
@@ -137,6 +153,9 @@ _Avoid_: UI approval, final user permission, free-form style editing
 - A **Layout Risk** assessment may trigger the Normalization Fallback Chain
 - A skipped Text Block records exactly one **Skip Reason**
 - An **Ambiguous Match** lowers trust in automatic canonical-style selection
+- The **Visual Review Gate** consumes a **Review Model** and produces **Review Decisions**
+- **Review Decisions** compile into **Reviewed Rules** before Apply can consume reviewed overrides
+- The browser may save **Review Decisions**, but only Apply may mutate PPTX content
 
 ## Example dialogue
 
