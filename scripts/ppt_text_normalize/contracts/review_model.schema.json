@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ppt_text_normalize visual review model",
+  "type": "object",
+  "required": ["artifact_type", "schema_version", "slides", "groups", "blocks"],
+  "properties": {
+    "artifact_type": {"const": "ppt_text_normalize_visual_review_model"},
+    "schema_version": {"type": "string"},
+    "slides": {"type": "array"},
+    "groups": {"type": "array"},
+    "blocks": {"type": "array"}
+  },
+  "additionalProperties": true
+}

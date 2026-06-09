@@ -312,14 +312,26 @@ html, body {
 
 /* ======================== RIGHT PANEL ======================== */
 #panel-right {
-    width: 280px;
-    min-width: 280px;
+    width: 360px;
+    min-width: 340px;
     background: #16162a;
     border-left: 1px solid #2a2a4a;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     position: relative;
+}
+
+#panel-right::-webkit-scrollbar {
+    width: 6px;
+}
+#panel-right::-webkit-scrollbar-track {
+    background: transparent;
+}
+#panel-right::-webkit-scrollbar-thumb {
+    background: #3a3a5a;
+    border-radius: 3px;
 }
 
 #panel-right .panel-header {
@@ -516,6 +528,18 @@ html, body {
     padding: 12px 16px;
     display: flex;
     flex-direction: column;
+}
+
+#panel-right.normalization-review-enabled #annotation-list {
+    flex: 0 0 auto;
+    min-height: 96px;
+    max-height: 18vh;
+}
+
+#panel-right.normalization-review-mode #annotation-input,
+#panel-right.normalization-review-mode #annotation-list,
+#panel-right.normalization-review-mode #layout-issues {
+    display: none !important;
 }
 
 #annotation-list::-webkit-scrollbar {
@@ -848,4 +872,191 @@ html, body {
     overflow: hidden;
     clip: rect(0 0 0 0);
     white-space: nowrap;
+}
+
+/* ================= NORMALIZATION REVIEW PANEL ================= */
+#normalization-review-panel {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 16px 18px 18px;
+    border-top: 1px solid #2a2a4a;
+    border-bottom: 1px solid #2a2a4a;
+    background: #18182d;
+}
+#normalization-review-panel .review-title {
+    margin-bottom: 10px;
+    color: #a5b4fc;
+}
+.review-card {
+    margin: 10px 0 12px;
+    padding: 12px;
+    border: 1px solid #3a3a5a;
+    border-radius: 6px;
+    background: #1f1f38;
+    font-size: 12px;
+    line-height: 1.5;
+    word-break: break-word;
+}
+.review-muted {
+    color: #9ca3af;
+    font-size: 12px;
+    line-height: 1.45;
+}
+.review-error {
+    color: #fca5a5;
+    font-size: 12px;
+    line-height: 1.45;
+}
+.review-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 10px 0 12px;
+    padding: 10px 12px;
+    border: 1px solid #2f2f50;
+    border-radius: 8px;
+    background: #151529;
+    color: #c0c0d8;
+    font-size: 12px;
+    line-height: 1.45;
+}
+.review-legend div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.legend-swatch {
+    width: 18px;
+    height: 12px;
+    flex-shrink: 0;
+    border-radius: 3px;
+}
+.legend-swatch.planned {
+    background: rgba(59, 130, 246, 0.32);
+    border: 2px solid #3B82F6;
+}
+.legend-swatch.unchanged {
+    background: rgba(209, 213, 219, 0.18);
+    border: 2px dashed #3B82F6;
+}
+.legend-swatch.unavailable {
+    background: rgba(209, 213, 219, 0.18);
+    border: 2px dashed #9CA3AF;
+}
+.review-fieldset {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin: 12px 0;
+    padding: 12px;
+    border: 1px solid #2f2f50;
+    border-radius: 8px;
+    background: #151529;
+    font-size: 12px;
+}
+.review-section-title {
+    margin-bottom: 2px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #c7d2fe;
+}
+.review-fieldset label,
+.review-override {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.45;
+}
+.review-fieldset input,
+.review-override input {
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+.review-field-disabled {
+    color: #9ca3af;
+}
+.review-fieldset select {
+    width: 100%;
+    min-height: 34px;
+    padding: 7px 9px;
+    color: #e5e7eb;
+    background: #12121f;
+    border: 1px solid #3a3a5a;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: normal;
+}
+.review-new-group {
+    flex-direction: column;
+    gap: 6px;
+}
+.review-new-group span {
+    color: #c7d2fe;
+    font-weight: 600;
+}
+.review-new-group input {
+    width: 100%;
+    min-height: 34px;
+    padding: 7px 9px;
+    color: #e5e7eb;
+    background: #12121f;
+    border: 1px solid #3a3a5a;
+    border-radius: 4px;
+    font-size: 12px;
+}
+.review-new-group input::placeholder {
+    color: #5a5a7a;
+}
+.review-override {
+    margin: 12px 0;
+    font-size: 12px;
+    color: #fbbf24;
+}
+.review-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+#normalization-review-apply,
+#normalization-review-undo {
+    width: 100%;
+    min-height: 36px;
+    padding: 9px 12px;
+    border: 0;
+    border-radius: 6px;
+    color: #ffffff;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+}
+#normalization-review-apply {
+    background: #2563eb;
+}
+#normalization-review-apply:hover {
+    background: #1d4ed8;
+}
+#normalization-review-undo {
+    background: #374151;
+}
+#normalization-review-undo:hover:not(:disabled) {
+    background: #4b5563;
+}
+#normalization-review-undo:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.normalization-review-overlay:hover rect {
+    stroke-width: 4;
+}
+.normalization-review-overlay.svg-selected rect,
+.svg-selected.normalization-review-overlay rect {
+    stroke: #fbbf24;
+    stroke-width: 4;
+}
+.normalization-review-overlay.review-decision-applied rect {
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.35));
+}
+.normalization-review-overlay.review-decision-excluded rect {
+    opacity: 0.72;
 }

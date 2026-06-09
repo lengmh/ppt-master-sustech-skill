@@ -11,6 +11,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from ppt_text_normalize.core.canonical_style import build_canonical_style
+from ppt_text_normalize.core.canonical_identity import canonical_variant_for_slot
 from ppt_text_normalize.core.ooxml_package import OoxmlPackage
 from ppt_text_normalize.core.report_writer import write_json, write_markdown
 from ppt_text_normalize.core.role_classifier import classify_slide_semantics
@@ -160,11 +161,7 @@ def _eligible_for_canonical(slot) -> bool:
 
 
 def _canonical_variant(slot) -> str:
-    if slot.slot_variant_confidence >= 0.85:
-        return slot.slot_variant
-    if slot.object_slot == "footer" and slot.slot_variant in {"footer@org_name", "footer@page_num", "footer@note"}:
-        return slot.slot_variant
-    return f"{slot.object_slot}@default"
+    return canonical_variant_for_slot(slot)
 
 
 def _resolved_ratio(rows: list[dict], field: str) -> float:

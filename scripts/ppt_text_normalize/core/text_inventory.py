@@ -85,6 +85,7 @@ def _extract_table_blocks(slide_index: int, table_index: int, graphic_frame: ET.
     xfrm = graphic_frame.find("p:xfrm", NS)
     left, top, width, height = _extract_geometry(xfrm)
     rows = table.findall("a:tr", NS)
+    cell_boxes, unsupported_reason = _table_cell_boxes(left, top, width, height, table, rows)
     for r_idx, row in enumerate(rows, start=1):
         cells = row.findall("a:tc", NS)
         for c_idx, cell in enumerate(cells, start=1):
@@ -96,25 +97,92 @@ def _extract_table_blocks(slide_index: int, table_index: int, graphic_frame: ET.
             for para in paragraphs:
                 runs.extend(_extract_runs(para))
             style = _summarize_style(runs)
+            cell_left, cell_top, cell_width, cell_height = cell_boxes.get((r_idx, c_idx), (left, top, width, height))
             blocks.append(
                 TextBlock(
                     block_id=f"s{slide_index:02d}_tbl{table_index:02d}_r{r_idx}_c{c_idx}",
                     slide_index=slide_index,
                     container_type="table_cell",
                     text=text,
-                    left=left,
-                    top=top,
-                    width=width,
-                    height=height,
+                    left=cell_left,
+                    top=cell_top,
+                    width=cell_width,
+                    height=cell_height,
                     paragraphs=len(paragraphs),
                     paragraph_count=len(paragraphs),
                     run_count=len(runs),
                     source_level="run" if runs else "paragraph",
+                    unsupported_reason=unsupported_reason,
                     style=style,
                     runs=tuple(runs),
                 )
             )
     return blocks
+
+
+def _table_cell_boxes(
+    left: int,
+    top: int,
+    width: int,
+    height: int,
+    table: ET.Element,
+    rows: list[ET.Element],
+) -> tuple[dict[tuple[int, int], tuple[int, int, int, int]], str | None]:
+    """Return per-cell EMU boxes for simple non-merged tables.
+
+    Merged cells are intentionally fail-closed for visual review: the text is
+    still reported, but the review layer must not pretend a reliable
+    independent cell box exists.
+    """
+    cells_by_key: dict[tuple[int, int], tuple[int, int, int, int]] = {}
+    grid_cols = table.findall("a:tblGrid/a:gridCol", NS)
+    col_widths = [_safe_int(col.attrib.get("w"), 0) for col in grid_cols]
+    row_heights = [_safe_int(row.attrib.get("h"), 0) for row in rows]
+    unsupported = None
+    if not col_widths or not row_heights or width <= 0 or height <= 0:
+        unsupported = "table_cell_unresolved_geometry"
+    for row in rows:
+        for cell in row.findall("a:tc", NS):
+            if any(cell.attrib.get(attr) not in {None, "0", "false"} for attr in ("gridSpan", "rowSpan", "hMerge", "vMerge")):
+                unsupported = "table_cell_unresolved_geometry"
+
+    if unsupported:
+        return cells_by_key, unsupported
+
+    intrinsic_w = sum(col_widths)
+    intrinsic_h = sum(row_heights)
+    if intrinsic_w <= 0 or intrinsic_h <= 0:
+        return cells_by_key, "table_cell_unresolved_geometry"
+    scaled_cols = _scale_lengths(col_widths, width)
+    scaled_rows = _scale_lengths(row_heights, height)
+    col_starts = _starts(left, scaled_cols)
+    row_starts = _starts(top, scaled_rows)
+    for r_idx, row in enumerate(rows, start=1):
+        cells = row.findall("a:tc", NS)
+        if len(cells) != len(scaled_cols):
+            return {}, "table_cell_unresolved_geometry"
+        for c_idx, _cell in enumerate(cells, start=1):
+            cells_by_key[(r_idx, c_idx)] = (col_starts[c_idx - 1], row_starts[r_idx - 1], scaled_cols[c_idx - 1], scaled_rows[r_idx - 1])
+    return cells_by_key, None
+
+
+def _scale_lengths(lengths: list[int], target_total: int) -> list[int]:
+    total = sum(lengths)
+    if total <= 0:
+        return [0 for _ in lengths]
+    scaled = [int(round(value * target_total / total)) for value in lengths]
+    if scaled:
+        scaled[-1] += target_total - sum(scaled)
+    return scaled
+
+
+def _starts(origin: int, lengths: list[int]) -> list[int]:
+    starts: list[int] = []
+    current = origin
+    for length in lengths:
+        starts.append(current)
+        current += length
+    return starts
 
 
 def _collect_text(root: ET.Element) -> str:
@@ -140,6 +208,13 @@ def _extract_geometry(xfrm: ET.Element | None) -> tuple[int, int, int, int]:
         int(ext.attrib.get("cx", "0") or 0),
         int(ext.attrib.get("cy", "0") or 0),
     )
+
+
+def _safe_int(value: str | None, default: int) -> int:
+    try:
+        return int(value) if value is not None else default
+    except ValueError:
+        return default
 
 
 def _extract_runs(paragraph: ET.Element) -> list[TextRunStyle]:

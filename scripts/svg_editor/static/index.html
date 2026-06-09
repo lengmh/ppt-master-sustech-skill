@@ -59,6 +59,42 @@
                 <div class="section-label" data-i18n="label_annotations_on_slide">Annotations on this slide</div>
                 <div id="annotations"></div>
             </div>
+            <div id="normalization-review-panel" style="display:none;">
+                <div class="section-label review-title">文本规范化审阅</div>
+                <div id="normalization-review-summary" class="review-muted">正在加载审阅模型……</div>
+                <div class="review-legend" aria-label="文本规范化审阅图例">
+                    <div><span class="legend-swatch planned"></span>彩色填充：计划修改 / 已手动指定</div>
+                    <div><span class="legend-swatch unchanged"></span>彩色虚线：无变化，可审阅</div>
+                    <div><span class="legend-swatch unavailable"></span>灰色虚线：冻结 / 跳过 / 不支持</div>
+                </div>
+                <div id="normalization-review-current" class="review-card"></div>
+                <div class="review-fieldset">
+                    <div class="review-section-title">处理方式</div>
+                    <label><input type="radio" name="normalization-review-action" value="keep_auto" checked> 保留自动分组</label>
+                    <label><input type="radio" name="normalization-review-action" value="exclude"> 排除 / 跳过</label>
+                    <label><input type="radio" name="normalization-review-action" value="use_group"> 使用已有分组</label>
+                    <select id="normalization-review-group"></select>
+                    <label><input type="radio" name="normalization-review-action" value="create_group"> 从当前选中块创建新分组</label>
+                    <label class="review-new-group">
+                        <span>新分组名称</span>
+                        <input id="normalization-review-new-group-name" type="text" maxlength="60" placeholder="例如：重点标题样式">
+                    </label>
+                </div>
+                <div class="review-fieldset">
+                    <div class="review-section-title">允许修改字段</div>
+                    <label><input type="checkbox" class="normalization-review-field" value="font_family" checked> 字体（西文 + 中文）</label>
+                    <label><input type="checkbox" class="normalization-review-field" value="bold" checked> 粗体</label>
+                    <label><input type="checkbox" class="normalization-review-field" value="color"> 颜色</label>
+                    <div id="normalization-review-field-hint" class="review-muted"></div>
+                    <div class="review-muted">字号（font_size_pt）在 MVP 阶段禁用。</div>
+                </div>
+                <label class="review-override"><input type="checkbox" id="normalization-review-override"> 覆盖冻结 / 已跳过文本块</label>
+                <div class="review-actions">
+                    <button id="normalization-review-apply" type="button">保存当前块决策</button>
+                    <button id="normalization-review-undo" type="button">撤销最近决策</button>
+                </div>
+                <div id="normalization-review-status" class="review-muted"></div>
+            </div>
             <div id="preview-actions">
                 <button id="btn-save" class="btn-save" data-i18n="btn_submit_annotations">Submit annotations</button>
                 <button id="btn-exit-preview" class="btn-exit-preview" data-i18n="btn_exit_preview">Exit preview</button>
@@ -75,6 +111,7 @@
         </div>
     </div>
     <script src="/static/editor_logic.js"></script>
+    <script src="/static/normalization_review.js"></script>
     <script src="/static/app.js"></script>
 </body>
 </html>

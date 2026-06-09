@@ -12,8 +12,10 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from ppt_text_normalize.core.apply_engine import apply_plan_to_slide_xml, choose_apply_plan
+from ppt_text_normalize.core.canonical_identity import canonical_key_for_block, canonical_key_for_rule_entry
 from ppt_text_normalize.core.layout_guard import assess_layout_risk
 from ppt_text_normalize.core.model import StyleFingerprint, allowed_style_fields
+from ppt_text_normalize.core.mutation_policy import effective_allowed_fields
 from ppt_text_normalize.core.ooxml_package import OoxmlPackage, serialize_xml_preserving_prefixes, validate_markup_compatibility_prefixes
 from ppt_text_normalize.core.report_writer import write_json, write_markdown
 from ppt_text_normalize.core.text_inventory import extract_text_blocks, index_blocks_by_slide
@@ -36,12 +38,12 @@ def main(argv: list[str] | None = None) -> int:
     workdir = rules_path.parent
     output_path = Path(args.output).expanduser().resolve() if args.output else workdir / "output" / f"{input_pptx.stem}_normalized.pptx"
 
-    canonical_map = {
-        (entry["page_type"], entry["object_slot"], entry.get("slot_variant", f"{entry['object_slot']}@default")): entry
-        for entry in rules.get("canonical_styles", [])
-    }
+    canonical_map = _build_canonical_map(rules)
     slot_map = {entry["block_id"]: entry for entry in rules.get("slot_rules", [])}
     page_map = {entry["slide_index"]: entry for entry in rules.get("page_rules", [])}
+    reviewed_overrides = rules.get("reviewed_overrides") or {}
+    excluded_block_ids = set(reviewed_overrides.get("excluded_block_ids") or [])
+    override_frozen_skip_block_ids = set(reviewed_overrides.get("override_frozen_skip_block_ids") or [])
 
     xml_overrides: dict[str, bytes] = {}
     block_reports = []
@@ -60,6 +62,13 @@ def main(argv: list[str] | None = None) -> int:
             for block in blocks_by_slide.get(slide_index, []):
                 slot_rule = slot_map.get(block.block_id)
                 page_rule = page_map.get(slide_index)
+                if block.block_id in excluded_block_ids:
+                    empty = StyleFingerprint()
+                    base = choose_apply_plan(block, empty, assess_layout_risk(block, empty), allowed_fields=(), freeze_reason=None)
+                    plan = type(base)("skipped", base.steps, base.applied_fields, base.preserved_fields, 0.0, "review_excluded")
+                    skipped_count += 1
+                    block_reports.append(_build_block_report(block, page_rule, slot_rule, None, plan, "high"))
+                    continue
                 if slot_rule is None or page_rule is None:
                     empty = StyleFingerprint()
                     base = choose_apply_plan(block, empty, assess_layout_risk(block, empty), allowed_fields=(), freeze_reason=None)
@@ -73,14 +82,12 @@ def main(argv: list[str] | None = None) -> int:
                     freeze_reason = "hero_frozen"
                 if page_rule.get("page_normalization_mode") == "frozen" and slot_rule.get("resolved_object_slot") == "hero":
                     freeze_reason = freeze_reason or "hero_frozen"
+                if block.block_id in override_frozen_skip_block_ids:
+                    freeze_reason = None
 
                 object_slot = slot_rule.get("resolved_object_slot", "unknown")
-                canonical_key = (
-                    page_rule.get("resolved_page_type", "unknown"),
-                    object_slot,
-                    slot_rule.get("resolved_slot_variant") if slot_rule.get("slot_variant_confidence", 0) >= 0.85 else f"{object_slot}@default",
-                )
-                canonical_entry = canonical_map.get(canonical_key)
+                canonical_key = canonical_key_for_block(page_rule, slot_rule)
+                canonical_entry = _reviewed_canonical_for_block(block.block_id, canonical_map.get(canonical_key), reviewed_overrides, canonical_map)
                 if canonical_entry is None:
                     empty = StyleFingerprint()
                     plan = choose_apply_plan(block, empty, assess_layout_risk(block, empty), allowed_fields=(), freeze_reason=freeze_reason)
@@ -105,6 +112,7 @@ def main(argv: list[str] | None = None) -> int:
                     canonical_entry,
                     slot_rule,
                 )
+                allowed_fields = _reviewed_fields_for_block(block.block_id, allowed_fields, reviewed_overrides)
                 risk = assess_layout_risk(block, target_style)
                 plan = choose_apply_plan(block, target_style, risk, allowed_fields=allowed_fields, freeze_reason=freeze_reason)
 
@@ -194,15 +202,60 @@ def _build_block_report(block, page_rule, slot_rule, canonical_entry, plan, risk
 
 
 def _effective_allowed_fields(allowed_fields, canonical_entry, slot_rule=None):
-    fields = tuple(allowed_fields)
-    slot_variant = (slot_rule or {}).get("resolved_slot_variant", "")
-    if canonical_entry.get("weak_canonical"):
-        fields = tuple(field for field in fields if field == "font_family")
-    if slot_variant == "toc_title@secondary":
-        fields = tuple(field for field in fields if field == "font_family")
-    if slot_variant == "footer@note":
-        fields = tuple(field for field in fields if field == "font_family")
-    return fields
+    return effective_allowed_fields(tuple(allowed_fields), canonical_entry, slot_rule)
+
+
+def _build_canonical_map(rules):
+    return {canonical_key_for_rule_entry(entry): entry for entry in rules.get("canonical_styles", [])}
+
+
+def _reviewed_fields_for_block(block_id, allowed_fields, reviewed_overrides):
+    block_fields = (reviewed_overrides or {}).get("block_fields", {}) or {}
+    if block_id not in block_fields:
+        return tuple(allowed_fields)
+    requested = block_fields.get(block_id)
+    if requested is None:
+        return tuple(allowed_fields)
+    allowed = set(allowed_fields)
+    out = []
+    for field in requested:
+        if field == "font_size_pt":
+            continue
+        if field in allowed and field not in out:
+            out.append(field)
+    return tuple(out)
+
+
+def _reviewed_canonical_for_block(block_id, canonical_entry, reviewed_overrides, canonical_map=None):
+    reviewed_overrides = reviewed_overrides or {}
+    group_id = (reviewed_overrides.get("block_group_assignments") or {}).get(block_id)
+    user_group = (reviewed_overrides.get("user_groups") or {}).get(group_id) if group_id else None
+    if user_group:
+        base = dict(canonical_entry or {})
+        base["style"] = dict(user_group.get("target_style") or {})
+        base["weak_canonical"] = False
+        return base
+    if group_id and canonical_map is not None:
+        parts = str(group_id).split("|")
+        if len(parts) == 4:
+            reassigned = canonical_map.get(tuple(parts))
+            if reassigned is not None:
+                return reassigned
+    return canonical_entry
+
+
+def _reviewed_target_for_block(block_id, canonical_entry, reviewed_overrides, canonical_map=None):
+    entry = _reviewed_canonical_for_block(block_id, canonical_entry, reviewed_overrides, canonical_map)
+    style = (entry or {}).get("style") or {}
+    return StyleFingerprint(
+        font_family=style.get("font_family"),
+        east_asia_font_family=style.get("east_asia_font_family"),
+        color=style.get("color"),
+        font_size_pt=style.get("font_size_pt"),
+        bold=style.get("bold"),
+        italic=style.get("italic"),
+        source_level="reviewed" if entry is not canonical_entry else "canonical",
+    )
 
 
 if __name__ == "__main__":

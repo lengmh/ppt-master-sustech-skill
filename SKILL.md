@@ -38,7 +38,7 @@ description: >
 > [!NOTE]
 > ## SUSTech Release Identity
 >
-> This local skill source follows the SUSTech release contract `r<upstream-version>-v<local-version>`. Current release identity is `r2.8.0-v0.2.0` on upstream baseline `hugohe3/ppt-master@v2.8.0`. Keep `VERSION`, `RELEASE_META.json`, `README.md`, `docs/README.md`, `requirements.txt`, and `.env.example` aligned when preparing a release; use `scripts/package_release.py` for strict-local packaging.
+> This local skill source follows the SUSTech release contract `r<upstream-version>-v<local-version>`. Current release identity is `r2.8.0-v0.2.1` on upstream baseline `hugohe3/ppt-master@v2.8.0`. Keep `VERSION`, `RELEASE_META.json`, `README.md`, `docs/README.md`, `requirements.txt`, and `.env.example` aligned when preparing a release; use `scripts/package_release.py` for strict-local packaging.
 
 > [!IMPORTANT]
 > ## 🔌 Compatibility With Generic Coding Skills

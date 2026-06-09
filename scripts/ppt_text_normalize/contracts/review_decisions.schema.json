@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ppt_text_normalize review decisions",
+  "type": "object",
+  "required": ["artifact_type", "schema_version", "decisions"],
+  "properties": {
+    "artifact_type": {"const": "ppt_text_normalize_review_decisions"},
+    "schema_version": {"type": "string"},
+    "review_model": {"type": "string"},
+    "decisions": {"type": "array"}
+  },
+  "additionalProperties": true
+}

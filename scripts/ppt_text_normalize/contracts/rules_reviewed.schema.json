@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ppt_text_normalize reviewed rules extension",
+  "type": "object",
+  "required": ["review_gate", "reviewed_overrides"],
+  "properties": {
+    "review_gate": {
+      "type": "object",
+      "required": ["type", "schema_version", "status"],
+      "properties": {
+        "type": {"const": "visual_live_preview"},
+        "schema_version": {"type": "string"},
+        "status": {"const": "reviewed"}
+      },
+      "additionalProperties": true
+    },
+    "reviewed_overrides": {"type": "object"}
+  },
+  "additionalProperties": true
+}

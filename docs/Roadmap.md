@@ -1,7 +1,7 @@
 # PPT Master SUSTech Enhancement Roadmap
 
-> Last updated: 2026-06-08  
-> Current release line: `r2.8.0-v0.2.0`  
+> Last updated: 2026-06-09  
+> Current release line: `r2.8.0-v0.2.1`  
 > Upstream baseline: `hugohe3/ppt-master@v2.8.0`  
 > Tracked upstream range: `v2.8.0..a8802cedc1477a0fecc7aa276b396508ba85bb79`
 
@@ -46,7 +46,7 @@ Key files:
 Current rules:
 
 - Version format is `r<upstream-version>-v<local-version>`.
-- Current version is `r2.8.0-v0.2.0`.
+- Current version is `r2.8.0-v0.2.1`.
 
 Fusion guard:
 
@@ -227,11 +227,13 @@ Fusion guard:
 
 ### 8. Built-in PPT Text Normalize Safe MVP
 
-SUSTech now treats `scripts/ppt_text_normalize/` as a built-in repo capability with a conservative Safe MVP release surface.
+SUSTech now treats `scripts/ppt_text_normalize/` as a built-in repo capability with a conservative Safe MVP source command surface.
 
 Key files:
 
 - `scripts/ppt_text_normalize/scan.py`
+- `scripts/ppt_text_normalize/build_review_workspace.py`
+- `scripts/ppt_text_normalize/compile_review_decisions.py`
 - `scripts/ppt_text_normalize/apply.py`
 - `scripts/docs/ppt-text-normalize.md`
 - `scripts/ppt_text_normalize/README.md`
@@ -240,15 +242,16 @@ Key files:
 
 Current rules:
 
-- The formal capability release starts at `r2.8.0-v0.2.0`.
+- The Safe MVP `scan` / `apply` capability release starts at `r2.8.0-v0.2.0`.
+- The optional visual review gate enters the formal release line at `r2.8.0-v0.2.1`.
 - `r2.8.0-v0.1.1` release assets had included related files, but that version did not define `ppt_text_normalize` as a formal supported repo capability.
-- The current built-in command surface is `scan` + `apply` only.
-- The current release scope is the Safe MVP conservative normalization flow: `Object Slot` matching, hero freeze, weak-canonical restraint, safe field gating, report output, and OOXML namespace-preserving PPTX writes.
-- The following are not part of the current built-in release surface: visual review gate, `build_review_workspace`, `compile_review_decisions`, browser review panel, and reviewed-rules flow.
+- The current built-in command surface includes `scan`, optional `build_review_workspace`, optional `compile_review_decisions`, and `apply`.
+- The current release scope is the Safe MVP conservative normalization flow plus the optional visual review gate: `Object Slot` matching, hero freeze, weak-canonical restraint, safe field gating, review decisions, reviewed rules, report output, and OOXML namespace-preserving PPTX writes.
+- Browser review remains a review layer only: it writes `review_decisions.json` and does not mutate `rules.json`, SVG geometry, or PPTX files.
 
 Fusion guard:
 
-- Do not describe planned review-gate artifacts as shipped until the commands and browser flow actually exist in source and release docs.
+- Do not describe future review-gate expansion as shipped until the commands and browser flow actually exist in source and release docs.
 - Keep `scan` / `apply` semantics aligned with `scripts/docs/ppt-text-normalize.md`, `scripts/ppt_text_normalize/README.md`, and release notes.
 - Preserve the OOXML namespace-preservation rule and regression coverage when this module changes.
 
@@ -289,11 +292,12 @@ Before accepting a future upstream update, verify:
 
 ## Release Line Status
 
-As of 2026-06-08:
+As of 2026-06-09:
 
-- Current source release line: `r2.8.0-v0.2.0`
+- Current source release line: `r2.8.0-v0.2.1`
 - `ppt_text_normalize` Safe MVP first enters the formal capability release line at `r2.8.0-v0.2.0`
-- `r2.8.0-v0.1.1` remains the previous published public release line before this release-prep sync
+- Optional visual review gate first enters the formal capability release line at `r2.8.0-v0.2.1`
+- `r2.8.0-v0.2.0` remains the previous published Safe MVP release line
 
 Release pages:
 
