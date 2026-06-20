@@ -14,20 +14,21 @@
             placeholder_select_slide: "Select a slide on the left to begin",
             label_selected_element: "Selected element",
             empty_selected_element: "Click an element on the slide to select it",
-            btn_enter_child_mode: "Enter child elements",
-            btn_return_group_mode: "Return to group",
-            selection_path_label: "Current: ",
-            selected_help_group: "Default: select the whole block first. Use the button below to enter child elements.",
-            selected_help_drag: "Drag selected elements to generate move annotations.",
+            btn_select_group: "Select parent group",
+            label_batch_edit: "Batch edit",
+            label_group_edit: "Group edit",
+            section_geometry: "Geometry",
+            section_style: "Style",
+            section_text_style: "Text",
+            section_raw_attrs: "Raw attributes",
             label_edit_instruction: "Edit instruction",
             label_layout_issues: "Layout issues",
             panel_review: "Review",
             placeholder_annotation: "Describe how the AI should modify this element...",
             placeholder_annotation_multi: "Describe how to modify all {count} elements...",
             btn_add_annotation: "Add annotation",
-            btn_reset_preview: "Reset preview",
             label_annotations_on_slide: "Annotations on this slide",
-            btn_submit_annotations: "Submit annotations",
+            btn_submit_annotations: "Apply changes",
             btn_review_done: "Review done, return to chat",
             btn_exit_preview: "Exit preview",
             modal_submit: "Submit",
@@ -45,19 +46,28 @@
             err_add_annotation: "Failed to add annotation: ",
             err_remove_annotation: "Failed to remove annotation: ",
             err_save: "Save failed: ",
+            err_edit: "Edit failed: ",
+            err_review_readonly: "Review mode is read-only; save review decisions instead.",
+            label_direct_edit: "Object attributes (pending until Apply changes)",
+            prop_multiline_hint: "Multi-line — select a single line (tspan) to edit text",
+            edit_saved_hint: "Change staged. Click Apply changes to write it to svg_output.",
+            btn_undo: "Undo",
+            undo_done: "Reverted last staged edit",
+            undo_empty: "No staged edit to undo",
+            overlap_caption: "Overlapping here — pick one",
             err_empty_svg: "Slide loaded but the canvas is empty. The SVG may be malformed or missing a root <svg> element.",
             warn_icon_inline: "{count} icon(s) failed to render: {names}",
             warn_svg_no_dims: "SVG is missing width/height attributes. Please ask the AI to strictly follow shared-standards.md §4 and include width & height in the SVG root element.",
             slide_error_tooltip: "Failed to parse this slide: ",
             reload_banner: "This slide was updated on disk. Click to reload.",
-            modal_confirm_submit: "Submit annotations to disk?\n\nThe preview service will keep running. Click Exit preview when you want to stop it.",
-            modal_success_submit: "Annotations saved.\n\nReturn to the chat and tell the AI to apply them (e.g. \"apply my annotations\"). The preview service is still running.",
+            modal_confirm_submit: "Apply staged attribute edits and annotations to disk?\n\nThe preview service will keep running. Click Exit preview when you want to stop it.",
+            modal_success_submit: "Changes saved to svg_output.\n\nReturn to the chat to re-export the PPTX or apply AI-needed annotations. The preview service is still running.",
             modal_review_done: "review_decisions.json is saved as you click each review decision.\n\nReturn to the chat and tell the AI to compile reviewed rules and apply normalization.",
             modal_success_review_done: "Review decisions are ready.\n\nReturn to the chat and say: \"review complete, continue apply\".",
-            modal_confirm_exit: "Exit preview and stop the local server?\n\nUnsaved annotations will be discarded.",
+            modal_confirm_exit: "Exit preview and stop the local server?\n\nUnapplied edits and annotations will be discarded.",
             modal_success_exit: "Preview stopped.\n\nYou can close this tab and return to the chat.",
             modal_stopping: "Stopping preview server...",
-            selected_help_review: "请选择文本框并保存审阅决策；浏览器只保存 review_decisions.json。",
+            selected_help_review: "Select a text block and save review decisions. The browser only writes review_decisions.json.",
             lang_toggle_title: "Switch language",
             nav_first: "First slide (Home)",
             nav_prev: "Previous slide (←)",
@@ -73,20 +83,21 @@
             placeholder_select_slide: "在左侧选择一张幻灯片开始",
             label_selected_element: "已选元素",
             empty_selected_element: "点击幻灯片中的元素进行选择",
-            btn_enter_child_mode: "进入子元素",
-            btn_return_group_mode: "返回整体",
-            selection_path_label: "当前：",
-            selected_help_group: "默认先选整体，需要时再进入子元素。",
-            selected_help_drag: "拖拽已选元素，可自动生成移动类批注。",
+            btn_select_group: "选择父级组",
+            label_batch_edit: "批量编辑",
+            label_group_edit: "组编辑",
+            section_geometry: "几何",
+            section_style: "样式",
+            section_text_style: "文本",
+            section_raw_attrs: "原始属性",
             label_edit_instruction: "修改说明",
             label_layout_issues: "排版问题",
             panel_review: "审阅",
             placeholder_annotation: "描述希望 AI 如何修改该元素……",
             placeholder_annotation_multi: "描述希望如何修改所选 {count} 个元素……",
             btn_add_annotation: "添加标注",
-            btn_reset_preview: "复位预览",
             label_annotations_on_slide: "本页标注",
-            btn_submit_annotations: "提交标注",
+            btn_submit_annotations: "应用修改",
             btn_review_done: "审阅完成，回到对话应用",
             btn_exit_preview: "退出预览",
             modal_submit: "提交",
@@ -104,16 +115,25 @@
             err_add_annotation: "添加标注失败:",
             err_remove_annotation: "删除标注失败:",
             err_save: "保存失败:",
+            err_edit: "编辑失败:",
+            err_review_readonly: "审阅模式只读；请保存审阅决策。",
+            label_direct_edit: "对象属性(点击应用修改后写入)",
+            prop_multiline_hint: "多行文本——选中单行(tspan)编辑文字",
+            edit_saved_hint: "修改已暂存。点击“应用修改”后写入 svg_output。",
+            btn_undo: "撤销",
+            undo_done: "已撤销上一条暂存修改",
+            undo_empty: "没有可撤销的暂存修改",
+            overlap_caption: "此处重叠元素——点击选择",
             err_empty_svg: "幻灯片已加载但画布为空。SVG 可能损坏或缺少根 <svg> 元素。",
             warn_icon_inline: "{count} 个图标渲染失败:{names}",
             warn_svg_no_dims: "SVG 缺少 width/height 属性，预览可能异常。请让 AI 严格遵守 shared-standards.md §4 规范，在 SVG 根元素中补全 width 和 height。",
             slide_error_tooltip: "该幻灯片解析失败:",
             reload_banner: "当前页已在磁盘上更新,点此重新加载。",
-            modal_confirm_submit: "确认将标注保存到磁盘?\n\n预览服务会继续运行。需要关闭时请点击退出预览。",
-            modal_success_submit: "标注已保存。\n\n请回到对话窗口并告诉 AI 应用这些标注(例如\"应用我的标注\")。预览服务仍在运行。",
+            modal_confirm_submit: "确认将暂存属性修改和标注写入磁盘?\n\n预览服务会继续运行。需要关闭时请点击退出预览。",
+            modal_success_submit: "修改已保存到 svg_output。\n\n请回到对话窗口重新导出 PPTX，或让 AI 应用需要判断的标注。预览服务仍在运行。",
             modal_review_done: "review_decisions.json 已保存；浏览器不会直接修改 PPTX。\n\n请回到对话窗口，让 AI 继续 compile + apply。",
             modal_success_review_done: "审阅决策已就绪。\n\n请回到对话窗口并告诉 AI：审阅完成，继续应用。",
-            modal_confirm_exit: "退出预览并停止本地服务?\n\n未保存的标注将被丢弃。",
+            modal_confirm_exit: "退出预览并停止本地服务?\n\n未应用的属性修改和标注将被丢弃。",
             modal_success_exit: "预览已停止。\n\n可以关闭本标签页并回到对话窗口。",
             modal_stopping: "正在停止预览服务……",
             selected_help_review: "请选择文本框并保存审阅决策；浏览器只保存 review_decisions.json。",
@@ -178,24 +198,20 @@
         // Re-render dynamic regions so they pick up the new language
         updateSelectionPanel();
         updateAnnotationList();
+        updateUndoButton();
         loadSlides();
     }
 
     // ---- DOM refs ---------------------------------------------------
     var slideListEl       = document.getElementById("slide-list");
-    var btnResetPreview   = document.getElementById("btn-reset-preview");
     var svgPlaceholder    = document.getElementById("svg-placeholder");
     var svgContent        = document.getElementById("svg-content");
-    var svgContainerEl    = document.getElementById("svg-container");
     var selectedElementEl = document.getElementById("selected-element");
-    var selectionActionsEl = document.getElementById("selected-element-actions");
-    var btnToggleSelectionMode = document.getElementById("btn-toggle-selection-mode");
-    var selectionPathEl   = document.getElementById("selection-path");
-    var selectedElementHelpEl = document.getElementById("selected-element-help");
     var annotationInput   = document.getElementById("annotation-input");
     var annotationText    = document.getElementById("annotation-text");
     var btnAddAnnotation  = document.getElementById("btn-add-annotation");
     var annotationsEl     = document.getElementById("annotations");
+    var btnUndo           = document.getElementById("btn-undo");
     var layoutIssuesEl    = document.getElementById("layout-issues");
     var layoutIssuesListEl = document.getElementById("layout-issues-list");
     var layoutIssuesActionsEl = document.getElementById("layout-issues-actions");
@@ -226,36 +242,26 @@
     var pendingModalAction = "submit";
     var slideMtimes       = {};     // {name: mtime} — last-seen mtime for each slide
     var reloadBannerEl    = null;   // singleton banner element shown when currentSlide mtime drifts
-    var suppressNextElementClick = false;
+    var editStackCount    = {};     // {name: staged edit count} — mirrors backend PENDING_EDITS
+    var savedHintShown    = false;  // show the "staged edit" hint once per session
+    var annotationsDirty  = false;  // unsaved annotations added/removed this session
     var EditorLogic       = window.PptSvgEditorLogic || null;
-    var previewOffsetsBySlide = {};
-    var previewScalesBySlide = {};
-    var previewTextHintsBySlide = {};
-    var selectionMode     = "group";
-    var activeGroupId     = null;
-    var activeChildId     = null;
-    var dragState = {
-        active: false,
-        started: false,
-        sourceId: null,
-        startMouse: null,
-        startSvg: null,
-        currentDx: 0,
-        currentDy: 0,
-        ids: [],
-        originalTransforms: {}
-    };
-    var scaleState = {
-        active: false,
-        objectId: null,
-        handle: null,
-        startMouse: null,
-        startBox: null,
-        startScaleX: 1,
-        startScaleY: 1
-    };
-    var scaleHandleLayer = null;
-    var DRAG_THRESHOLD = 4;
+
+    // Staged edits live in server memory until "Apply changes"; the server can
+    // still idle-timeout or be killed and drop them. Warn before the tab leaves
+    // so the user remembers to apply (browsers show their own generic prompt).
+    function hasUnsavedWork() {
+        if (annotationsDirty) return true;
+        return Object.keys(editStackCount).some(function (k) {
+            return editStackCount[k] > 0;
+        });
+    }
+    window.addEventListener("beforeunload", function (e) {
+        if (!hasUnsavedWork()) return undefined;
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+    });
 
     function currentSlideIndex() {
         if (!currentSlide) return -1;
@@ -291,414 +297,6 @@
         if (navPrevBtn)  navPrevBtn.disabled  = !hasCurrent || idx2 <= 0;
         if (navNextBtn)  navNextBtn.disabled  = !hasCurrent || idx2 >= total - 1;
         if (navLastBtn)  navLastBtn.disabled  = !hasCurrent || idx2 >= total - 1;
-    }
-
-    function getSvgRoot() {
-        return svgContent.querySelector("svg");
-    }
-
-    function getSvgPoint(clientX, clientY) {
-        var svg = getSvgRoot();
-        if (!svg || typeof svg.createSVGPoint !== "function") return null;
-        var pt = svg.createSVGPoint();
-        pt.x = clientX;
-        pt.y = clientY;
-        var ctm = svg.getScreenCTM();
-        if (!ctm || typeof ctm.inverse !== "function") return null;
-        return pt.matrixTransform(ctm.inverse());
-    }
-
-    function isSelectableElement(node) {
-        return !!(node && node.classList && node.classList.contains("svg-selectable"));
-    }
-
-    function isEditableChildTag(tag) {
-        return tag === "text" || tag === "tspan" || tag === "rect" || tag === "image" || tag === "path";
-    }
-
-    function isSimpleEditablePath(el) {
-        if (!el || el.tagName.toLowerCase() !== "path") return false;
-        var d = el.getAttribute("d") || "";
-        return d.length > 0 && d.length <= 400;
-    }
-
-    function isEditableChildElement(el) {
-        if (!el) return false;
-        var tag = el.tagName.toLowerCase();
-        if (!isEditableChildTag(tag)) return false;
-        if (tag === "path") return isSimpleEditablePath(el);
-        return true;
-    }
-
-    function findNearestGroupAncestor(el) {
-        var cur = el;
-        while (cur && cur !== getSvgRoot()) {
-            if (cur.tagName && cur.tagName.toLowerCase() === "g" && cur.id) {
-                return cur;
-            }
-            cur = cur.parentNode;
-        }
-        return null;
-    }
-
-    function getEditableChildren(groupEl) {
-        if (!groupEl || !groupEl.querySelectorAll) return [];
-        return Array.from(groupEl.querySelectorAll("*")).filter(function (el) {
-            return isEditableChildElement(el);
-        });
-    }
-
-    function resetSelectionModeState() {
-        selectionMode = "group";
-        activeGroupId = null;
-        activeChildId = null;
-    }
-
-    function getCurrentPreviewOffsets() {
-        if (!currentSlide) return {};
-        if (!previewOffsetsBySlide[currentSlide]) {
-            previewOffsetsBySlide[currentSlide] = {};
-        }
-        return previewOffsetsBySlide[currentSlide];
-    }
-
-    function getCurrentPreviewScales() {
-        if (!currentSlide) return {};
-        if (!previewScalesBySlide[currentSlide]) {
-            previewScalesBySlide[currentSlide] = {};
-        }
-        return previewScalesBySlide[currentSlide];
-    }
-
-    function getCurrentPreviewTextHints() {
-        if (!currentSlide) return {};
-        if (!previewTextHintsBySlide[currentSlide]) {
-            previewTextHintsBySlide[currentSlide] = {};
-        }
-        return previewTextHintsBySlide[currentSlide];
-    }
-
-    function getCurrentTargetId() {
-        return activeChildId || activeGroupId || selectedElementIds.values().next().value || null;
-    }
-
-    function markPreviewBaseTransforms() {
-        var svg = getSvgRoot();
-        if (!svg) return;
-        svg.querySelectorAll("*").forEach(function (el) {
-            if (!el.getAttribute) return;
-            if (el.getAttribute("data-preview-base-transform") === null) {
-                el.setAttribute("data-preview-base-transform", el.getAttribute("transform") || "");
-            }
-        });
-    }
-
-    function applyPreviewOffsetsForCurrentSlide() {
-        var offsets = getCurrentPreviewOffsets();
-        var scales = getCurrentPreviewScales();
-        var allIds = new Set(Object.keys(offsets).concat(Object.keys(scales)));
-        allIds.forEach(function (id) {
-            var el = svgContent.querySelector("#" + CSS.escape(id));
-            if (!el) return;
-            var offset = offsets[id] || { dx: 0, dy: 0 };
-            var scale = scales[id] || { scaleX: 1, scaleY: 1 };
-            var dx = Number(offset.dx) || 0;
-            var dy = Number(offset.dy) || 0;
-            var scaleX = Number(scale.scaleX) || 1;
-            var scaleY = Number(scale.scaleY) || 1;
-            var base = el.getAttribute("data-preview-base-transform") || "";
-            var bbox = elementBBoxSafe(el);
-            var hasMove = Math.abs(dx) >= 1 || Math.abs(dy) >= 1;
-            var hasScale = Math.abs(scaleX - 1) >= 0.01 || Math.abs(scaleY - 1) >= 0.01;
-            if (!hasMove && !hasScale) {
-                if (base) el.setAttribute("transform", base);
-                else el.removeAttribute("transform");
-                delete offsets[id];
-                delete scales[id];
-                return;
-            }
-            var parts = [];
-            if (base) parts.push(base);
-            if (hasMove) parts.push("translate(" + dx.toFixed(2) + " " + dy.toFixed(2) + ")");
-            if (hasScale && bbox) {
-                var cx = bbox.x + bbox.width / 2;
-                var cy = bbox.y + bbox.height / 2;
-                parts.push(
-                    "translate(" + cx.toFixed(2) + " " + cy.toFixed(2) + ")" +
-                    " scale(" + scaleX.toFixed(3) + " " + scaleY.toFixed(3) + ")" +
-                    " translate(" + (-cx).toFixed(2) + " " + (-cy).toFixed(2) + ")"
-                );
-            }
-            if (parts.length) el.setAttribute("transform", parts.join(" "));
-            else el.removeAttribute("transform");
-        });
-    }
-
-    function resetPreviewOffsets(clearTextarea) {
-        if (currentSlide) {
-            previewOffsetsBySlide[currentSlide] = {};
-            previewScalesBySlide[currentSlide] = {};
-            previewTextHintsBySlide[currentSlide] = {};
-        }
-        var svg = getSvgRoot();
-        if (svg) {
-            svg.querySelectorAll("*").forEach(function (el) {
-                if (!el.getAttribute) return;
-                var base = el.getAttribute("data-preview-base-transform");
-                if (base === null) return;
-                if (base) el.setAttribute("transform", base);
-                else el.removeAttribute("transform");
-            });
-        }
-        if (clearTextarea) {
-            annotationText.value = "";
-        }
-    }
-
-    function updateMergedAnnotationForCurrentTarget() {
-        var targetId = getCurrentTargetId();
-        if (!targetId || !EditorLogic) return;
-        var offsets = getCurrentPreviewOffsets()[targetId] || { dx: 0, dy: 0 };
-        var scales = getCurrentPreviewScales()[targetId] || { scaleX: 1, scaleY: 1 };
-        var hints = getCurrentPreviewTextHints()[targetId] || [];
-        annotationInput.style.display = "block";
-        annotationText.value = EditorLogic.generateMergedAnnotation({
-            dx: offsets.dx || 0,
-            dy: offsets.dy || 0,
-            scaleX: scales.scaleX || 1,
-            scaleY: scales.scaleY || 1,
-            textHints: hints,
-            count: selectedElementIds.size || 1,
-            lang: LANG
-        });
-    }
-
-    function getMergedAnnotationForTarget(targetId) {
-        if (!targetId || !EditorLogic) return "";
-        var offsets = getCurrentPreviewOffsets()[targetId] || { dx: 0, dy: 0 };
-        var scales = getCurrentPreviewScales()[targetId] || { scaleX: 1, scaleY: 1 };
-        var hints = getCurrentPreviewTextHints()[targetId] || [];
-        return EditorLogic.generateMergedAnnotation({
-            dx: offsets.dx || 0,
-            dy: offsets.dy || 0,
-            scaleX: scales.scaleX || 1,
-            scaleY: scales.scaleY || 1,
-            textHints: hints,
-            count: selectedElementIds.size || 1,
-            lang: LANG
-        });
-    }
-
-    function resetDragState() {
-        dragState.active = false;
-        dragState.started = false;
-        dragState.sourceId = null;
-        dragState.startMouse = null;
-        dragState.startSvg = null;
-        dragState.currentDx = 0;
-        dragState.currentDy = 0;
-        dragState.ids = [];
-        dragState.originalTransforms = {};
-    }
-
-    function resetScaleState() {
-        scaleState.active = false;
-        scaleState.objectId = null;
-        scaleState.handle = null;
-        scaleState.startMouse = null;
-        scaleState.startBox = null;
-        scaleState.startScaleX = 1;
-        scaleState.startScaleY = 1;
-    }
-
-    function ensureScaleHandleLayer() {
-        if (scaleHandleLayer) return scaleHandleLayer;
-        scaleHandleLayer = document.createElement("div");
-        scaleHandleLayer.setAttribute("id", "scale-handle-layer");
-        document.body.appendChild(scaleHandleLayer);
-        return scaleHandleLayer;
-    }
-
-    function clearScaleHandles() {
-        if (!scaleHandleLayer) return;
-        scaleHandleLayer.innerHTML = "";
-        scaleHandleLayer.style.display = "none";
-    }
-
-    function buildHandle(x, y, handleName) {
-        var handle = document.createElement("div");
-        handle.className = "scale-handle";
-        handle.style.left = (x - 6) + "px";
-        handle.style.top = (y - 6) + "px";
-        handle.dataset.handle = handleName;
-        handle.addEventListener("mousedown", function (e) {
-            if (e.button !== 0) return;
-            e.stopPropagation();
-            e.preventDefault();
-            beginScale(handleName, e);
-        });
-        return handle;
-    }
-
-    function renderScaleHandles() {
-        clearScaleHandles();
-        if (selectedElementIds.size !== 1) return;
-        var targetId = getCurrentTargetId();
-        if (!targetId) return;
-        var el = svgContent.querySelector("#" + CSS.escape(targetId));
-        var bbox = elementBBoxSafe(el);
-        var ctm = el && el.getScreenCTM ? el.getScreenCTM() : null;
-        if (!el || !bbox || !ctm) return;
-
-        var layer = ensureScaleHandleLayer();
-        var corners = [
-            { name: "nw", x: bbox.x, y: bbox.y },
-            { name: "ne", x: bbox.x + bbox.width, y: bbox.y },
-            { name: "sw", x: bbox.x, y: bbox.y + bbox.height },
-            { name: "se", x: bbox.x + bbox.width, y: bbox.y + bbox.height }
-        ];
-        layer.style.display = "block";
-        corners.forEach(function (corner) {
-            var sx = corner.x * ctm.a + corner.y * ctm.c + ctm.e;
-            var sy = corner.x * ctm.b + corner.y * ctm.d + ctm.f;
-            layer.appendChild(buildHandle(sx, sy, corner.name));
-        });
-    }
-
-    function beginScale(handleName, event) {
-        var targetId = getCurrentTargetId();
-        if (!targetId) return false;
-        var el = svgContent.querySelector("#" + CSS.escape(targetId));
-        var bbox = elementBBoxSafe(el);
-        if (!el || !bbox) return false;
-        var currentScale = getCurrentPreviewScales()[targetId] || { scaleX: 1, scaleY: 1 };
-        scaleState.active = true;
-        scaleState.objectId = targetId;
-        scaleState.handle = handleName;
-        scaleState.startMouse = { x: event.clientX, y: event.clientY };
-        scaleState.startBox = { width: bbox.width, height: bbox.height };
-        scaleState.startScaleX = Number(currentScale.scaleX) || 1;
-        scaleState.startScaleY = Number(currentScale.scaleY) || 1;
-        return true;
-    }
-
-    function updateScalePreview(event) {
-        if (!scaleState.active || !scaleState.startMouse || !scaleState.startBox) return;
-        var dx = event.clientX - scaleState.startMouse.x;
-        var dy = event.clientY - scaleState.startMouse.y;
-        var delta = Math.max(dx, dy);
-        var factor = Math.max(0.2, 1 + delta / Math.max(scaleState.startBox.width, 120));
-        var scales = getCurrentPreviewScales();
-        scales[scaleState.objectId] = {
-            scaleX: scaleState.startScaleX * factor,
-            scaleY: scaleState.startScaleY * factor
-        };
-        applyPreviewOffsetsForCurrentSlide();
-        renderScaleHandles();
-        updateMergedAnnotationForCurrentTarget();
-    }
-
-    function finishScale() {
-        if (!scaleState.active) return false;
-        var applied = true;
-        resetScaleState();
-        renderScaleHandles();
-        return applied;
-    }
-
-    function clearDragPreview(keepCurrentPosition) {
-        dragState.ids.forEach(function (id) {
-            var el = svgContent.querySelector("#" + CSS.escape(id));
-            if (!el) return;
-            if (!keepCurrentPosition && Object.prototype.hasOwnProperty.call(dragState.originalTransforms, id)) {
-                var original = dragState.originalTransforms[id];
-                if (original) el.setAttribute("transform", original);
-                else el.removeAttribute("transform");
-            }
-            el.classList.remove("svg-drag-preview");
-        });
-    }
-
-    function beginDrag(elem, event) {
-        if (!elem || !elem.id) return false;
-        if (!selectedElementIds.has(elem.id)) {
-            selectElement(elem, false);
-        }
-        var startSvg = getSvgPoint(event.clientX, event.clientY);
-        if (!startSvg) return false;
-
-        dragState.active = true;
-        dragState.started = false;
-        dragState.sourceId = elem.id;
-        dragState.startMouse = { x: event.clientX, y: event.clientY };
-        dragState.startSvg = { x: startSvg.x, y: startSvg.y };
-        dragState.currentDx = 0;
-        dragState.currentDy = 0;
-        dragState.ids = Array.from(selectedElementIds);
-        dragState.originalTransforms = {};
-        dragState.ids.forEach(function (id) {
-            var target = svgContent.querySelector("#" + CSS.escape(id));
-            dragState.originalTransforms[id] = target ? (target.getAttribute("transform") || "") : "";
-        });
-        return true;
-    }
-
-    function updateDragPreview(event) {
-        if (!dragState.active || !dragState.startSvg) return;
-
-        var dxScreen = event.clientX - dragState.startMouse.x;
-        var dyScreen = event.clientY - dragState.startMouse.y;
-        if (!dragState.started && Math.sqrt(dxScreen * dxScreen + dyScreen * dyScreen) < DRAG_THRESHOLD) {
-            return;
-        }
-
-        var current = getSvgPoint(event.clientX, event.clientY);
-        if (!current) return;
-
-        dragState.started = true;
-        dragState.currentDx = current.x - dragState.startSvg.x;
-        dragState.currentDy = current.y - dragState.startSvg.y;
-
-        dragState.ids.forEach(function (id) {
-            var el = svgContent.querySelector("#" + CSS.escape(id));
-            if (!el) return;
-            var original = dragState.originalTransforms[id];
-            var translate = "translate(" + dragState.currentDx.toFixed(2) + " " + dragState.currentDy.toFixed(2) + ")";
-            if (original) el.setAttribute("transform", original + " " + translate);
-            else el.setAttribute("transform", translate);
-            el.classList.add("svg-drag-preview");
-        });
-    }
-
-    function finishDrag() {
-        if (!dragState.active) return false;
-
-        var applied = dragState.started &&
-            EditorLogic &&
-            (Math.abs(dragState.currentDx) >= 1 || Math.abs(dragState.currentDy) >= 1);
-
-        if (applied) {
-            var offsets = getCurrentPreviewOffsets();
-            dragState.ids.forEach(function (id) {
-                var existing = offsets[id] || { dx: 0, dy: 0 };
-                offsets[id] = {
-                    dx: (Number(existing.dx) || 0) + dragState.currentDx,
-                    dy: (Number(existing.dy) || 0) + dragState.currentDy
-                };
-            });
-            updateMergedAnnotationForCurrentTarget();
-            suppressNextElementClick = true;
-            window.setTimeout(function () {
-                suppressNextElementClick = false;
-            }, 50);
-        }
-
-        clearDragPreview(applied);
-        resetDragState();
-        if (applied) {
-            applyPreviewOffsetsForCurrentSlide();
-        }
-        return applied;
     }
 
     // ================================================================
@@ -799,15 +397,9 @@
         currentSlide = name;
         selectedElementIds.clear();
         slideAnnotations = {};
-        currentLayoutIssues = [];
-        resetSelectionModeState();
         updateNavLabel();
 
         // Reset right panel and rubber band
-        clearDragPreview();
-        resetDragState();
-        clearScaleHandles();
-        resetScaleState();
         cancelRubberBand();
         clearSelection();
 
@@ -892,14 +484,14 @@
                     slideAnnotations[a.element_id] = a.annotation;
                 });
 
+                editStackCount[name] = data.undo_depth || 0;
                 setupSvgInteraction();
                 if (window.PptTextNormalizeReview) {
                     window.PptTextNormalizeReview.onSlideLoaded(rootSvg);
                 }
-                markPreviewBaseTransforms();
-                applyPreviewOffsetsForCurrentSlide();
                 refreshAnnotationVisuals();
                 updateAnnotationList();
+                updateUndoButton();
                 renderLayoutIssuesForSelection();
             })
             .catch(function (err) {
@@ -913,65 +505,51 @@
     // ================================================================
     var SKIP_TAGS = ["defs", "style", "title", "desc"];
 
-    function resolveSelectionTarget(el) {
-        if (!el) return null;
-        if (selectionMode === "child" && activeGroupId) {
-            var groupEl = svgContent.querySelector("#" + CSS.escape(activeGroupId));
-            if (groupEl && groupEl.contains && groupEl.contains(el)) {
-                return isEditableChildElement(el) ? el : null;
-            }
-        }
-
-        var groupAncestor = findNearestGroupAncestor(el);
-        if (groupAncestor) {
-            return groupAncestor;
-        }
-        return el;
-    }
-
     function setupSvgInteraction() {
         var svg = svgContent.querySelector("svg");
         if (!svg) return;
 
+        // Visual class only — selectability is handled by the delegated handler below.
+        // Skipping the per-element addEventListener brings listener-registration time
+        // from O(n) to O(1), which matters on decks with hundreds of elements per slide.
         var allEls = svg.querySelectorAll("*");
         allEls.forEach(function (el) {
             var tag = el.tagName.toLowerCase();
             if (SKIP_TAGS.indexOf(tag) !== -1) return;
             if (el === svg) return;
-
             el.classList.add("svg-selectable");
-
-            el.addEventListener("click", function (e) {
-                if (suppressNextElementClick) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    suppressNextElementClick = false;
-                    return;
-                }
-                e.stopPropagation();
-                var target = resolveSelectionTarget(el);
-                if (target) {
-                    selectElement(target, e.ctrlKey || e.metaKey);
-                }
-            });
-
-            el.addEventListener("mousedown", function (e) {
-                if (e.button !== 0) return;
-                if (reviewMode) return;
-                var target = resolveSelectionTarget(el);
-                if (target) {
-                    beginDrag(target, e);
-                }
-            });
         });
 
-        // Click on blank area clears selection (skip the synthetic click after rubber band)
         svg.addEventListener("click", function (e) {
+            // Skip the synthetic click that follows a rubber-band drag-release.
             if (suppressNextSvgClick) {
                 suppressNextSvgClick = false;
                 return;
             }
-            if (e.target === svg) clearSelection();
+            var target = e.target;
+            // Blank-area click on the svg root → clear selection.
+            if (target === svg) {
+                clearSelection();
+                return;
+            }
+            // Ignore clicks bubbling out of non-interactive subtrees.
+            if (target.closest && target.closest("defs, style, title, desc")) return;
+            // Backend assign_temp_ids() guarantees every element has an id, so
+            // closest("[id]") will always find a hit. The exclusion of `svg`
+            // itself routes "click outside any real shape" to clearSelection.
+            // Icon placeholders are expanded only for browser preview. If a
+            // click lands on a generated child, edit the disk-backed data-icon
+            // group instead of an inner preview-only node.
+            var picked = e.altKey && target.closest
+                ? target.closest("g[id]")
+                : null;
+            picked = picked || (target.closest && target.closest("[data-icon][id]")) ||
+                target.closest("[id]");
+            if (!picked || picked === svg) {
+                clearSelection();
+                return;
+            }
+            selectElement(picked, e.ctrlKey || e.metaKey);
         });
     }
 
@@ -981,7 +559,6 @@
     function selectElement(elem, addToSelection) {
         var eid = elem.id;
         if (!eid) return;
-        var tag = elem.tagName.toLowerCase();
 
         if (addToSelection) {
             // Ctrl+click: toggle this element
@@ -1005,17 +582,6 @@
             elem.classList.add("svg-selected");
         }
 
-        if (selectionMode === "child") {
-            activeChildId = eid;
-            if (!activeGroupId) {
-                var parentGroup = findNearestGroupAncestor(elem);
-                activeGroupId = parentGroup ? parentGroup.id : null;
-            }
-        } else {
-            activeChildId = null;
-            activeGroupId = tag === "g" ? eid : null;
-        }
-
         updateSelectionPanel();
     }
 
@@ -1023,70 +589,12 @@
     //  5.  clearSelection
     // ================================================================
     function clearSelection() {
-        clearDragPreview();
-        resetDragState();
-        clearScaleHandles();
-        resetScaleState();
         selectedElementIds.forEach(function (id) {
             var el = svgContent.querySelector("#" + CSS.escape(id));
             if (el) el.classList.remove("svg-selected");
         });
         selectedElementIds.clear();
-        clearLayoutIssueVisuals();
-        currentLayoutIssues = [];
-        resetSelectionModeState();
         updateSelectionPanel();
-    }
-
-    function enterChildSelectionMode() {
-        if (!activeGroupId) return;
-        var groupEl = svgContent.querySelector("#" + CSS.escape(activeGroupId));
-        if (!groupEl) return;
-        var editableChildren = getEditableChildren(groupEl);
-        if (!editableChildren.length) return;
-        selectionMode = "child";
-        activeChildId = editableChildren[0].id;
-        selectElement(editableChildren[0], false);
-    }
-
-    function returnToGroupSelectionMode() {
-        if (!activeGroupId) return;
-        var groupEl = svgContent.querySelector("#" + CSS.escape(activeGroupId));
-        selectionMode = "group";
-        activeChildId = null;
-        if (groupEl) {
-            selectElement(groupEl, false);
-        } else {
-            updateSelectionPanel();
-        }
-    }
-
-    function updateSelectionModeControls(selectedEl) {
-        if (!selectionActionsEl || !btnToggleSelectionMode || !selectionPathEl || !selectedElementHelpEl) return;
-
-        selectionActionsEl.style.display = "none";
-        selectionPathEl.style.display = "none";
-        selectionPathEl.textContent = "";
-        selectedElementHelpEl.textContent = reviewMode ? t("selected_help_review") : t("selected_help_drag");
-
-        if (reviewMode) return;
-
-        if (!selectedEl || selectedElementIds.size !== 1) return;
-
-        if (selectionMode === "child" && activeGroupId && activeChildId) {
-            selectionActionsEl.style.display = "block";
-            btnToggleSelectionMode.textContent = t("btn_return_group_mode");
-            selectionPathEl.style.display = "block";
-            selectionPathEl.textContent = t("selection_path_label") + activeGroupId + " > " + activeChildId;
-            selectedElementHelpEl.textContent = reviewMode ? t("selected_help_review") : t("selected_help_drag");
-            return;
-        }
-
-        if (selectedEl.tagName.toLowerCase() === "g" && getEditableChildren(selectedEl).length > 0) {
-            selectionActionsEl.style.display = "block";
-            btnToggleSelectionMode.textContent = t("btn_enter_child_mode");
-            selectedElementHelpEl.textContent = t("selected_help_group");
-        }
     }
 
     function updateSelectionPanel() {
@@ -1100,13 +608,8 @@
             annotationText.value = "";
             propsEl.style.display = "none";
             propsEl.innerHTML = "";
-            layoutIssuesEl.style.display = "none";
-            layoutIssuesListEl.innerHTML = "";
-            layoutIssuesActionsEl.innerHTML = "";
-            selectionActionsEl.style.display = "none";
-            selectionPathEl.style.display = "none";
-            selectionPathEl.textContent = "";
-            selectedElementHelpEl.textContent = reviewMode ? t("selected_help_review") : t("selected_help_drag");
+            clearScaleHandles();
+            hideLayoutIssues();
             if (window.PptTextNormalizeReview) {
                 window.PptTextNormalizeReview.onSelectionChange([], svgContent);
             }
@@ -1115,23 +618,23 @@
 
         selectedElementEl.classList.remove("empty");
         propsEl.style.display = "block";
-        var currentEl = null;
 
         if (count === 1) {
             var eid = selectedElementIds.values().next().value;
             var el = svgContent.querySelector("#" + CSS.escape(eid));
-            currentEl = el;
             if (el) {
                 var tag = el.tagName.toLowerCase();
                 selectedElementEl.innerHTML =
                     '<span class="el-tag">&lt;' + escapeHtml(tag) + '&gt;</span>' +
                     '<span class="el-id">' + escapeHtml(eid) + '</span>';
-                propsEl.innerHTML = renderPropertyTable(getElementProperties(el));
+                propsEl.innerHTML = renderEditableProps(el);
+                attachPropEditors(el);
             }
         } else {
             selectedElementEl.innerHTML =
                 '<span class="multi-count">' + escapeHtml(t("multi_selected", { count: count })) + '</span>';
             propsEl.innerHTML = renderMultiSelectSummary(Array.from(selectedElementIds));
+            attachMultiSelectionEditors(Array.from(selectedElementIds));
         }
 
         if (reviewMode) {
@@ -1139,11 +642,8 @@
             annotationText.value = "";
             propsEl.style.display = "none";
             propsEl.innerHTML = "";
-            layoutIssuesEl.style.display = "none";
-            layoutIssuesListEl.innerHTML = "";
-            layoutIssuesActionsEl.innerHTML = "";
             clearScaleHandles();
-            updateSelectionModeControls(currentEl);
+            hideLayoutIssues();
             if (window.PptTextNormalizeReview) {
                 window.PptTextNormalizeReview.onSelectionChange(Array.from(selectedElementIds), svgContent);
             }
@@ -1154,13 +654,9 @@
         annotationText.placeholder = count > 1
             ? t("placeholder_annotation_multi", { count: count })
             : t("placeholder_annotation");
-        if (count === 1) {
-            var targetId = selectedElementIds.values().next().value;
-            annotationText.value = getMergedAnnotationForTarget(targetId) || slideAnnotations[targetId] || "";
-        } else {
-            annotationText.value = "";
-        }
-        updateSelectionModeControls(currentEl);
+        annotationText.value = count === 1
+            ? (slideAnnotations[selectedElementIds.values().next().value] || "")
+            : "";
         renderLayoutIssuesForSelection();
         renderScaleHandles();
         if (window.PptTextNormalizeReview) {
@@ -1175,6 +671,550 @@
     var suppressNextSvgClick = false;
     var RUBBER_BAND_THRESHOLD = 5;
 
+    // ---- Drag-to-move (direct geometry edit on the canvas) ----
+    // Pressing on an already-selected element drags the whole selection. Frames
+    // only update the preview; one staged edit per element is written on release,
+    // reusing attrsForMove + stageEditRequest (and backend coalescing).
+    var dragStart = null;       // {x, y} screen coords at mousedown on a selection
+    var dragMoved = false;      // crossed the move threshold this gesture
+    var dragEls = [];           // top-level selected elements being moved
+    var dragStartAttrs = {};    // {id: startGeometryAttrs} for drift-free preview
+    var scaleHandleLayer = null;
+    var scaleState = {
+        active: false,
+        el: null,
+        handle: null,
+        startBox: null,
+        startAttrs: null,
+        lastAttrs: null,
+        moved: false
+    };
+
+    function hitSelectedAncestor(target) {
+        // Walk up from the pressed node to the first element already in the
+        // selection, so a press on a selected shape (or its inner preview
+        // children) starts a drag regardless of how it was selected.
+        var svg = svgContent.querySelector("svg");
+        var node = target;
+        while (node && node !== svg && node.nodeType === 1) {
+            if (node.id && selectedElementIds.has(node.id)) return node;
+            node = node.parentNode;
+        }
+        return null;
+    }
+
+    function screenDeltaToLocal(el, dxScreen, dyScreen) {
+        // Map a screen-pixel delta into the coordinate space computeRenderBox /
+        // attrsForMove use for THIS element (its getCTM() output space). Using the
+        // element's own getCTM ∘ getScreenCTM⁻¹ is robust to how a browser splits
+        // the viewBox scale between getCTM and getScreenCTM, and naturally accounts
+        // for each element's own group transform (correct under multi-select).
+        var sctm = el.getScreenCTM ? el.getScreenCTM() : null;
+        var ctm = el.getCTM ? el.getCTM() : null;
+        if (!sctm || !ctm) return { x: dxScreen, y: dyScreen };
+        try {
+            var n = ctm.multiply(sctm.inverse());  // linear part: screen → local delta
+            var lx = n.a * dxScreen + n.c * dyScreen;
+            var ly = n.b * dxScreen + n.d * dyScreen;
+            // Singular CTM → SVGMatrix.inverse() throws, DOMMatrix yields NaN.
+            // Either way, fall back to the raw delta rather than wedge the drag.
+            if (!isFinite(lx) || !isFinite(ly)) return { x: dxScreen, y: dyScreen };
+            return { x: lx, y: ly };
+        } catch (err) {
+            return { x: dxScreen, y: dyScreen };
+        }
+    }
+
+    function beginDrag() {
+        dragEls = topLevelSelectedElements(Array.from(selectedElementIds));
+        dragStartAttrs = {};
+        dragEls.forEach(function (el) {
+            // attrsForMove(el, 0, 0) returns the element's current geometry in the
+            // exact attribute shape a move writes (x/y, cx/cy, … or transform);
+            // restoring it before each frame keeps the preview drift-free.
+            try { dragStartAttrs[el.id] = attrsForMove(el, 0, 0); }
+            catch (err) { dragStartAttrs[el.id] = null; }
+        });
+        document.body.classList.add("svg-dragging");
+    }
+
+    function applyAttrSnapshot(el, sa) {
+        if (!sa) return;
+        applyElementAttrs(el, sa);
+    }
+
+    function applyElementAttrs(el, attrs) {
+        if (localName(el) === "g" && el.hasAttribute("data-icon") &&
+                attrs.x !== undefined && attrs.y !== undefined) {
+            // The preview expands <use data-icon> into a <g>, but disk still owns
+            // the source <use>. Keep the browser geometry in sync while the staged
+            // edit writes x/y back to the real placeholder instead of persisting a
+            // transform.
+            var m = ownMatrix(el);
+            el.setAttribute("transform", "matrix(" + [
+                formatCoord(m.a), formatCoord(m.b), formatCoord(m.c),
+                formatCoord(m.d), formatCoord(parseFloat(attrs.x)),
+                formatCoord(parseFloat(attrs.y))
+            ].join(",") + ")");
+            el.setAttribute("data-use-x", attrs.x);
+            el.setAttribute("data-use-y", attrs.y);
+        }
+        Object.keys(attrs).forEach(function (k) {
+            if (localName(el) === "g" && el.hasAttribute("data-icon") &&
+                    (k === "x" || k === "y" || k === "transform")) return;
+            if (attrs[k] === null || attrs[k] === undefined) el.removeAttribute(k);
+            else el.setAttribute(k, attrs[k]);
+        });
+    }
+
+    function localName(el) {
+        return el && el.tagName ? el.tagName.toLowerCase() : "";
+    }
+
+    function markCommittedAttrs(el, attrs) {
+        if (attrs && attrs.transform === null &&
+                localName(el) === "g" && el.hasAttribute("data-icon")) {
+            el.removeAttribute("data-use-has-transform");
+        }
+    }
+
+    function payloadForCurrentElementState(el, payload) {
+        if (!payload || !payload.attrs || payload.attrs.transform !== null ||
+                localName(el) !== "g" || !el.hasAttribute("data-icon") ||
+                el.hasAttribute("data-use-has-transform")) {
+            return payload;
+        }
+        var attrs = Object.assign({}, payload.attrs);
+        delete attrs.transform;
+        return Object.assign({}, payload, { attrs: attrs });
+    }
+
+    function restoreDragStart(el) {
+        applyAttrSnapshot(el, dragStartAttrs[el.id]);
+    }
+
+    function applyMoveLocal(el, dxScreen, dyScreen) {
+        // Each element converts the shared screen delta into its own local space,
+        // so a selection spanning differently-transformed groups still tracks the
+        // pointer. Restore-then-apply keeps every frame relative to the start.
+        restoreDragStart(el);
+        var d = screenDeltaToLocal(el, dxScreen, dyScreen);
+        var attrs;
+        try { attrs = attrsForMove(el, d.x, d.y); }
+        catch (err) { attrs = null; }
+        if (!attrs) return null;
+        applyElementAttrs(el, attrs);
+        return attrs;
+    }
+
+    function updateDragPreview(dxScreen, dyScreen) {
+        dragEls.forEach(function (el) { applyMoveLocal(el, dxScreen, dyScreen); });
+        if (dragEls.length === 1) refreshGeoInputs(dragEls[0], elementPropsEl);
+    }
+
+    function commitDrag(dxScreen, dyScreen) {
+        var single = dragEls.length === 1;
+        dragEls.forEach(function (el) {
+            // Capture the pre-drag snapshot in the closure: endDrag() clears
+            // dragStartAttrs synchronously after this call, before the staging
+            // promise can reject, so the rollback can't rely on the global.
+            var startAttrs = dragStartAttrs[el.id];
+            var attrs = applyMoveLocal(el, dxScreen, dyScreen);
+            if (!attrs) return;
+            var payload = payloadForMovedElement(el, attrs);
+            stageEditRequest(el.id, payload).then(function () {
+                if (payload.attrs) markCommittedAttrs(el, payload.attrs);
+                if (payload.promote_tspan) {
+                    var promoted = promoteTspanDom(el, payload.promote_tspan);
+                    if (promoted && single) refreshGeoInputs(promoted, elementPropsEl);
+                }
+            }).catch(function (err) {
+                // Optimistic preview already moved the element; roll it back so the
+                // canvas never shows a move the server never staged.
+                applyAttrSnapshot(el, startAttrs);
+                if (single) refreshGeoInputs(el, elementPropsEl);
+                showError(t("err_edit") + err.message);
+            });
+        });
+    }
+
+    function endDrag() {
+        dragStart = null;
+        dragMoved = false;
+        dragEls = [];
+        dragStartAttrs = {};
+        document.body.classList.remove("svg-dragging");
+    }
+
+    function getSvgRoot() {
+        return svgContent.querySelector("svg");
+    }
+
+    function rootPointToScreen(x, y) {
+        var svg = getSvgRoot();
+        var m = svg && svg.getScreenCTM ? svg.getScreenCTM() : null;
+        if (!m) return null;
+        return { x: x * m.a + y * m.c + m.e, y: x * m.b + y * m.d + m.f };
+    }
+
+    function screenPointToRoot(x, y) {
+        var svg = getSvgRoot();
+        if (!svg || typeof svg.createSVGPoint !== "function") return null;
+        var m = svg.getScreenCTM ? svg.getScreenCTM() : null;
+        if (!m || typeof m.inverse !== "function") return null;
+        try {
+            var pt = svg.createSVGPoint();
+            pt.x = x;
+            pt.y = y;
+            return pt.matrixTransform(m.inverse());
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function geometrySnapshot(el) {
+        var attrs = {};
+        [
+            "x", "y", "cx", "cy", "x1", "y1", "x2", "y2",
+            "width", "height", "transform"
+        ].forEach(function (key) {
+            attrs[key] = el.hasAttribute(key) ? el.getAttribute(key) : null;
+        });
+        return attrs;
+    }
+
+    function ensureScaleHandleLayer() {
+        if (scaleHandleLayer) return scaleHandleLayer;
+        scaleHandleLayer = document.createElement("div");
+        scaleHandleLayer.id = "scale-handle-layer";
+        document.body.appendChild(scaleHandleLayer);
+        return scaleHandleLayer;
+    }
+
+    function clearScaleHandles() {
+        if (!scaleHandleLayer) return;
+        scaleHandleLayer.innerHTML = "";
+        scaleHandleLayer.style.display = "none";
+    }
+
+    function buildScaleHandle(x, y, handleName) {
+        var handle = document.createElement("div");
+        handle.className = "scale-handle scale-handle-" + handleName;
+        handle.style.left = (x - 6) + "px";
+        handle.style.top = (y - 6) + "px";
+        handle.dataset.handle = handleName;
+        handle.addEventListener("mousedown", function (e) {
+            if (e.button !== 0 || reviewMode) return;
+            e.preventDefault();
+            e.stopPropagation();
+            beginScale(handleName);
+        });
+        return handle;
+    }
+
+    function renderScaleHandles() {
+        clearScaleHandles();
+        if (reviewMode || selectedElementIds.size !== 1 || !currentSlide) return;
+        var eid = selectedElementIds.values().next().value;
+        var el = svgContent.querySelector("#" + CSS.escape(eid));
+        if (!el) return;
+        var rb;
+        try { rb = computeRenderBox(el); } catch (err) { return; }
+        if (!Number.isFinite(rb.w) || !Number.isFinite(rb.h) || rb.w <= 0 || rb.h <= 0) return;
+
+        var layer = ensureScaleHandleLayer();
+        var corners = [
+            { name: "nw", x: rb.x, y: rb.y },
+            { name: "ne", x: rb.x + rb.w, y: rb.y },
+            { name: "sw", x: rb.x, y: rb.y + rb.h },
+            { name: "se", x: rb.x + rb.w, y: rb.y + rb.h }
+        ];
+        layer.style.display = "block";
+        corners.forEach(function (corner) {
+            var p = rootPointToScreen(corner.x, corner.y);
+            if (p) layer.appendChild(buildScaleHandle(p.x, p.y, corner.name));
+        });
+    }
+
+    function beginScale(handleName) {
+        if (reviewMode || selectedElementIds.size !== 1) return;
+        var eid = selectedElementIds.values().next().value;
+        var el = svgContent.querySelector("#" + CSS.escape(eid));
+        if (!el) return;
+        var rb;
+        try { rb = computeRenderBox(el); } catch (err) { return; }
+        if (!Number.isFinite(rb.w) || !Number.isFinite(rb.h) || rb.w <= 0 || rb.h <= 0) return;
+        scaleState = {
+            active: true,
+            el: el,
+            handle: handleName,
+            startBox: rb,
+            startAttrs: geometrySnapshot(el),
+            lastAttrs: null,
+            moved: false
+        };
+        document.body.classList.add("svg-scaling");
+    }
+
+    function resizeBoxFromHandle(startBox, handleName, pointer) {
+        var left = startBox.x;
+        var right = startBox.x + startBox.w;
+        var top = startBox.y;
+        var bottom = startBox.y + startBox.h;
+        var minSize = 1;
+        if (handleName.indexOf("w") !== -1) left = Math.min(right - minSize, pointer.x);
+        if (handleName.indexOf("e") !== -1) right = Math.max(left + minSize, pointer.x);
+        if (handleName.indexOf("n") !== -1) top = Math.min(bottom - minSize, pointer.y);
+        if (handleName.indexOf("s") !== -1) bottom = Math.max(top + minSize, pointer.y);
+        return { x: left, y: top, w: right - left, h: bottom - top };
+    }
+
+    function resizeAnchorForHandle(startBox, handleName) {
+        var west = handleName.indexOf("w") !== -1;
+        var north = handleName.indexOf("n") !== -1;
+        return {
+            x: west ? startBox.x + startBox.w : startBox.x,
+            y: north ? startBox.y + startBox.h : startBox.y
+        };
+    }
+
+    function matrixAfterResizeAtAnchor(el, rb, nw, nh, anchorRoot) {
+        var pm = parentCTM(el);
+        var sx = nw / rb.w;
+        var sy = nh / rb.h;
+        var im = pm.inverse();
+        var ax = im.a * anchorRoot.x + im.c * anchorRoot.y + im.e;
+        var ay = im.b * anchorRoot.x + im.d * anchorRoot.y + im.f;
+        return new DOMMatrix()
+            .translate(ax, ay).scale(sx, sy).translate(-ax, -ay)
+            .multiply(ownMatrix(el));
+    }
+
+    function updateScalePreview(event) {
+        if (!scaleState.active || !scaleState.el || !scaleState.startBox) return;
+        var pointer = screenPointToRoot(event.clientX, event.clientY);
+        if (!pointer) return;
+        var nextBox = resizeBoxFromHandle(scaleState.startBox, scaleState.handle, pointer);
+        var anchor = resizeAnchorForHandle(scaleState.startBox, scaleState.handle);
+        var nextMatrix;
+        try {
+            nextMatrix = matrixAfterResizeAtAnchor(
+                scaleState.el, scaleState.startBox, nextBox.w, nextBox.h, anchor
+            );
+        } catch (err) {
+            return;
+        }
+        var tstr = matrixToString(nextMatrix);
+        if (!tstr) return;
+        var attrs = { transform: tstr };
+        applyAttrSnapshot(scaleState.el, scaleState.startAttrs);
+        applyElementAttrs(scaleState.el, attrs);
+        scaleState.lastAttrs = attrs;
+        scaleState.moved = true;
+        refreshGeoInputs(scaleState.el, elementPropsEl);
+        renderScaleHandles();
+    }
+
+    function finishScale() {
+        if (!scaleState.active) return false;
+        var st = scaleState;
+        scaleState = {
+            active: false,
+            el: null,
+            handle: null,
+            startBox: null,
+            startAttrs: null,
+            lastAttrs: null,
+            moved: false
+        };
+        document.body.classList.remove("svg-scaling");
+        if (!st.moved || !st.el || !st.lastAttrs) {
+            renderScaleHandles();
+            return true;
+        }
+        stageEditRequest(st.el.id, { attrs: st.lastAttrs })
+            .then(function () {
+                markCommittedAttrs(st.el, st.lastAttrs);
+                refreshGeoInputs(st.el, elementPropsEl);
+                renderScaleHandles();
+            })
+            .catch(function (err) {
+                applyAttrSnapshot(st.el, st.startAttrs);
+                refreshGeoInputs(st.el, elementPropsEl);
+                renderScaleHandles();
+                showError(t("err_edit") + err.message);
+        });
+        return true;
+    }
+
+    function cancelScale() {
+        if (scaleState.active && scaleState.el && scaleState.startAttrs) {
+            applyAttrSnapshot(scaleState.el, scaleState.startAttrs);
+        }
+        scaleState = {
+            active: false,
+            el: null,
+            handle: null,
+            startBox: null,
+            startAttrs: null,
+            lastAttrs: null,
+            moved: false
+        };
+        document.body.classList.remove("svg-scaling");
+        clearScaleHandles();
+    }
+
+    // Per-element nudge staging is serialized: a held arrow key fires many
+    // keydowns, each sending an *absolute* position. Without ordering, the
+    // unlocked backend could coalesce them out of order and leave the staged
+    // value behind the on-screen one. So at most one nudge stage per element is
+    // in flight; extra keypresses only update the preview and the queued target,
+    // and the next send reads the current DOM position (= the latest).
+    var nudgeFlight = {};   // key -> bool: a nudge stage is in flight
+    var nudgeQueued = {};   // key -> {el, single, slide, attrs}: latest target awaiting send
+    var nudgeLastOk = {};   // key -> attrs: last position the server confirmed
+
+    function nudgeKey(slide, el) { return slide + "|" + el.id; }
+
+    function sendNudge(key, el, single, slide, payload) {
+        if (!payload) return;
+        payload = payloadForCurrentElementState(el, payload);
+        nudgeFlight[key] = true;
+        stageEditRequest(el.id, payload, slide).then(function () {
+            if (payload.attrs) nudgeLastOk[key] = payload.attrs;
+            if (payload.attrs) markCommittedAttrs(el, payload.attrs);
+            nudgeFlight[key] = false;
+            var q = nudgeQueued[key];
+            if (q) { delete nudgeQueued[key]; sendNudge(key, q.el, q.single, q.slide, q.payload); }
+        }).catch(function (err) {
+            nudgeFlight[key] = false;
+            delete nudgeQueued[key];
+            // Re-sync the preview to the last confirmed position so it can't show
+            // a move the server never staged (only meaningful on the live slide).
+            if (payload.promote_tspan && el.__promotionRollback) {
+                var restored = el.__promotionRollback();
+                if (single && restored) refreshGeoInputs(restored, elementPropsEl);
+            } else if (nudgeLastOk[key] && slide === currentSlide && el.isConnected) {
+                applyAttrSnapshot(el, nudgeLastOk[key]);
+                if (single) refreshGeoInputs(el, elementPropsEl);
+            }
+            showError(t("err_edit") + err.message);
+        });
+    }
+
+    function stageNudge(el, single, slide, payload) {
+        var key = nudgeKey(slide, el);
+        if (nudgeFlight[key]) {
+            nudgeQueued[key] = { el: el, single: single, slide: slide, payload: payload };
+            return;
+        }
+        sendNudge(key, el, single, slide, payload);
+    }
+
+    function nudgeSelection(dxScreen, dyScreen) {
+        // Keyboard arrow micro-move: same geometry path as drag. The DOM updates
+        // immediately; staging is serialized per element (see sendNudge), and
+        // consecutive same-direction nudges coalesce into one undo step.
+        var els = topLevelSelectedElements(Array.from(selectedElementIds));
+        if (els.length === 0) return;
+        var slide = currentSlide;
+        var single = els.length === 1;
+        var lastSingleEl = null;
+        els.forEach(function (el) {
+            var key = nudgeKey(slide, el);
+            if (!nudgeFlight[key] && !nudgeQueued[key]) {
+                // Fresh burst: re-capture the pre-move baseline from the current
+                // DOM, so a failed nudge rolls back to *this* burst's start rather
+                // than a stale position left by an earlier drag/edit/undo.
+                try { nudgeLastOk[key] = attrsForMove(el, 0, 0); }
+                catch (err) { delete nudgeLastOk[key]; }
+            }
+            var d = screenDeltaToLocal(el, dxScreen, dyScreen);
+            var attrs;
+            try { attrs = attrsForMove(el, d.x, d.y); } catch (err) { attrs = null; }
+            if (!attrs) return;
+            applyElementAttrs(el, attrs);
+            var payload = payloadForMovedElement(el, attrs);
+            if (payload.promote_tspan) {
+                el = promoteTspanDom(el, payload.promote_tspan) || el;
+            }
+            lastSingleEl = el;
+            stageNudge(el, single, slide, payload);
+        });
+        if (single && lastSingleEl) refreshGeoInputs(lastSingleEl, elementPropsEl);
+    }
+
+    // ---- Overlap picker (right-click → list every selectable element here) ----
+    // Left-click stays a fast "select the topmost" gesture; right-click is the
+    // opt-in disambiguator for stacked elements, so it never pops on normal use.
+    var overlapPickerEl = null;
+
+    function collectSelectableAt(clientX, clientY) {
+        var svg = svgContent.querySelector("svg");
+        if (!svg || !document.elementsFromPoint) return [];
+        var out = [];
+        var seen = {};
+        document.elementsFromPoint(clientX, clientY).forEach(function (node) {
+            if (!svg.contains(node) || node === svg) return;
+            if (node.closest && node.closest("defs, style, title, desc")) return;
+            // Resolve to the disk-backed selectable entity, mirroring the click
+            // handler: prefer an enclosing data-icon group, else nearest id.
+            var picked = (node.closest && node.closest("[data-icon][id]")) ||
+                         (node.closest && node.closest("[id]"));
+            if (!picked || picked === svg || !picked.id || seen[picked.id]) return;
+            seen[picked.id] = true;
+            out.push(picked);
+        });
+        return out;  // top → bottom in paint order
+    }
+
+    function closeOverlapPicker() {
+        if (!overlapPickerEl) return;
+        var svg = svgContent.querySelector("svg");
+        if (svg) {
+            svg.querySelectorAll(".overlap-hover").forEach(function (e) {
+                e.classList.remove("overlap-hover");
+            });
+        }
+        overlapPickerEl.remove();
+        overlapPickerEl = null;
+    }
+
+    function showOverlapPicker(clientX, clientY, candidates) {
+        closeOverlapPicker();
+        var menu = document.createElement("div");
+        menu.id = "overlap-picker";
+        var cap = document.createElement("div");
+        cap.className = "overlap-caption";
+        cap.textContent = t("overlap_caption");
+        menu.appendChild(cap);
+        candidates.forEach(function (el) {
+            var item = document.createElement("div");
+            item.className = "overlap-item";
+            var tag = el.tagName.toLowerCase();
+            var txt = (tag === "text" || tag === "tspan")
+                ? (el.textContent || "").trim().slice(0, 28) : "";
+            item.innerHTML = '<span class="overlap-tag">&lt;' + escapeHtml(tag) +
+                '&gt;</span><span class="overlap-id">' + escapeHtml(el.id) + '</span>' +
+                (txt ? '<span class="overlap-txt">' + escapeHtml(txt) + '</span>' : '');
+            item.addEventListener("mouseenter", function () { el.classList.add("overlap-hover"); });
+            item.addEventListener("mouseleave", function () { el.classList.remove("overlap-hover"); });
+            item.addEventListener("click", function (ev) {
+                ev.stopPropagation();
+                selectElement(el, ev.ctrlKey || ev.metaKey);
+                closeOverlapPicker();
+            });
+            menu.appendChild(item);
+        });
+        document.body.appendChild(menu);
+        // Keep the menu inside the viewport.
+        var x = Math.min(clientX, window.innerWidth - menu.offsetWidth - 8);
+        var y = Math.min(clientY, window.innerHeight - menu.offsetHeight - 8);
+        menu.style.left = Math.max(8, x) + "px";
+        menu.style.top = Math.max(8, y) + "px";
+        overlapPickerEl = menu;
+    }
+
     function initRubberBand() {
         var overlay = document.getElementById("rubber-band-overlay");
         var container = document.getElementById("svg-container");
@@ -1182,8 +1222,15 @@
         container.addEventListener("mousedown", function (e) {
             // Only left mouse button
             if (e.button !== 0) return;
-            if (reviewMode) return;
-            if (e.target && isSelectableElement(e.target)) return;
+
+            // Pressing on an already-selected element arms a drag of the whole
+            // selection instead of a rubber band. Selecting stays a separate
+            // click, so the background is never dragged by accident.
+            if (!reviewMode && hitSelectedAncestor(e.target)) {
+                dragStart = { x: e.clientX, y: e.clientY };
+                dragMoved = false;
+                return;
+            }
 
             // Always start tracking — rubber band only activates when
             // mousemove exceeds the threshold. This allows clicking on any
@@ -1194,13 +1241,21 @@
         });
 
         document.addEventListener("mousemove", function (e) {
-            if (reviewMode) return;
             if (scaleState.active) {
                 updateScalePreview(e);
                 return;
             }
-            if (dragState.active) {
-                updateDragPreview(e);
+            if (dragStart) {
+                var ddx = e.clientX - dragStart.x;
+                var ddy = e.clientY - dragStart.y;
+                if (!dragMoved && Math.sqrt(ddx * ddx + ddy * ddy) < RUBBER_BAND_THRESHOLD) {
+                    return;  // below threshold — still a click, let selection stand
+                }
+                if (!dragMoved) {
+                    dragMoved = true;
+                    beginDrag();
+                }
+                updateDragPreview(ddx, ddy);
                 return;
             }
             if (!rubberBandStart) return;
@@ -1237,13 +1292,21 @@
         });
 
         document.addEventListener("mouseup", function (e) {
-            if (reviewMode) return;
             if (scaleState.active) {
                 finishScale();
+                suppressNextSvgClick = true;
+                window.setTimeout(function () { suppressNextSvgClick = false; }, 50);
                 return;
             }
-            if (dragState.active) {
-                finishDrag();
+            if (dragStart) {
+                if (dragMoved) {
+                    commitDrag(e.clientX - dragStart.x, e.clientY - dragStart.y);
+                    // Swallow the click that follows the drag-release so it does
+                    // not re-trigger selection on the dropped element.
+                    suppressNextSvgClick = true;
+                    window.setTimeout(function () { suppressNextSvgClick = false; }, 50);
+                }
+                endDrag();
                 return;
             }
             if (!rubberBandStart) return;
@@ -1287,6 +1350,25 @@
             rubberBandStart = null;
         });
 
+        // Right-click → list every selectable element under the pointer, so
+        // stacked/overlapping shapes can be reached without blind cycling.
+        container.addEventListener("contextmenu", function (e) {
+            var svg = svgContent.querySelector("svg");
+            if (!svg) return;
+            var cands = collectSelectableAt(e.clientX, e.clientY);
+            if (cands.length === 0) return;            // nothing here → native menu
+            e.preventDefault();
+            if (cands.length === 1) { selectElement(cands[0], false); return; }
+            showOverlapPicker(e.clientX, e.clientY, cands);
+        });
+
+        // Dismiss the picker on any press outside it (item clicks stop their own
+        // propagation, so this never fires before a selection is made).
+        document.addEventListener("mousedown", function (e) {
+            if (overlapPickerEl && !overlapPickerEl.contains(e.target)) {
+                closeOverlapPicker();
+            }
+        });
     }
 
     function cancelRubberBand() {
@@ -1298,8 +1380,9 @@
         var ov = document.getElementById("rubber-band-overlay");
         if (ov) ov.classList.remove("active");
         suppressNextSvgClick = false;
-        clearDragPreview();
-        resetDragState();
+        endDrag();
+        cancelScale();
+        closeOverlapPicker();
     }
 
     function selectByRubberBand(screenRect) {
@@ -1353,13 +1436,25 @@
     // ================================================================
     function initKeyboardShortcuts() {
         document.addEventListener("keydown", function (e) {
+            // Ctrl+Z / Cmd+Z: drop the last staged edit. Let inputs/selects handle
+            // their own native undo when focused.
+            if (!reviewMode && (e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) {
+                var ae = document.activeElement;
+                if (ae && (ae === annotationText || ae.tagName === "INPUT" ||
+                           ae.tagName === "TEXTAREA" || ae.tagName === "SELECT")) {
+                    return;
+                }
+                e.preventDefault();
+                runUndo();
+                return;
+            }
+
             // Ctrl+A / Cmd+A: select all elements
             if ((e.ctrlKey || e.metaKey) && e.key === "a") {
                 // Don't intercept if focus is in textarea
                 if (document.activeElement === annotationText) return;
 
                 e.preventDefault();
-                if (reviewMode) return;
                 var svg = svgContent.querySelector("svg");
                 if (!svg) return;
 
@@ -1373,15 +1468,30 @@
                 updateSelectionPanel();
             }
 
-            // Escape: clear selection (skip if textarea is focused)
+            // Escape: close the overlap picker first if open, else clear selection.
             if (e.key === "Escape") {
                 if (document.activeElement === annotationText) return;
+                if (overlapPickerEl) { closeOverlapPicker(); return; }
                 clearSelection();
             }
 
             // Slide navigation: ArrowLeft/Right + Home/End (skip while typing)
             if (document.activeElement === annotationText) return;
             if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+            // Arrow keys nudge the selection (1px, Shift = 10px) instead of
+            // navigating slides whenever something is selected.
+            if (!reviewMode && selectedElementIds.size > 0 &&
+                (e.key === "ArrowLeft" || e.key === "ArrowRight" ||
+                 e.key === "ArrowUp" || e.key === "ArrowDown")) {
+                e.preventDefault();
+                var step = e.shiftKey ? 10 : 1;
+                var nx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+                var ny = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+                nudgeSelection(nx, ny);
+                return;
+            }
+
             if (slideNames.length === 0) return;
 
             if (e.key === "ArrowLeft") {
@@ -1407,32 +1517,11 @@
         if (navLastBtn)  navLastBtn.addEventListener("click", function ()  { gotoSlideIndex(slideNames.length - 1); });
     }
 
-    if (btnResetPreview) {
-        btnResetPreview.addEventListener("click", function () {
-            clearDragPreview();
-            resetDragState();
-            clearScaleHandles();
-            resetScaleState();
-            resetPreviewOffsets(true);
-            renderLayoutIssuesForSelection();
-            renderScaleHandles();
-        });
-    }
-
-    if (btnToggleSelectionMode) {
-        btnToggleSelectionMode.addEventListener("click", function () {
-            if (selectionMode === "group") {
-                enterChildSelectionMode();
-            } else {
-                returnToGroupSelectionMode();
-            }
-        });
-    }
-
     // ================================================================
     //  6.  Add annotation  -- POST /api/slide/{name}/annotate
     // ================================================================
     btnAddAnnotation.addEventListener("click", function () {
+        if (reviewMode) return;
         if (!currentSlide || selectedElementIds.size === 0) return;
 
         var text = annotationText.value.trim();
@@ -1452,6 +1541,7 @@
                 ids.forEach(function (eid) {
                     slideAnnotations[eid] = text;
                 });
+                annotationsDirty = true;
                 refreshAnnotationVisuals();
                 updateAnnotationList();
                 annotationText.value = "";
@@ -1467,6 +1557,7 @@
     //  7.  removeAnnotation  -- DELETE /api/slide/{name}/annotate/{id}
     // ================================================================
     function removeAnnotation(elementId) {
+        if (reviewMode) return;
         if (!currentSlide) return;
 
         fetch("/api/slide/" + encodeURIComponent(currentSlide) + "/annotate/" + encodeURIComponent(elementId), {
@@ -1475,6 +1566,7 @@
             .then(function (res) { return res.json(); })
             .then(function () {
                 delete slideAnnotations[elementId];
+                annotationsDirty = true;
                 refreshAnnotationVisuals();
                 updateAnnotationList();
                 loadSlides();
@@ -1489,6 +1581,14 @@
         svgContent.querySelectorAll(".svg-layout-warning").forEach(function (el) {
             el.classList.remove("svg-layout-warning");
         });
+    }
+
+    function hideLayoutIssues() {
+        currentLayoutIssues = [];
+        clearLayoutIssueVisuals();
+        if (layoutIssuesEl) layoutIssuesEl.style.display = "none";
+        if (layoutIssuesListEl) layoutIssuesListEl.innerHTML = "";
+        if (layoutIssuesActionsEl) layoutIssuesActionsEl.innerHTML = "";
     }
 
     function elementBBoxSafe(el) {
@@ -1555,50 +1655,22 @@
     }
 
     function renderLayoutIssuesForSelection() {
-        clearLayoutIssueVisuals();
-        currentLayoutIssues = [];
-
-        if (reviewMode) {
-            layoutIssuesEl.style.display = "none";
-            layoutIssuesListEl.innerHTML = "";
-            layoutIssuesActionsEl.innerHTML = "";
-            return;
-        }
-
-        if (selectedElementIds.size !== 1) {
-            layoutIssuesEl.style.display = "none";
-            layoutIssuesListEl.innerHTML = "";
-            layoutIssuesActionsEl.innerHTML = "";
-            return;
-        }
+        hideLayoutIssues();
+        if (!layoutIssuesEl || !layoutIssuesListEl || !layoutIssuesActionsEl) return;
+        if (reviewMode || selectedElementIds.size !== 1) return;
 
         var eid = selectedElementIds.values().next().value;
         var el = svgContent.querySelector("#" + CSS.escape(eid));
-        if (!el) {
-            layoutIssuesEl.style.display = "none";
-            return;
-        }
+        if (!el) return;
 
         var tag = el.tagName.toLowerCase();
-        if (tag !== "text" && tag !== "tspan") {
-            layoutIssuesEl.style.display = "none";
-            layoutIssuesListEl.innerHTML = "";
-            layoutIssuesActionsEl.innerHTML = "";
-            return;
-        }
+        if (tag !== "text" && tag !== "tspan") return;
 
         currentLayoutIssues = collectTextLayoutIssues(el);
-        if (!currentLayoutIssues.length) {
-            layoutIssuesEl.style.display = "none";
-            layoutIssuesListEl.innerHTML = "";
-            layoutIssuesActionsEl.innerHTML = "";
-            return;
-        }
+        if (!currentLayoutIssues.length) return;
 
         el.classList.add("svg-layout-warning");
         layoutIssuesEl.style.display = "block";
-        layoutIssuesListEl.innerHTML = "";
-        layoutIssuesActionsEl.innerHTML = "";
 
         currentLayoutIssues.forEach(function (issue, idx) {
             var item = document.createElement("div");
@@ -1613,14 +1685,8 @@
             action.className = "layout-issue-action";
             action.textContent = LANG === "zh" ? ("生成建议批注 " + (idx + 1)) : ("Suggest annotation " + (idx + 1));
             action.addEventListener("click", function () {
-                var targetId = getCurrentTargetId();
-                if (targetId) {
-                    getCurrentPreviewTextHints()[targetId] = [suggestionForIssue(issue)];
-                    updateMergedAnnotationForCurrentTarget();
-                } else {
-                    annotationInput.style.display = "block";
-                    annotationText.value = suggestionForIssue(issue);
-                }
+                annotationInput.style.display = "block";
+                annotationText.value = suggestionForIssue(issue);
                 annotationText.focus();
             });
             layoutIssuesActionsEl.appendChild(action);
@@ -1704,9 +1770,18 @@
     // 10.  Save all  -- two-step: confirm then save
     // ================================================================
     btnSave.addEventListener("click", function () {
+        if (reviewMode) {
+            pendingModalAction = "review_done";
+            modalMessage.textContent = t("modal_review_done");
+            modalConfirm.textContent = t("modal_submit");
+            modalConfirm.style.display = "";
+            modalCancel.style.display = "";
+            modalOverlay.style.display = "flex";
+            return;
+        }
         pendingModalAction = "submit";
-        modalMessage.textContent = reviewMode ? t("modal_review_done") : t("modal_confirm_submit");
-        modalConfirm.textContent = reviewMode ? t("btn_review_done") : t("modal_submit");
+        modalMessage.textContent = t("modal_confirm_submit");
+        modalConfirm.textContent = t("modal_submit");
         modalConfirm.style.display = "";
         modalCancel.style.display = "";
         modalOverlay.style.display = "flex";
@@ -1722,6 +1797,13 @@
     });
 
     modalConfirm.addEventListener("click", function () {
+        if (pendingModalAction === "review_done") {
+            modalConfirm.style.display = "none";
+            modalCancel.style.display = "none";
+            modalMessage.textContent = t("modal_success_review_done");
+            return;
+        }
+
         if (pendingModalAction === "exit") {
             modalConfirm.style.display = "none";
             modalCancel.style.display = "none";
@@ -1740,30 +1822,37 @@
             return;
         }
 
-        if (reviewMode && pendingModalAction === "submit") {
-            modalConfirm.style.display = "none";
-            modalCancel.style.display = "none";
-            modalMessage.textContent = t("modal_success_review_done");
-            return;
-        }
-
         // Step 2: save annotations. Service lifetime is controlled only by Exit preview.
         modalConfirm.style.display = "none";
         modalCancel.style.display = "none";
 
-        fetch("/api/save-all", { method: "POST" })
+        // Wait for any just-fired direct edits (drag/nudge) to land first, or
+        // save-all could race ahead and leave their edits as a fresh pending set.
+        drainDirectEdits()
+            .then(function () { return fetch("/api/save-all", { method: "POST" }); })
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 if (data.error) {
                     modalMessage.textContent = t("err_save") + data.error;
                 } else {
-                    resetPreviewOffsets(true);
                     modalMessage.textContent = t("modal_success_submit");
-                    loadSlides();
+                    editStackCount = {};
+                    savedHintShown = false;
+                    annotationsDirty = false;
+                    updateUndoButton();
+                    var activeSlide = currentSlide;
+                    loadSlides().then(function () {
+                        if (activeSlide) {
+                            var item = slideListEl.querySelector('.slide-item[data-name="' + cssAttr(activeSlide) + '"]');
+                            selectSlide(activeSlide, item || undefined);
+                        }
+                    });
                 }
             })
             .catch(function (err) {
                 modalMessage.textContent = t("err_save") + err;
+                modalConfirm.style.display = "";
+                modalCancel.style.display = "";
             });
     });
 
@@ -1866,9 +1955,7 @@
         var panelHeader = panelRight ? panelRight.querySelector(".panel-header") : null;
         if (panelHeader) panelHeader.textContent = reviewMode ? t("panel_review") : t("panel_annotations");
         if (btnSave) btnSave.textContent = reviewMode ? t("btn_review_done") : t("btn_submit_annotations");
-        if (selectedElementHelpEl) {
-            selectedElementHelpEl.textContent = reviewMode ? t("selected_help_review") : t("selected_help_drag");
-        }
+        if (btnUndo) btnUndo.style.display = reviewMode ? "none" : "";
     }
 
     function loadConfig() {
@@ -1896,53 +1983,257 @@
         }, 2000);
     }
 
+    // ---- Direct-edit undo + save hint --------------------------------
+    function updateUndoButton() {
+        if (!btnUndo) return;
+        var n = (currentSlide && editStackCount[currentSlide]) || 0;
+        btnUndo.disabled = n === 0;
+        btnUndo.textContent = n > 0 ? (t("btn_undo") + " (" + n + ")") : t("btn_undo");
+    }
+
+    function runUndo() {
+        if (reviewMode) return;
+        if (!currentSlide || !editStackCount[currentSlide]) return;
+        fetch("/api/slide/" + encodeURIComponent(currentSlide) + "/undo", { method: "POST" })
+            .then(jsonOrThrow)
+            .then(function (data) {
+                if (data.status === "empty") {
+                    editStackCount[currentSlide] = 0;
+                    updateUndoButton();
+                    showWarning(t("undo_empty"));
+                    return;
+                }
+                if (data.mtime !== undefined && data.mtime !== null) {
+                    slideMtimes[currentSlide] = data.mtime;
+                }
+                // Reload the page so the canvas reflects the reverted SVG;
+                // selectSlide refreshes editStackCount + the undo button.
+                var item = slideListEl.querySelector('.slide-item[data-name="' + cssAttr(currentSlide) + '"]');
+                selectSlide(currentSlide, item || undefined);
+                showWarning(t("undo_done"));
+            })
+            .catch(function (err) {
+                showError(t("err_edit") + err.message);
+            });
+    }
+
+    function maybeShowSavedHint() {
+        if (savedHintShown) return;
+        savedHintShown = true;
+        showWarning(t("edit_saved_hint"));
+    }
+
     // ================================================================
     //  Property extraction & rendering
     // ================================================================
-    function getElementProperties(elem) {
-        var props = {};
-        var tag = elem.tagName.toLowerCase();
-        var style = window.getComputedStyle(elem);
+    // Editable property panel for a single selected element: computed geometry,
+    // text content where safe, and the element's own SVG attributes.
+    function renderEditableProps(el) {
+        var tag = localName(el);
+        var isGroup = tag === "g";
+        var html = '<div class="prop-caption">' +
+            escapeHtml(isGroup ? t("label_group_edit") : t("label_direct_edit")) + '</div>';
 
-        // Position (common to all)
+        var parentGroup = nearestParentGroup(el);
+        if (parentGroup && !isGroup) {
+            html += '<table class="prop-table"><tr><td class="prop-key">group</td><td class="prop-val">' +
+                '<button type="button" class="btn-select-group" data-group-id="' +
+                escapeHtml(parentGroup.id) + '">' + escapeHtml(t("btn_select_group")) +
+                '</button></td></tr></table>';
+        }
+
+        html += '<div class="prop-section">' + escapeHtml(t("section_geometry")) + '</div>';
+        html += '<table class="prop-table">';
+        // Geometry: position + size in render coords — editable, folded into
+        // the element's transform matrix on commit (works for any element type).
         try {
-            var bbox = elem.getBBox();
-            props["position"] = Math.round(bbox.x) + ", " + Math.round(bbox.y);
-            props["size"] = Math.round(bbox.width) + " x " + Math.round(bbox.height);
-        } catch (e) {
-            // no geometry
-        }
+            var rb = computeRenderBox(el);
+            html += '<tr><td class="prop-key">position</td><td class="prop-val geo-cell">' +
+                '<input type="number" class="prop-edit prop-edit-geo" data-geo="x" value="' + Math.round(rb.x) + '">' +
+                '<input type="number" class="prop-edit prop-edit-geo" data-geo="y" value="' + Math.round(rb.y) + '">' +
+                '</td></tr>';
+            html += '<tr><td class="prop-key">size</td><td class="prop-val geo-cell">' +
+                '<input type="number" class="prop-edit prop-edit-geo" data-geo="w" min="1" value="' + Math.round(rb.w) + '">' +
+                '<input type="number" class="prop-edit prop-edit-geo" data-geo="h" min="1" value="' + Math.round(rb.h) + '">' +
+                '</td></tr>';
+        } catch (e) { /* no geometry */ }
+        html += '</table>';
 
+        // L1: text content — only when the element owns no <tspan> children.
         if (tag === "text" || tag === "tspan") {
-            props["font"] = style.fontFamily || elem.getAttribute("font-family") || "";
-            props["font-size"] = style.fontSize || elem.getAttribute("font-size") || "";
-            props["font-weight"] = style.fontWeight || elem.getAttribute("font-weight") || "";
-            props["fill"] = style.fill || elem.getAttribute("fill") || "";
-            props["anchor"] = elem.getAttribute("text-anchor") || style.textAnchor || "";
-            var text = elem.textContent || "";
-            if (text.length > 50) text = text.substring(0, 50) + "...";
-            props["content"] = text;
-        } else if (tag === "rect") {
-            props["fill"] = elem.getAttribute("fill") || style.fill || "";
-            props["stroke"] = elem.getAttribute("stroke") || style.stroke || "";
-        } else if (tag === "circle") {
-            props["r"] = elem.getAttribute("r") || "";
-            props["fill"] = elem.getAttribute("fill") || style.fill || "";
-            props["stroke"] = elem.getAttribute("stroke") || style.stroke || "";
-        } else if (tag === "ellipse") {
-            props["rx"] = elem.getAttribute("rx") || "";
-            props["ry"] = elem.getAttribute("ry") || "";
-            props["fill"] = elem.getAttribute("fill") || style.fill || "";
-        } else if (tag === "image") {
-            var href = elem.getAttribute("href") || elem.getAttribute("xlink:href") || "";
-            var parts = href.split("/");
-            props["file"] = parts[parts.length - 1] || href;
-        } else if (tag === "path") {
-            props["fill"] = elem.getAttribute("fill") || style.fill || "";
-            props["stroke"] = elem.getAttribute("stroke") || style.stroke || "";
+            html += '<div class="prop-section">' + escapeHtml(t("section_text_style")) + '</div>';
+            html += '<table class="prop-table">';
+            if (el.querySelector("tspan")) {
+                html += '<tr><td class="prop-key">content</td><td class="prop-val prop-note">' +
+                    escapeHtml(t("prop_multiline_hint")) + '</td></tr>';
+            } else {
+                html += '<tr><td class="prop-key">content</td><td class="prop-val">' +
+                    '<textarea class="prop-edit prop-edit-content" rows="2">' +
+                    escapeHtml(el.textContent || "") + '</textarea></td></tr>';
+            }
+            html += '</table>';
         }
 
-        return props;
+        html += '<div class="prop-section">' + escapeHtml(t("section_raw_attrs")) + '</div>';
+        html += '<table class="prop-table">';
+        ownAttributeSpecs(el).forEach(function (spec) {
+            html += '<tr><td class="prop-key">' + escapeHtml(spec.key) + '</td><td class="prop-val">';
+            if (!spec.editable) {
+                html += '<span class="prop-ro">' + escapeHtml(spec.value) + '</span>';
+            } else {
+                html += renderAttributeControl(spec);
+            }
+            html += '</td></tr>';
+        });
+
+        html += '</table>';
+        return html;
+    }
+
+    function nearestParentGroup(el) {
+        var node = el ? el.parentElement : null;
+        while (node && node !== svgContent) {
+            if (node.tagName && localName(node) === "g" && node.id) return node;
+            node = node.parentElement;
+        }
+        return null;
+    }
+
+    function ownAttributeSpecs(el) {
+        var specs = [];
+        Array.from(el.attributes).forEach(function (attr) {
+            var key = attr.name;
+            if (key === "class" || key === "data-edit-target" || key === "data-edit-annotation") return;
+            specs.push({
+                key: key,
+                value: attr.value,
+                editable: isEditableAttributeName(key)
+            });
+        });
+        return specs;
+    }
+
+    function isEditableAttributeName(key) {
+        var k = String(key).toLowerCase();
+        if (k === "id" || k === "class" || k === "href" || k === "xlink:href") return false;
+        if (k.indexOf("on") === 0) return false;
+        return /^[A-Za-z_][A-Za-z0-9_.:-]*$/.test(key);
+    }
+
+    function isColorAttribute(key, value) {
+        var k = String(key).toLowerCase();
+        if (["fill", "stroke", "color", "stop-color", "flood-color", "lighting-color"].indexOf(k) !== -1) {
+            return isSafeColor(value);
+        }
+        return false;
+    }
+
+    function renderAttributeControl(spec) {
+        if (isColorAttribute(spec.key, spec.value)) {
+            return '<input type="color" class="prop-edit prop-edit-color" data-key="' +
+                escapeHtml(spec.key) + '" value="' + normalizeHexForPicker(spec.value) + '">' +
+                '<input type="text" class="prop-edit prop-edit-color-text" data-key="' +
+                escapeHtml(spec.key) + '" value="' + escapeHtml(spec.value) + '">';
+        }
+        if (spec.value.length > 60 || spec.key === "d" || spec.key === "points" || spec.key === "style") {
+            return '<textarea class="prop-edit prop-edit-attr-area" rows="2" data-key="' +
+                escapeHtml(spec.key) + '">' + escapeHtml(spec.value) + '</textarea>';
+        }
+        return '<input type="text" class="prop-edit prop-edit-attr" data-key="' +
+            escapeHtml(spec.key) + '" value="' + escapeHtml(spec.value) + '">';
+    }
+
+    // ---- Geometry (position/size) helpers ----------------------------
+    // Edits fold into the element's own transform matrix so they apply
+    // uniformly regardless of how the element is positioned (x/y, cx/cy, d…).
+
+    function computeRenderBox(el) {
+        // Local geometry bbox (excludes the element's OWN transform) ...
+        var bbox = el.getBBox();
+        // ... times the element CTM (includes own + ancestor transforms) =
+        // the on-screen box in the svg root user space (= svg_output coords).
+        var ctm = el.getCTM();
+        if (!ctm) return { x: bbox.x, y: bbox.y, w: bbox.width, h: bbox.height };
+        var corners = [
+            { x: bbox.x, y: bbox.y },
+            { x: bbox.x + bbox.width, y: bbox.y },
+            { x: bbox.x, y: bbox.y + bbox.height },
+            { x: bbox.x + bbox.width, y: bbox.y + bbox.height }
+        ];
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        corners.forEach(function (p) {
+            var sx = p.x * ctm.a + p.y * ctm.c + ctm.e;
+            var sy = p.x * ctm.b + p.y * ctm.d + ctm.f;
+            minX = Math.min(minX, sx); minY = Math.min(minY, sy);
+            maxX = Math.max(maxX, sx); maxY = Math.max(maxY, sy);
+        });
+        return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+    }
+
+    function ownMatrix(el) {
+        var t = el.transform && el.transform.baseVal;
+        if (t && t.numberOfItems) {
+            var c = t.consolidate();
+            if (c) {
+                var m = c.matrix;
+                return new DOMMatrix([m.a, m.b, m.c, m.d, m.e, m.f]);
+            }
+        }
+        return new DOMMatrix();
+    }
+
+    function parentCTM(el) {
+        // parent → svg-root user space; identity when parent is the outer <svg>.
+        var p = el.parentNode;
+        var pm = (p && p.getCTM) ? p.getCTM() : null;
+        return pm ? new DOMMatrix([pm.a, pm.b, pm.c, pm.d, pm.e, pm.f]) : new DOMMatrix();
+    }
+
+    function matrixAfterMove(el, rb, nx, ny) {
+        // Desired shift in root coords, mapped into parent space (linear part only).
+        var pm = parentCTM(el);
+        var rx = nx - rb.x, ry = ny - rb.y;
+        var det = pm.a * pm.d - pm.b * pm.c || 1;
+        var dpx = (pm.d * rx - pm.c * ry) / det;
+        var dpy = (-pm.b * rx + pm.a * ry) / det;
+        return new DOMMatrix().translate(dpx, dpy).multiply(ownMatrix(el));
+    }
+
+    function matrixAfterResize(el, rb, nw, nh) {
+        var pm = parentCTM(el);
+        var sx = nw / rb.w, sy = nh / rb.h;
+        // Anchor = render top-left, mapped to parent coords (full inverse).
+        var im = pm.inverse();
+        var ax = im.a * rb.x + im.c * rb.y + im.e;
+        var ay = im.b * rb.x + im.d * rb.y + im.f;
+        return new DOMMatrix()
+            .translate(ax, ay).scale(sx, sy).translate(-ax, -ay)
+            .multiply(ownMatrix(el));
+    }
+
+    function matrixToString(m) {
+        var r = function (v) { return Math.round(v * 1e6) / 1e6; };
+        var values = [m.a, m.b, m.c, m.d, m.e, m.f].map(r);
+        if (!values.every(function (v) { return Number.isFinite(v); })) return null;
+        return "matrix(" + values.join(",") + ")";
+    }
+
+    function refreshGeoInputs(el, panel) {
+        var rb = computeRenderBox(el);
+        var vals = { x: Math.round(rb.x), y: Math.round(rb.y), w: Math.round(rb.w), h: Math.round(rb.h) };
+        Object.keys(vals).forEach(function (k) {
+            var inp = panel.querySelector('.prop-edit-geo[data-geo="' + k + '"]');
+            if (inp && document.activeElement !== inp) inp.value = vals[k];
+        });
+    }
+
+    function normalizeHexForPicker(val) {
+        var s = String(val).trim();
+        if (/^#[0-9a-fA-F]{6}$/.test(s)) return s;
+        if (/^#[0-9a-fA-F]{3}$/.test(s)) {
+            return "#" + s[1] + s[1] + s[2] + s[2] + s[3] + s[3];
+        }
+        return "#000000";
     }
 
     function isSafeColor(val) {
@@ -1951,70 +2242,645 @@
         return val.length < 100 && !/[;:@\\]|url\s*\(/i.test(val);
     }
 
-    function renderPropertyTable(props) {
-        var html = '<table class="prop-table">';
-        Object.keys(props).forEach(function (key) {
-            var val = props[key];
-            if (!val) return;
-            html += '<tr><td class="prop-key">' + escapeHtml(key) + '</td><td class="prop-val">';
-            if ((key === "fill" || key === "stroke") && isSafeColor(val)) {
-                html += '<span class="prop-color" style="background:' + escapeHtml(val) + ';"></span>';
-            }
-            html += escapeHtml(val) + '</td></tr>';
+    function splitNumberUnit(value) {
+        var m = String(value || "").trim().match(/^(-?\d+(?:\.\d+)?)([A-Za-z%]*)$/);
+        if (!m) return null;
+        return { num: parseFloat(m[1]), unit: m[2] || "" };
+    }
+
+    function shiftedAttrValue(el, key, delta) {
+        var parsed = splitNumberUnit(el.getAttribute(key));
+        if (!parsed || !Number.isFinite(parsed.num)) return null;
+        var next = Math.round((parsed.num + delta) * 1000) / 1000;
+        return String(next) + parsed.unit;
+    }
+
+    function parentDelta(dx, dy, el) {
+        var pm = parentCTM(el);
+        var det = pm.a * pm.d - pm.b * pm.c;
+        if (Math.abs(det) < 1e-9) return null;
+        return {
+            x: (pm.d * dx - pm.c * dy) / det,
+            y: (-pm.b * dx + pm.a * dy) / det
+        };
+    }
+
+    function firstNumber(value) {
+        var m = String(value || "").match(/-?\d+(?:\.\d+)?/);
+        return m ? parseFloat(m[0]) : null;
+    }
+
+    function formatCoord(value) {
+        return String(Math.round(value * 1000) / 1000);
+    }
+
+    function tspanBaseline(tspan) {
+        var text = tspan && tspan.parentElement;
+        if (!text || localName(text) !== "text") return null;
+        var curX = firstNumber(text.getAttribute("x"));
+        var curY = firstNumber(text.getAttribute("y"));
+        var children = Array.from(text.children);
+        for (var i = 0; i < children.length; i++) {
+            var child = children[i];
+            if (localName(child) !== "tspan") continue;
+            var x = firstNumber(child.getAttribute("x"));
+            var y = firstNumber(child.getAttribute("y"));
+            var dx = firstNumber(child.getAttribute("dx"));
+            var dy = firstNumber(child.getAttribute("dy"));
+            if (x !== null) curX = x;
+            else if (dx !== null) curX = (curX || 0) + dx;
+            if (y !== null) curY = y;
+            else if (dy !== null) curY = (curY || 0) + dy;
+            if (child === tspan) break;
+        }
+        if (curX === null || curY === null) return null;
+        return { x: curX, y: curY };
+    }
+
+    function tspanPromotionPayload(tspan) {
+        if (localName(tspan) !== "tspan") return null;
+        var base = tspanBaseline(tspan);
+        if (!base) return null;
+        var own = ownMatrix(tspan);
+        var close = function (a, b) { return Math.abs(a - b) < 1e-6; };
+        if (!close(own.a, 1) || !close(own.b, 0) ||
+                !close(own.c, 0) || !close(own.d, 1)) return null;
+        return {
+            x: formatCoord(base.x + own.e),
+            y: formatCoord(base.y + own.f)
+        };
+    }
+
+    function copyTextAttrs(src, dst, skip) {
+        Array.from(src.attributes || []).forEach(function (attr) {
+            if (skip[attr.name]) return;
+            dst.setAttribute(attr.name, attr.value);
         });
-        html += '</table>';
-        return html;
+    }
+
+    function adjustedDyValue(oldValue, nextY, prevY) {
+        var parsed = splitNumberUnit(oldValue);
+        if (!parsed) return formatCoord(nextY - prevY);
+        return formatCoord(nextY - prevY) + parsed.unit;
+    }
+
+    function promoteTspanDom(tspan, promoted) {
+        var text = tspan && tspan.parentElement;
+        if (!text || localName(tspan) !== "tspan" || localName(text) !== "text") return null;
+        var next = tspan.nextElementSibling;
+        var nextBase = next && localName(next) === "tspan" ? tspanBaseline(next) : null;
+        var prev = tspan.previousElementSibling;
+        var prevBase = prev && localName(prev) === "tspan" ? tspanBaseline(prev) : null;
+        var parentBaseY = firstNumber(text.getAttribute("y")) || 0;
+
+        var newText = document.createElementNS(tspan.namespaceURI, "text");
+        copyTextAttrs(text, newText, { id: true, x: true, y: true, dx: true, dy: true });
+        copyTextAttrs(tspan, newText, {
+            id: true, x: true, y: true, dx: true, dy: true, transform: true
+        });
+        newText.setAttribute("id", tspan.id);
+        newText.setAttribute("x", promoted.x);
+        newText.setAttribute("y", promoted.y);
+
+        Array.from(tspan.childNodes || []).forEach(function (node) {
+            newText.appendChild(node.cloneNode(true));
+        });
+        if (newText.childNodes.length === 0) {
+            newText.textContent = tspan.textContent || "";
+        }
+
+        var textParent = text.parentNode;
+        var textNext = text.nextSibling;
+        var textClone = text.cloneNode(true);
+        newText.__promotionRollback = function () {
+            if (newText.parentNode) newText.parentNode.removeChild(newText);
+            if (text.parentNode) text.parentNode.removeChild(text);
+            if (textParent) {
+                if (textNext && textNext.parentNode === textParent) {
+                    textParent.insertBefore(textClone, textNext);
+                } else {
+                    textParent.appendChild(textClone);
+                }
+            }
+            selectedElementIds.delete(newText.id);
+            selectedElementIds.add(tspan.id);
+            markSelection();
+            return textClone.querySelector("#" + CSS.escape(tspan.id)) || textClone;
+        };
+
+        text.parentNode.insertBefore(newText, text.nextSibling);
+        text.removeChild(tspan);
+        if (next && nextBase && !next.hasAttribute("y") && next.hasAttribute("dy")) {
+            next.setAttribute("dy", adjustedDyValue(
+                next.getAttribute("dy"),
+                nextBase.y,
+                prevBase ? prevBase.y : parentBaseY
+            ));
+        }
+        if (!(text.textContent || "").trim() && text.children.length === 0) {
+            text.parentNode.removeChild(text);
+        }
+        selectedElementIds.delete(tspan.id);
+        selectedElementIds.add(newText.id);
+        markSelection();
+        return newText;
+    }
+
+    function payloadForMovedElement(el, attrs) {
+        var promoted = tspanPromotionPayload(el);
+        if (promoted) return { promote_tspan: promoted };
+        return { attrs: attrs };
+    }
+
+    function canUseRawGeometry(el) {
+        var own = ownMatrix(el);
+        var close = function (a, b) { return Math.abs(a - b) < 1e-6; };
+        if (close(own.b, 0) && close(own.c, 0)) {
+            if (close(own.a, 1) && close(own.d, 1)) return "translate";
+            if (localName(el) === "use") return "use-transform";
+            if (["rect", "image"].indexOf(localName(el)) !== -1) return "box-transform";
+        }
+        return "";
+    }
+
+    function rawMoveAttrs(el, dx, dy) {
+        if (localName(el) === "g" && el.hasAttribute("data-icon") &&
+                el.hasAttribute("data-use-x") && el.hasAttribute("data-use-y")) {
+            var iconOwn = ownMatrix(el);
+            var close = function (a, b) { return Math.abs(a - b) < 1e-6; };
+            if (close(iconOwn.b, 0) && close(iconOwn.c, 0)) {
+                var iconDelta = parentDelta(dx, dy, el);
+                if (iconDelta) {
+                    var iconAttrs = {
+                        x: formatCoord(iconOwn.e + iconDelta.x),
+                        y: formatCoord(iconOwn.f + iconDelta.y)
+                    };
+                    if (el.hasAttribute("data-use-has-transform")) {
+                        iconAttrs.transform = null;
+                    }
+                    return iconAttrs;
+                }
+            }
+        }
+
+        var rawMode = canUseRawGeometry(el);
+        if (!rawMode) return null;
+        var d = parentDelta(dx, dy, el);
+        if (!d) return null;
+        var tag = localName(el);
+        var attrs = {};
+        var own = ownMatrix(el);
+        var add = function (key, delta) {
+            if (!el.hasAttribute(key)) return false;
+            var next = shiftedAttrValue(el, key, delta);
+            if (next === null) return false;
+            attrs[key] = next;
+            return true;
+        };
+        var fmt = function (value) {
+            return String(Math.round(value * 1000) / 1000);
+        };
+        var bakeTranslate = function (xKey, yKey) {
+            if (!el.hasAttribute(xKey) || !el.hasAttribute(yKey)) return false;
+            if (rawMode === "use-transform") {
+                attrs[xKey] = fmt(own.e + d.x);
+                attrs[yKey] = fmt(own.f + d.y);
+                attrs.transform = null;
+                return true;
+            }
+            var nx = shiftedAttrValue(el, xKey, own.e + d.x);
+            var ny = shiftedAttrValue(el, yKey, own.f + d.y);
+            if (nx === null || ny === null) return false;
+            attrs[xKey] = nx;
+            attrs[yKey] = ny;
+            if (el.hasAttribute("transform")) attrs.transform = null;
+            return true;
+        };
+        var bakeBox = function () {
+            if (!el.hasAttribute("x") || !el.hasAttribute("y") ||
+                    !el.hasAttribute("width") || !el.hasAttribute("height")) return false;
+            var x = splitNumberUnit(el.getAttribute("x"));
+            var y = splitNumberUnit(el.getAttribute("y"));
+            var w = splitNumberUnit(el.getAttribute("width"));
+            var h = splitNumberUnit(el.getAttribute("height"));
+            if (!x || !y || !w || !h || x.unit !== y.unit ||
+                    x.unit !== w.unit || x.unit !== h.unit) return false;
+            attrs.x = fmt(own.a * x.num + own.e + d.x) + x.unit;
+            attrs.y = fmt(own.d * y.num + own.f + d.y) + y.unit;
+            attrs.width = fmt(Math.abs(own.a) * w.num) + w.unit;
+            attrs.height = fmt(Math.abs(own.d) * h.num) + h.unit;
+            attrs.transform = null;
+            return true;
+        };
+
+        if (rawMode === "box-transform") {
+            return bakeBox() ? attrs : null;
+        }
+        if (["rect", "image", "use", "text"].indexOf(tag) !== -1) {
+            return bakeTranslate("x", "y") ? attrs : null;
+        }
+        if (tag === "circle" || tag === "ellipse") {
+            return bakeTranslate("cx", "cy") ? attrs : null;
+        }
+        if (tag === "line") {
+            if (add("x1", own.e + d.x) && add("x2", own.e + d.x) &&
+                    add("y1", own.f + d.y) && add("y2", own.f + d.y)) {
+                if (el.hasAttribute("transform")) attrs.transform = null;
+                return attrs;
+            }
+            return null;
+        }
+        return null;
+    }
+
+    function attrsForMove(el, dx, dy) {
+        var attrs = rawMoveAttrs(el, dx, dy);
+        if (attrs) return attrs;
+        var rb = computeRenderBox(el);
+        var moved = matrixAfterMove(el, rb, rb.x + dx, rb.y + dy);
+        var tstr = matrixToString(moved);
+        return tstr ? { transform: tstr } : null;
+    }
+
+    function computeElementsBox(elements) {
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        elements.forEach(function (el) {
+            var rb = computeRenderBox(el);
+            minX = Math.min(minX, rb.x);
+            minY = Math.min(minY, rb.y);
+            maxX = Math.max(maxX, rb.x + rb.w);
+            maxY = Math.max(maxY, rb.y + rb.h);
+        });
+        return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+    }
+
+    function topLevelSelectedElements(ids) {
+        var els = ids.map(function (eid) {
+            return svgContent.querySelector("#" + CSS.escape(eid));
+        }).filter(Boolean);
+        return els.filter(function (el) {
+            return !els.some(function (other) {
+                return other !== el && other.contains(el);
+            });
+        });
+    }
+
+    function attachPropEditors(el) {
+        var eid = el.id;
+        var panel = elementPropsEl;
+
+        var groupBtn = panel.querySelector(".btn-select-group");
+        if (groupBtn) {
+            groupBtn.addEventListener("click", function () {
+                var gid = groupBtn.getAttribute("data-group-id");
+                var groupEl = gid ? svgContent.querySelector("#" + CSS.escape(gid)) : null;
+                if (groupEl) selectElement(groupEl, false);
+            });
+        }
+
+        // L1: text content (fires on blur/change).
+        var contentBox = panel.querySelector(".prop-edit-content");
+        if (contentBox) {
+            contentBox.addEventListener("change", function () {
+                var newText = contentBox.value;
+                stageEditRequest(eid, { text: newText })
+                    .then(function () { el.textContent = newText; })
+                    .catch(function (err) { showError(t("err_edit") + err.message); });
+            });
+        }
+
+        // Raw own attributes: color picker + text input stay in sync.
+        panel.querySelectorAll(".prop-edit-color").forEach(function (picker) {
+            var key = picker.getAttribute("data-key");
+            var textInput = panel.querySelector('.prop-edit-color-text[data-key="' + key + '"]');
+            picker.addEventListener("input", function () {
+                if (textInput) textInput.value = picker.value;
+            });
+            picker.addEventListener("change", function () {
+                stageAttr(el, eid, key, picker.value);
+            });
+        });
+        panel.querySelectorAll(".prop-edit-color-text").forEach(function (textInput) {
+            var key = textInput.getAttribute("data-key");
+            var picker = panel.querySelector('input.prop-edit-color[data-key="' + key + '"]');
+            textInput.addEventListener("change", function () {
+                var v = textInput.value.trim();
+                if (picker) picker.value = normalizeHexForPicker(v);
+                stageAttr(el, eid, key, v);
+            });
+        });
+
+        panel.querySelectorAll(".prop-edit-attr, .prop-edit-attr-area").forEach(function (input) {
+            var key = input.getAttribute("data-key");
+            input.addEventListener("change", function () {
+                stageAttr(el, eid, key, input.value.trim());
+            });
+        });
+
+        // Geometry: position (move) + size (resize), folded into the transform.
+        if (panel.querySelector(".prop-edit-geo")) {
+            var readGeo = function (k) {
+                var inp = panel.querySelector('.prop-edit-geo[data-geo="' + k + '"]');
+                return inp ? parseFloat(inp.value) : NaN;
+            };
+            var commitGeo = function (mode) {
+                var rb;
+                try { rb = computeRenderBox(el); } catch (e) { return; }
+                var newM;
+                var attrs = null;
+                if (mode === "move") {
+                    var nx = readGeo("x"), ny = readGeo("y");
+                    if (isNaN(nx) || isNaN(ny)) return;
+                    if (Math.abs(nx - rb.x) < 1e-6 && Math.abs(ny - rb.y) < 1e-6) return;
+                    attrs = attrsForMove(el, nx - rb.x, ny - rb.y);
+                    if (!attrs) newM = matrixAfterMove(el, rb, nx, ny);
+                } else {
+                    var nw = readGeo("w"), nh = readGeo("h");
+                    if (isNaN(nw) || isNaN(nh) || nw <= 0 || nh <= 0 || rb.w <= 0 || rb.h <= 0) {
+                        showError(t("err_edit") + "size");
+                        return;
+                    }
+                    if (Math.abs(nw - rb.w) < 1e-6 && Math.abs(nh - rb.h) < 1e-6) return;
+                    newM = matrixAfterResize(el, rb, nw, nh);
+                }
+                if (!attrs) {
+                    var tstr = matrixToString(newM);
+                    if (!tstr) {
+                        showError(t("err_edit") + "transform");
+                        return;
+                    }
+                    attrs = { transform: tstr };
+                }
+                var payload = mode === "move" ? payloadForMovedElement(el, attrs) : { attrs: attrs };
+                stageEditRequest(eid, payload)
+                    .then(function () {
+                    if (payload.promote_tspan) {
+                        el = promoteTspanDom(el, payload.promote_tspan) || el;
+                    } else {
+                        applyElementAttrs(el, attrs);
+                        markCommittedAttrs(el, attrs);
+                    }
+                    refreshGeoInputs(el, panel);
+                    })
+                    .catch(function (err) { showError(t("err_edit") + err.message); });
+            };
+            panel.querySelectorAll('.prop-edit-geo[data-geo="x"], .prop-edit-geo[data-geo="y"]').forEach(function (inp) {
+                inp.addEventListener("change", function () { commitGeo("move"); });
+            });
+            panel.querySelectorAll('.prop-edit-geo[data-geo="w"], .prop-edit-geo[data-geo="h"]').forEach(function (inp) {
+                inp.addEventListener("change", function () { commitGeo("resize"); });
+            });
+        }
+    }
+
+    function stageAttr(el, eid, key, value) {
+        if ((key === "fill" || key === "stroke") && !isSafeColor(value)) {
+            showError(t("err_edit") + key);
+            return;
+        }
+        var attrs = {};
+        attrs[key] = value;
+        stageEditRequest(eid, { attrs: attrs })
+            .then(function () { el.setAttribute(key, value); })
+            .catch(function (err) { showError(t("err_edit") + err.message); });
+    }
+
+    // Tracks every in-flight direct-edit POST so Apply changes can wait for them
+    // to land before /save-all (otherwise a just-sent edit could arrive after the
+    // save and resurrect a pending edit).
+    var inFlightEdits = new Set();
+
+    function drainDirectEdits() {
+        if (inFlightEdits.size === 0) return Promise.resolve();
+        return Promise.allSettled(Array.from(inFlightEdits)).then(function (results) {
+            var failed = results.find(function (r) { return r.status === "rejected"; });
+            if (failed) throw (failed.reason || new Error("direct edit failed"));
+            return drainDirectEdits();
+        });
+    }
+
+    function stageEditRequest(eid, payload, slideName) {
+        if (reviewMode) {
+            return Promise.reject(new Error(t("err_review_readonly")));
+        }
+        // Pin the slide at call time: a queued nudge may fire after the user has
+        // navigated, and must still POST to the slide it was made on, not the
+        // global currentSlide.
+        var slide = slideName || currentSlide;
+        var body = { element_id: eid };
+        if (payload.text !== undefined) body.text = payload.text;
+        if (payload.attrs !== undefined) body.attrs = payload.attrs;
+        if (payload.promote_tspan !== undefined) body.promote_tspan = payload.promote_tspan;
+        var p = fetch("/api/slide/" + encodeURIComponent(slide) + "/edit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        }).then(jsonOrThrow).then(function (data) {
+            if (data && data.undo_depth !== undefined) {
+                editStackCount[slide] = data.undo_depth;
+                if (slide === currentSlide) updateUndoButton();
+            }
+            maybeShowSavedHint();
+            return data;
+        });
+        inFlightEdits.add(p);
+        var done = function () { inFlightEdits.delete(p); };
+        p.then(done, done);
+        return p;
     }
 
     function renderMultiSelectSummary(ids) {
-        var typeCounts = {};
-        var sharedFontSize = null;
-        var allHaveFontSize = true;
+        var moveEls = topLevelSelectedElements(ids);
+        var summary = '<div class="prop-caption">' + escapeHtml(t("label_batch_edit")) + '</div>';
 
-        ids.forEach(function (eid) {
-            var el = svgContent.querySelector("#" + CSS.escape(eid));
-            if (!el) return;
-            var tag = el.tagName.toLowerCase();
-            typeCounts[tag] = (typeCounts[tag] || 0) + 1;
-
-            if (tag === "text" || tag === "tspan") {
-                var fs = window.getComputedStyle(el).fontSize || el.getAttribute("font-size") || "";
-                if (sharedFontSize === null) {
-                    sharedFontSize = fs;
-                } else if (sharedFontSize !== fs) {
-                    sharedFontSize = "mixed";
-                }
-            } else {
-                allHaveFontSize = false;
-            }
-        });
-
-        var summary = '<div class="multi-summary">';
-        var parts = [];
-        Object.keys(typeCounts).forEach(function (tag) {
-            parts.push(typeCounts[tag] + " " + tag);
-        });
-        summary += parts.join(", ");
-
-        if (allHaveFontSize && sharedFontSize && sharedFontSize !== "mixed") {
-            summary += ' | font-size: ' + escapeHtml(sharedFontSize);
-        } else if (allHaveFontSize && sharedFontSize === "mixed") {
-            summary += ' | font-size: ' + escapeHtml(t("multi_mixed"));
+        if (moveEls.length > 0) {
+            try {
+                var rb = computeElementsBox(moveEls);
+                summary += '<div class="prop-section">' + escapeHtml(t("section_geometry")) + '</div>';
+                summary += '<table class="prop-table"><tr><td class="prop-key">x / y</td>' +
+                    '<td class="prop-val geo-cell">' +
+                    '<input type="number" class="prop-edit prop-edit-multi-geo" data-geo="x" value="' +
+                    Math.round(rb.x) + '">' +
+                    '<input type="number" class="prop-edit prop-edit-multi-geo" data-geo="y" value="' +
+                    Math.round(rb.y) + '">' +
+                    '</td></tr></table>';
+            } catch (e) { /* no multi geometry */ }
         }
-        summary += '</div>';
-
-        // Element list
-        summary += '<div class="multi-el-list">';
-        ids.forEach(function (eid) {
-            var el = svgContent.querySelector("#" + CSS.escape(eid));
-            if (!el) return;
-            var tag = el.tagName.toLowerCase();
-            summary += '<div class="multi-el-item"><span class="el-tag">&lt;' +
-                escapeHtml(tag) + '&gt;</span>' + escapeHtml(eid) + '</div>';
+        summary += '<div class="prop-section">' + escapeHtml(t("section_style")) + '</div>';
+        summary += '<table class="prop-table">';
+        batchEditSpecs(moveEls).forEach(function (spec) {
+            summary += '<tr><td class="prop-key">' + escapeHtml(spec.key) + '</td><td class="prop-val">';
+            summary += renderBatchControl(spec);
+            summary += '</td></tr>';
         });
-        summary += '</div>';
-
+        summary += '</table>';
         return summary;
+    }
+
+    function batchEditSpecs(elements) {
+        var keys = [
+            { key: "fill", type: "color" },
+            { key: "stroke", type: "color" },
+            { key: "opacity", type: "number", min: "0", max: "1", step: "0.05" }
+        ];
+        if (elements.length > 0 && elements.every(isTextElement)) {
+            keys = keys.concat([
+                { key: "font-size", type: "text" },
+                { key: "font-family", type: "text" },
+                { key: "font-weight", type: "select",
+                  options: ["", "normal", "bold", "300", "400", "500", "600", "700", "800"] },
+                { key: "text-anchor", type: "select", options: ["", "start", "middle", "end"] }
+            ]);
+        }
+        return keys.map(function (spec) {
+            var value = commonAttrValue(elements, spec.key);
+            var copy = Object.assign({}, spec);
+            copy.value = value === null ? "" : value;
+            copy.mixed = value === null;
+            return copy;
+        });
+    }
+
+    function isTextElement(el) {
+        var tag = el.tagName.toLowerCase();
+        return tag === "text" || tag === "tspan";
+    }
+
+    function commonAttrValue(elements, key) {
+        if (elements.length === 0) return "";
+        var first = attrOrComputedValue(elements[0], key);
+        for (var i = 1; i < elements.length; i++) {
+            if (attrOrComputedValue(elements[i], key) !== first) return null;
+        }
+        return first;
+    }
+
+    function attrOrComputedValue(el, key) {
+        var value = el.getAttribute(key);
+        if (value !== null && value !== "") return value;
+        var style = window.getComputedStyle(el);
+        var map = {
+            "fill": "fill",
+            "stroke": "stroke",
+            "opacity": "opacity",
+            "font-size": "fontSize",
+            "font-family": "fontFamily",
+            "font-weight": "fontWeight",
+            "text-anchor": "textAnchor"
+        };
+        return (map[key] && style[map[key]]) || "";
+    }
+
+    function renderBatchControl(spec) {
+        var placeholder = spec.mixed ? t("multi_mixed") : "";
+        if (spec.type === "color") {
+            return '<input type="color" class="prop-edit prop-edit-batch-color" data-key="' +
+                escapeHtml(spec.key) + '" value="' + normalizeHexForPicker(spec.value) + '">' +
+                '<input type="text" class="prop-edit prop-edit-batch" data-key="' +
+                escapeHtml(spec.key) + '" placeholder="' + escapeHtml(placeholder) +
+                '" value="' + escapeHtml(spec.mixed ? "" : spec.value) + '">';
+        }
+        if (spec.type === "number") {
+            return '<input type="number" class="prop-edit prop-edit-batch" data-key="' +
+                escapeHtml(spec.key) + '" min="' + escapeHtml(spec.min || "") +
+                '" max="' + escapeHtml(spec.max || "") + '" step="' +
+                escapeHtml(spec.step || "1") + '" placeholder="' + escapeHtml(placeholder) +
+                '" value="' + escapeHtml(spec.mixed ? "" : spec.value) + '">';
+        }
+        if (spec.type === "select") {
+            var html = '<select class="prop-edit prop-edit-batch" data-key="' + escapeHtml(spec.key) + '">';
+            spec.options.forEach(function (opt) {
+                var label = opt || placeholder || "";
+                var selected = !spec.mixed && spec.value === opt ? " selected" : "";
+                html += '<option value="' + escapeHtml(opt) + '"' + selected + '>' +
+                    escapeHtml(label) + '</option>';
+            });
+            html += '</select>';
+            return html;
+        }
+        return '<input type="text" class="prop-edit prop-edit-batch" data-key="' +
+            escapeHtml(spec.key) + '" placeholder="' + escapeHtml(placeholder) +
+            '" value="' + escapeHtml(spec.mixed ? "" : spec.value) + '">';
+    }
+
+    function attachMultiSelectionEditors(ids) {
+        var panel = elementPropsEl;
+        var moveEls = topLevelSelectedElements(ids);
+        if (moveEls.length === 0) return;
+
+        var readGeo = function (k) {
+            var inp = panel.querySelector('.prop-edit-multi-geo[data-geo="' + k + '"]');
+            return inp ? parseFloat(inp.value) : NaN;
+        };
+        var commitMove = function () {
+            var rb;
+            try { rb = computeElementsBox(moveEls); } catch (e) { return; }
+            var nx = readGeo("x"), ny = readGeo("y");
+            if (isNaN(nx) || isNaN(ny)) return;
+            var dx = nx - rb.x, dy = ny - rb.y;
+            if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return;
+
+            var jobs = [];
+            moveEls.forEach(function (el) {
+                var attrs;
+                try { attrs = attrsForMove(el, dx, dy); } catch (e) { attrs = null; }
+                if (!attrs) return;
+                var payload = payloadForMovedElement(el, attrs);
+                jobs.push(stageEditRequest(el.id, payload).then(function () {
+                    if (payload.promote_tspan) promoteTspanDom(el, payload.promote_tspan);
+                    else {
+                        applyElementAttrs(el, attrs);
+                        markCommittedAttrs(el, attrs);
+                    }
+                }));
+            });
+
+            Promise.all(jobs)
+                .then(function () { updateSelectionPanel(); })
+                .catch(function (err) { showError(t("err_edit") + err.message); });
+        };
+
+        panel.querySelectorAll(".prop-edit-multi-geo").forEach(function (inp) {
+            inp.addEventListener("change", commitMove);
+        });
+
+        panel.querySelectorAll(".prop-edit-batch-color").forEach(function (picker) {
+            var key = picker.getAttribute("data-key");
+            var text = panel.querySelector('.prop-edit-batch[data-key="' + key + '"]');
+            picker.addEventListener("input", function () {
+                if (text) text.value = picker.value;
+            });
+            picker.addEventListener("change", function () {
+                if (text) text.value = picker.value;
+                commitBatchAttr(key, picker.value, moveEls);
+            });
+        });
+
+        panel.querySelectorAll(".prop-edit-batch").forEach(function (input) {
+            input.addEventListener("change", function () {
+                var key = input.getAttribute("data-key");
+                var value = input.value.trim();
+                if (!value) return;
+                commitBatchAttr(key, value, moveEls);
+            });
+        });
+    }
+
+    function commitBatchAttr(key, value, elements) {
+        if ((key === "fill" || key === "stroke") && !isSafeColor(value)) {
+            showError(t("err_edit") + key);
+            return;
+        }
+        var jobs = elements.map(function (el) {
+            var attrs = {};
+            attrs[key] = value;
+            return stageEditRequest(el.id, { attrs: attrs }).then(function () {
+                el.setAttribute(key, value);
+            });
+        });
+        Promise.all(jobs)
+            .then(function () { updateSelectionPanel(); })
+            .catch(function (err) { showError(t("err_edit") + err.message); });
     }
 
     // ================================================================
@@ -2037,4 +2903,5 @@
     initRubberBand();
     initKeyboardShortcuts();
     initSlideNav();
+    if (btnUndo) btnUndo.addEventListener("click", runUndo);
 })();

@@ -6,7 +6,7 @@ Dispatches to the appropriate backend based on explicit provider configuration.
 
 Backend selection (`IMAGE_BACKEND` in `.env` or the current process environment):
   IMAGE_BACKEND=gemini      -> Gemini backend (google-genai SDK)
-  IMAGE_BACKEND=openai      -> OpenAI-compatible backend (openai SDK)
+  IMAGE_BACKEND=openai      -> OpenAI-compatible backend (raw HTTP via requests)
   IMAGE_BACKEND=minimax     -> MiniMax image backend
   IMAGE_BACKEND=stability   -> Stability AI backend
   IMAGE_BACKEND=bfl         -> Black Forest Labs FLUX backend
@@ -24,6 +24,7 @@ Configuration source (process env wins, `.env` is the fallback layer):
   1. Current process environment variables
   2. The first `.env` found among:
      - Current working directory
+     - Skill directory (e.g. `~/.agents/skills/ppt-master/.env`)
      - Repo root (when running from a clone)
      - `~/.ppt-master/.env` (user-level config)
 

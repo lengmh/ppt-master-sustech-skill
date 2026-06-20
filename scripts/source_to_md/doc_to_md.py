@@ -3,7 +3,7 @@
 Document to Markdown Converter (hybrid Python + Pandoc fallback)
 
 Primary formats (pure Python, no external tools required):
-    .docx   → mammoth
+    .docx   → mammoth (OMML/Office Math equations rewritten to inline LaTeX)
     .html   → markdownify + BeautifulSoup
     .epub   → ebooklib + markdownify
     .ipynb  → nbconvert
@@ -26,6 +26,8 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import uuid
 import zipfile
 from pathlib import Path
 from urllib.parse import unquote, urlparse
@@ -63,8 +65,24 @@ DOCX_NS = {
     "v": "urn:schemas-microsoft-com:vml",
     "o": "urn:schemas-microsoft-com:office:office",
     "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006",
+    "m": "http://schemas.openxmlformats.org/officeDocument/2006/math",
 }
 EMU_PER_INCH = 914400
+MATH_NS = DOCX_NS["m"]
+W_NS = DOCX_NS["w"]
+XML_SPACE_ATTR = "{http://www.w3.org/XML/1998/namespace}space"
+
+# OMML n-ary operator chars (m:nary/m:naryPr/m:chr) → LaTeX command.
+NARY_OPS = {
+    "∑": r"\sum", "∏": r"\prod", "∐": r"\coprod",
+    "∫": r"\int", "∬": r"\iint", "∭": r"\iiint", "∮": r"\oint",
+    "⋃": r"\bigcup", "⋂": r"\bigcap", "⋁": r"\bigvee", "⋀": r"\bigwedge",
+}
+# OMML accent chars (m:acc/m:accPr/m:chr) → LaTeX command.
+ACCENT_CMDS = {
+    "̂": r"\hat", "̃": r"\tilde", "̄": r"\bar", "→": r"\vec", "⃗": r"\vec",
+    "̇": r"\dot", "̈": r"\ddot", "̌": r"\check", "́": r"\acute", "̀": r"\grave",
+}
 
 
 # ─────────────────────────────────────────────────────────────
@@ -378,6 +396,226 @@ def _manifest_entry(
 
 
 # ─────────────────────────────────────────────────────────────
+# OMML (Office Math) → LaTeX
+# ─────────────────────────────────────────────────────────────
+#
+# mammoth drops all math content, so Word-native equations and MathType
+# formulas saved as Office Math (OMML) vanish from the output. This pure-Python
+# converter rewrites each <m:oMath> into inline `$...$` LaTeX before mammoth
+# runs, so formulas survive into the Markdown in document order.
+#
+# Scope: OMML only. Classic MathType OLE objects (Equation.DSMT4 / MTEF binary)
+# carry no OMML — they expose only a WMF/EMF preview image, which mammoth still
+# emits as a picture. Decoding MTEF is out of scope.
+
+def _m_child(elem: ET.Element, name: str) -> ET.Element | None:
+    """Return the first OMML child with the given local name."""
+    for child in elem:
+        if _local_name(child) == name:
+            return child
+    return None
+
+
+def _m_pr_val(elem: ET.Element, prop: str) -> str | None:
+    """Return m:val of a property inside the element's *Pr block (e.g. chr)."""
+    for child in elem:
+        if not _local_name(child).endswith("Pr"):
+            continue
+        for sub in child:
+            if _local_name(sub) == prop:
+                return sub.get(f"{{{MATH_NS}}}val")
+    return None
+
+
+def _brace(latex: str) -> str:
+    """Wrap multi-char LaTeX in braces so it binds as one super/subscript arg."""
+    return latex if len(latex) <= 1 else "{" + latex + "}"
+
+
+def _omml_part(elem: ET.Element, name: str) -> str:
+    """Convert a named OMML child (e/num/den/sup/sub/...) to LaTeX."""
+    child = _m_child(elem, name)
+    return _omml_to_latex(child) if child is not None else ""
+
+
+def _omml_run(elem: ET.Element) -> str:
+    """Concatenate text from an OMML run, skipping property children."""
+    return "".join(
+        c.text or "" for c in elem if _local_name(c) == "t"
+    )
+
+
+def _omml_children(elem: ET.Element) -> str:
+    """Convert all non-property children in order (default/passthrough rule)."""
+    return "".join(
+        _omml_to_latex(c) for c in elem if not _local_name(c).endswith("Pr")
+    )
+
+
+def _omml_matrix(elem: ET.Element, *, environment: str) -> str:
+    """Convert a matrix (m:m) or equation array (m:eqArr) to a LaTeX env."""
+    rows: list[str] = []
+    for row in elem:
+        if _local_name(row) not in ("mr", "e"):
+            continue
+        if _local_name(row) == "e":  # eqArr stores rows as bare <m:e>
+            rows.append(_omml_to_latex(row))
+            continue
+        cells = [_omml_to_latex(cell) for cell in row if _local_name(cell) == "e"]
+        rows.append(" & ".join(cells))
+    body = r" \\ ".join(rows)
+    return rf"\begin{{{environment}}} {body} \end{{{environment}}}"
+
+
+def _omml_to_latex(elem: ET.Element) -> str:
+    """Recursively convert one OMML element subtree to a LaTeX string.
+
+    Unknown elements degrade to a concatenation of their children rather than
+    being dropped, so rare constructs lose markup but never lose content.
+    """
+    local = _local_name(elem)
+
+    if local == "t":
+        return elem.text or ""
+    if local == "r":
+        return _omml_run(elem)
+    if local in ("oMath", "oMathPara", "e", "num", "den", "sup", "sub",
+                 "deg", "fName", "lim", "box", "borderBox"):
+        return _omml_children(elem)
+    if local == "sSup":
+        return _brace(_omml_part(elem, "e")) + "^" + _brace(_omml_part(elem, "sup"))
+    if local == "sSub":
+        return _brace(_omml_part(elem, "e")) + "_" + _brace(_omml_part(elem, "sub"))
+    if local == "sSubSup":
+        return (_brace(_omml_part(elem, "e"))
+                + "_" + _brace(_omml_part(elem, "sub"))
+                + "^" + _brace(_omml_part(elem, "sup")))
+    if local == "sPre":
+        return ("{}_" + _brace(_omml_part(elem, "sub"))
+                + "^" + _brace(_omml_part(elem, "sup"))
+                + _brace(_omml_part(elem, "e")))
+    if local == "f":
+        return r"\frac{" + _omml_part(elem, "num") + "}{" + _omml_part(elem, "den") + "}"
+    if local == "rad":
+        deg = _m_child(elem, "deg")
+        body = _omml_part(elem, "e")
+        deg_latex = _omml_to_latex(deg) if deg is not None and len(deg) else ""
+        return rf"\sqrt[{deg_latex}]{{{body}}}" if deg_latex else rf"\sqrt{{{body}}}"
+    if local == "d":
+        beg = _m_pr_val(elem, "begChr")
+        end = _m_pr_val(elem, "endChr")
+        beg = "(" if beg is None else (beg or ".")
+        end = ")" if end is None else (end or ".")
+        inner = "".join(_omml_to_latex(c) for c in elem if _local_name(c) == "e")
+        return rf"\left{beg}{inner}\right{end}"
+    if local == "nary":
+        chr_ = _m_pr_val(elem, "chr") or "∫"
+        op = NARY_OPS.get(chr_, chr_)
+        sub, sup = _m_child(elem, "sub"), _m_child(elem, "sup")
+        out = op
+        if sub is not None and len(sub):
+            out += "_" + _brace(_omml_to_latex(sub))
+        if sup is not None and len(sup):
+            out += "^" + _brace(_omml_to_latex(sup))
+        return out + _brace(_omml_part(elem, "e"))
+    if local == "func":
+        return "\\" + _omml_part(elem, "fName").strip() + _brace(_omml_part(elem, "e"))
+    if local == "limLow":
+        return _brace(_omml_part(elem, "e")) + "_" + _brace(_omml_part(elem, "lim"))
+    if local == "limUpp":
+        return _brace(_omml_part(elem, "e")) + "^" + _brace(_omml_part(elem, "lim"))
+    if local == "bar":
+        cmd = r"\underline" if _m_pr_val(elem, "pos") == "bot" else r"\overline"
+        return cmd + "{" + _omml_part(elem, "e") + "}"
+    if local == "acc":
+        cmd = ACCENT_CMDS.get(_m_pr_val(elem, "chr") or "̂", r"\hat")
+        return cmd + "{" + _omml_part(elem, "e") + "}"
+    if local == "groupChr":
+        return _omml_part(elem, "e")
+    if local == "m":
+        return _omml_matrix(elem, environment="matrix")
+    if local == "eqArr":
+        return _omml_matrix(elem, environment="aligned")
+
+    return _omml_children(elem)
+
+
+def _make_text_run(text: str) -> ET.Element:
+    """Build a <w:r><w:t xml:space="preserve">text</w:t></w:r> element."""
+    run = ET.Element(f"{{{W_NS}}}r")
+    t = ET.SubElement(run, f"{{{W_NS}}}t")
+    t.set(XML_SPACE_ATTR, "preserve")
+    t.text = text
+    return run
+
+
+def _docx_inject_math_latex(
+    input_file: Path,
+) -> tuple[Path, dict[str, str]] | None:
+    """Replace OMML equations with alphanumeric placeholders in a temp DOCX.
+
+    Returns ``(temp_file, {placeholder: latex})`` or None when the document has
+    no OMML math. Placeholders are plain ``[A-Za-z0-9]`` tokens so mammoth never
+    markdown-escapes the LaTeX; the caller swaps each token for its `$...$` value
+    after mammoth has produced the Markdown.
+    """
+    try:
+        with zipfile.ZipFile(input_file) as docx:
+            document_xml = docx.read("word/document.xml")
+    except (KeyError, zipfile.BadZipFile, OSError):
+        return None
+    try:
+        root = ET.fromstring(document_xml)
+    except ET.ParseError:
+        return None
+
+    parent_map = {child: parent for parent in root.iter() for child in parent}
+    targets: list[tuple[ET.Element, bool]] = []
+    for elem in root.iter():
+        local = _local_name(elem)
+        if local == "oMathPara":
+            targets.append((elem, True))
+        elif local == "oMath":
+            parent = parent_map.get(elem)
+            if parent is None or _local_name(parent) != "oMathPara":
+                targets.append((elem, False))
+    if not targets:
+        return None
+
+    token_base = uuid.uuid4().hex
+    replacements: dict[str, str] = {}
+    for index, (elem, display) in enumerate(targets):
+        parent = parent_map.get(elem)
+        if parent is None:
+            continue
+        latex = _omml_to_latex(elem).strip()
+        position = list(parent).index(elem)
+        parent.remove(elem)
+        if latex:
+            token = f"MATHEQ{token_base}{index:04d}"
+            delim = "$$" if display else "$"
+            replacements[token] = f"{delim}{latex}{delim}"
+            parent.insert(position, _make_text_run(token))
+    if not replacements:
+        return None
+
+    for prefix, uri in DOCX_NS.items():
+        if prefix != "rel":
+            ET.register_namespace(prefix, uri)
+    patched_xml = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
+    tmp.close()
+    out_path = Path(tmp.name)
+    with zipfile.ZipFile(input_file) as zin, \
+            zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = patched_xml if item.filename == "word/document.xml" else zin.read(item.filename)
+            zout.writestr(item, data)
+    return out_path, replacements
+
+
+# ─────────────────────────────────────────────────────────────
 # DOCX → Markdown (mammoth)
 # ─────────────────────────────────────────────────────────────
 
@@ -433,13 +671,31 @@ def _convert_docx(input_file: Path, out_file: Path) -> str:
         ))
         return {"src": f"{rel_media_dir}/{filename}"}
 
-    with input_file.open("rb") as f:
-        result = mammoth.convert_to_markdown(
-            f,
-            convert_image=mammoth.images.img_element(_save_image),
-        )
+    # Rewrite OMML equations to LaTeX placeholders before mammoth (which would
+    # otherwise drop them); the placeholders are swapped back below.
+    math_injection = _docx_inject_math_latex(input_file)
+    if math_injection is not None:
+        math_file, math_replacements = math_injection
+    else:
+        math_file, math_replacements = None, {}
+    mammoth_source = math_file or input_file
+    try:
+        with mammoth_source.open("rb") as f:
+            result = mammoth.convert_to_markdown(
+                f,
+                convert_image=mammoth.images.img_element(_save_image),
+            )
+    finally:
+        if math_file is not None:
+            try:
+                math_file.unlink()
+            except OSError:
+                pass
 
-    markdown = _html_img_to_md(result.value)
+    markdown = result.value
+    for token, latex in math_replacements.items():
+        markdown = markdown.replace(token, latex)
+    markdown = _html_img_to_md(markdown)
     out_file.write_text(markdown, encoding="utf-8")
 
     if manifest:
@@ -586,6 +842,129 @@ def _convert_html(input_file: Path, out_file: Path) -> str:
 # EPUB → Markdown (ebooklib + markdownify)
 # ─────────────────────────────────────────────────────────────
 
+def _sanitize_epub_manifest(src: Path) -> tuple[Path, bool]:
+    """Return an EPUB path that ebooklib can read.
+
+    Some EPUBs contain OPF manifest entries pointing at files that are missing
+    from the ZIP archive. ebooklib reads every manifest item eagerly, so one
+    stale entry can abort the whole conversion. When broken entries are found,
+    this writes a temporary EPUB with those manifest items and matching spine
+    refs removed.
+    """
+    OPF_NS = "http://www.idpf.org/2007/opf"
+    CONT_NS = "urn:oasis:names:tc:opendocument:xmlns:container"
+
+    try:
+        with zipfile.ZipFile(src, "r") as zin:
+            names = set(zin.namelist())
+            if "META-INF/container.xml" not in names:
+                return src, False
+
+            container_root = ET.fromstring(zin.read("META-INF/container.xml"))
+            rootfile_el = container_root.find(f".//{{{CONT_NS}}}rootfile")
+            if rootfile_el is None:
+                return src, False
+
+            opf_path = rootfile_el.get("full-path")
+            if not opf_path or opf_path not in names:
+                return src, False
+
+            opf_root = ET.fromstring(zin.read(opf_path))
+            manifest_el = opf_root.find(f"{{{OPF_NS}}}manifest")
+            if manifest_el is None:
+                return src, False
+
+            opf_dir = posixpath.dirname(opf_path)
+            bad_ids: list[str] = []
+            bad_hrefs: list[str] = []
+            for item_el in list(manifest_el.findall(f"{{{OPF_NS}}}item")):
+                href = item_el.get("href", "")
+                if not href:
+                    continue
+                rel = unquote(href)
+                zpath = posixpath.normpath(
+                    posixpath.join(opf_dir, rel) if opf_dir else rel
+                )
+                if zpath in names:
+                    continue
+
+                item_id = item_el.get("id", "")
+                if item_id:
+                    bad_ids.append(item_id)
+                bad_hrefs.append(href)
+                manifest_el.remove(item_el)
+
+            if not bad_hrefs:
+                return src, False
+
+            spine_el = opf_root.find(f"{{{OPF_NS}}}spine")
+            if spine_el is not None and bad_ids:
+                for itemref in list(spine_el.findall(f"{{{OPF_NS}}}itemref")):
+                    if itemref.get("idref") in bad_ids:
+                        spine_el.remove(itemref)
+
+            ET.register_namespace("", OPF_NS)
+            ET.register_namespace("dc", "http://purl.org/dc/elements/1.1/")
+            new_opf = ET.tostring(opf_root, encoding="utf-8", xml_declaration=True)
+
+            tmp = tempfile.NamedTemporaryFile(suffix=".epub", delete=False)
+            tmp.close()
+            out_path = Path(tmp.name)
+
+            with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as zout:
+                if "mimetype" in names:
+                    zout.writestr(
+                        zipfile.ZipInfo("mimetype"),
+                        zin.read("mimetype"),
+                        compress_type=zipfile.ZIP_STORED,
+                    )
+                for name in zin.namelist():
+                    if name == "mimetype":
+                        continue
+                    if name == opf_path:
+                        zout.writestr(name, new_opf)
+                    else:
+                        zout.writestr(name, zin.read(name))
+
+            preview = ", ".join(bad_hrefs[:3])
+            if len(bad_hrefs) > 3:
+                preview += " ..."
+            print(
+                f"[INFO] EPUB manifest sanitized: removed "
+                f"{len(bad_hrefs)} broken item(s) [{preview}]"
+            )
+            return out_path, True
+    except (zipfile.BadZipFile, ET.ParseError, OSError) as exc:
+        print(
+            f"[WARN] EPUB sanitize skipped "
+            f"({exc.__class__.__name__}: {exc}); using original file"
+        )
+        return src, False
+
+
+def _epub_image_candidates(src: str, document_name: str) -> list[str]:
+    """Build lookup candidates for an image reference inside an EPUB document."""
+    parsed = urlparse(src)
+    raw_path = parsed.path if parsed.scheme else src
+    decoded_path = unquote(raw_path)
+    normalized_path = posixpath.normpath(decoded_path).lstrip("/")
+    document_dir = posixpath.dirname(document_name)
+    relative_path = posixpath.normpath(
+        posixpath.join(document_dir, decoded_path)
+    ).lstrip("/")
+
+    candidates = [
+        src,
+        raw_path,
+        decoded_path,
+        normalized_path,
+        relative_path,
+        Path(decoded_path).name,
+        Path(normalized_path).name,
+    ]
+    return [candidate for candidate in dict.fromkeys(candidates) if candidate]
+
+
 def _convert_epub(input_file: Path, out_file: Path) -> str:
     try:
         import ebooklib
@@ -598,7 +977,15 @@ def _convert_epub(input_file: Path, out_file: Path) -> str:
         return ""
 
     media_dir, rel_media_dir = _ensure_media_dir(out_file)
-    book = epub.read_epub(str(input_file))
+    sanitized_path, is_temp_copy = _sanitize_epub_manifest(input_file)
+    try:
+        book = epub.read_epub(str(sanitized_path))
+    finally:
+        if is_temp_copy:
+            try:
+                sanitized_path.unlink()
+            except OSError:
+                pass
 
     # Extract images, remembering original path → new filename mapping
     img_map: dict[str, str] = {}
@@ -625,8 +1012,8 @@ def _convert_epub(input_file: Path, out_file: Path) -> str:
             src = img.get("src", "")
             if not src:
                 continue
-            # Try exact match, then basename, then normalized path
-            candidates = [src, Path(src).name, unquote(src), Path(unquote(src)).name]
+            # Try exact match, basename, decoded path, and path relative to this XHTML file.
+            candidates = _epub_image_candidates(src, item.file_name)
             resolved = next((img_map[c] for c in candidates if c in img_map), None)
             if resolved:
                 img["src"] = f"{rel_media_dir}/{resolved}"

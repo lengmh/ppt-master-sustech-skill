@@ -50,31 +50,6 @@ html, body {
     padding: 8px 0;
 }
 
-#panel-left-actions {
-    padding: 10px 12px 14px;
-    border-top: 1px solid #2a2a4a;
-    flex-shrink: 0;
-}
-
-#btn-reset-preview {
-    width: 100%;
-    padding: 8px 10px;
-    font-size: 12px;
-    font-weight: 600;
-    color: #c0c0d8;
-    background: transparent;
-    border: 1px solid #3a3a5a;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-
-#btn-reset-preview:hover {
-    color: #ffffff;
-    background: #2a2a4a;
-    border-color: #5a5a7a;
-}
-
 .slide-list-empty {
     padding: 12px 16px;
     color: #5a5a7a;
@@ -254,9 +229,14 @@ html, body {
 
 #svg-content svg {
     display: block;
+    /* Both dimensions auto so the box hugs the slide at any aspect ratio: with
+       only height:auto, portrait formats (e.g. 1242x1660) keep their attribute
+       width while max-height shrinks the height, leaving large white bands
+       inside the white card. width:auto lets the element scale proportionally. */
+    width: auto;
+    height: auto;
     max-width: 100%;
     max-height: calc(100vh - 72px);
-    height: auto;
 }
 
 /* ---------- SVG element interaction states ---------- */
@@ -273,22 +253,24 @@ html, body {
 .svg-selected {
     outline: 2px solid #4a9eff !important;
     outline-offset: 2px;
+    cursor: move;
+}
+
+/* While a drag is in progress, keep the move cursor everywhere so it does not
+   flicker to the hovered element's cursor as the pointer crosses other shapes. */
+body.svg-dragging,
+body.svg-dragging * {
+    cursor: move !important;
+}
+
+body.svg-scaling,
+body.svg-scaling * {
+    cursor: nwse-resize !important;
 }
 
 .svg-annotated {
     outline: 2px solid #f59e0b !important;
     outline-offset: 2px;
-}
-
-.svg-drag-preview {
-    outline: 2px dashed #22c55e !important;
-    outline-offset: 3px;
-    opacity: 0.92;
-}
-
-.svg-layout-warning {
-    outline: 2px solid #f59e0b !important;
-    outline-offset: 3px;
 }
 
 #scale-handle-layer {
@@ -307,31 +289,28 @@ html, body {
     border-radius: 3px;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
     pointer-events: auto;
+}
+
+.scale-handle-nw,
+.scale-handle-se {
     cursor: nwse-resize;
+}
+
+.scale-handle-ne,
+.scale-handle-sw {
+    cursor: nesw-resize;
 }
 
 /* ======================== RIGHT PANEL ======================== */
 #panel-right {
-    width: 360px;
-    min-width: 340px;
+    width: 280px;
+    min-width: 280px;
     background: #16162a;
     border-left: 1px solid #2a2a4a;
     display: flex;
     flex-direction: column;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
     position: relative;
-}
-
-#panel-right::-webkit-scrollbar {
-    width: 6px;
-}
-#panel-right::-webkit-scrollbar-track {
-    background: transparent;
-}
-#panel-right::-webkit-scrollbar-thumb {
-    background: #3a3a5a;
-    border-radius: 3px;
 }
 
 #panel-right .panel-header {
@@ -382,90 +361,6 @@ html, body {
 #selected-element .el-id {
     font-size: 12px;
     color: #a0a0c0;
-}
-
-#selected-element-actions {
-    margin-top: 10px;
-}
-
-#btn-toggle-selection-mode {
-    width: 100%;
-    padding: 8px 10px;
-    font-size: 12px;
-    font-weight: 600;
-    color: #ffffff;
-    background: #2563eb;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-#btn-toggle-selection-mode:hover {
-    background: #1d4ed8;
-}
-
-#selection-path {
-    margin-top: 8px;
-    font-size: 12px;
-    color: #a0a0c0;
-    line-height: 1.45;
-    word-break: break-all;
-}
-
-#selected-element-help {
-    margin-top: 8px;
-    font-size: 12px;
-    color: #8a8aaa;
-    line-height: 1.5;
-}
-
-#layout-issues {
-    padding: 12px 16px;
-    border-bottom: 1px solid #2a2a4a;
-    flex-shrink: 0;
-}
-
-#layout-issues-list,
-#layout-issues-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.layout-issue {
-    background: #201b33;
-    border: 1px solid #4a3a6a;
-    border-radius: 6px;
-    padding: 8px 10px;
-}
-
-.layout-issue-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: #f5c542;
-    margin-bottom: 4px;
-}
-
-.layout-issue-text {
-    font-size: 12px;
-    color: #cfcfe6;
-    line-height: 1.45;
-}
-
-.layout-issue-action {
-    width: 100%;
-    padding: 8px 10px;
-    font-size: 12px;
-    font-weight: 600;
-    color: #fff;
-    background: #6d5efc;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.layout-issue-action:hover {
-    background: #5a4bea;
 }
 
 /* --- Annotation input --- */
@@ -528,18 +423,6 @@ html, body {
     padding: 12px 16px;
     display: flex;
     flex-direction: column;
-}
-
-#panel-right.normalization-review-enabled #annotation-list {
-    flex: 0 0 auto;
-    min-height: 96px;
-    max-height: 18vh;
-}
-
-#panel-right.normalization-review-mode #annotation-input,
-#panel-right.normalization-review-mode #annotation-list,
-#panel-right.normalization-review-mode #layout-issues {
-    display: none !important;
 }
 
 #annotation-list::-webkit-scrollbar {
@@ -693,6 +576,29 @@ html, body {
     background: #1e1e36;
 }
 
+.btn-undo {
+    padding: 10px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #c0c0d8;
+    background: transparent;
+    border: 1px solid #3a3a5a;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.btn-undo:hover:not(:disabled) {
+    color: #ffffff;
+    background: #2a2a4a;
+    border-color: #5a5a7a;
+}
+
+.btn-undo:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 /* ======================== MODAL ======================== */
 #modal-overlay {
     position: fixed;
@@ -813,6 +719,133 @@ html, body {
     border: 1px solid #3a3a5a;
 }
 
+/* --- Direct-edit controls --- */
+.prop-caption {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #6a8ec0;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.prop-section {
+    margin-top: 10px;
+    margin-bottom: 4px;
+    font-size: 10px;
+    color: #8a8aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-weight: 600;
+}
+
+.prop-section:first-of-type {
+    margin-top: 0;
+}
+
+.prop-table .prop-ro {
+    color: #8a8aaa;
+}
+
+.prop-table .prop-note {
+    color: #8a8aaa;
+    font-family: inherit;
+    font-style: italic;
+}
+
+.prop-edit {
+    font-family: inherit;
+    color: #e0e0e0;
+    background: #1e1e36;
+    border: 1px solid #3a3a5a;
+    border-radius: 4px;
+    outline: none;
+    font-size: 12px;
+    transition: border-color 0.15s;
+}
+
+.prop-edit:focus {
+    border-color: #4a9eff;
+}
+
+textarea.prop-edit-content,
+textarea.prop-edit-attr-area {
+    width: 100%;
+    resize: vertical;
+    padding: 6px 8px;
+    line-height: 1.4;
+}
+
+input.prop-edit-attr {
+    width: 100%;
+    padding: 4px 6px;
+}
+
+input.prop-edit-number {
+    width: 72px;
+    padding: 4px 6px;
+}
+
+select.prop-edit-select {
+    width: 100%;
+    padding: 4px 6px;
+}
+
+input.prop-edit-color {
+    width: 30px;
+    height: 24px;
+    padding: 0;
+    vertical-align: middle;
+    cursor: pointer;
+    background: #1e1e36;
+}
+
+input.prop-edit-color-text {
+    width: calc(100% - 40px);
+    margin-left: 6px;
+    padding: 4px 6px;
+    vertical-align: middle;
+}
+
+input.prop-edit-batch,
+select.prop-edit-batch {
+    width: 100%;
+    padding: 4px 6px;
+}
+
+input.prop-edit-batch-color + input.prop-edit-batch {
+    width: calc(100% - 40px);
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+input.prop-edit-geo {
+    width: 56px;
+    padding: 4px 6px;
+    margin-right: 4px;
+}
+
+input.prop-edit-multi-geo {
+    width: 56px;
+    padding: 4px 6px;
+    margin-right: 4px;
+}
+
+.btn-select-group {
+    width: 100%;
+    padding: 5px 7px;
+    color: #d8e6ff;
+    background: #24365a;
+    border: 1px solid #3e5f98;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.btn-select-group:hover {
+    background: #2d4370;
+}
+
 .multi-el-list {
     margin-top: 6px;
     max-height: 100px;
@@ -864,6 +897,56 @@ html, body {
     z-index: 11;
 }
 
+/* --- Overlap picker (right-click list of stacked elements) --- */
+#overlap-picker {
+    position: fixed;
+    z-index: 1100;
+    min-width: 180px;
+    max-width: 340px;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: #1f2430;
+    border: 1px solid #3a4252;
+    border-radius: 6px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+    padding: 4px;
+    font-size: 12px;
+}
+
+.overlap-caption {
+    padding: 4px 8px 6px;
+    color: #8b94a7;
+    font-size: 11px;
+}
+
+.overlap-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.overlap-item:hover {
+    background: #2d3545;
+}
+
+.overlap-tag { color: #4a9eff; }
+.overlap-id { color: #e6e9ef; }
+.overlap-txt {
+    color: #8b94a7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Element highlighted while hovering its row in the overlap picker. */
+.overlap-hover {
+    outline: 2px solid #f59e0b !important;
+    outline-offset: 2px;
+}
+
 /* ======================== UTILITY ======================== */
 .visually-hidden {
     position: absolute;
@@ -874,7 +957,73 @@ html, body {
     white-space: nowrap;
 }
 
-/* ================= NORMALIZATION REVIEW PANEL ================= */
+/* ======================== SUSTech REVIEW / LAYOUT AIDS ======================== */
+.svg-layout-warning {
+    outline: 2px solid #f59e0b !important;
+    outline-offset: 3px;
+}
+
+#layout-issues {
+    padding: 12px 16px;
+    border-bottom: 1px solid #2a2a4a;
+    flex-shrink: 0;
+}
+
+#layout-issues-list,
+#layout-issues-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.layout-issue {
+    background: #201b33;
+    border: 1px solid #4a3a6a;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+.layout-issue-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #f5c542;
+    margin-bottom: 4px;
+}
+
+.layout-issue-text {
+    font-size: 12px;
+    color: #cfcfe6;
+    line-height: 1.45;
+}
+
+.layout-issue-action {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    background: #6d5efc;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.layout-issue-action:hover {
+    background: #5a4bea;
+}
+
+#panel-right.normalization-review-enabled #annotation-list {
+    flex: 0 0 auto;
+    min-height: 96px;
+    max-height: 18vh;
+}
+
+#panel-right.normalization-review-mode #annotation-input,
+#panel-right.normalization-review-mode #annotation-list,
+#panel-right.normalization-review-mode #layout-issues {
+    display: none !important;
+}
+
 #normalization-review-panel {
     flex-shrink: 0;
     margin: 0;
@@ -883,10 +1032,12 @@ html, body {
     border-bottom: 1px solid #2a2a4a;
     background: #18182d;
 }
+
 #normalization-review-panel .review-title {
     margin-bottom: 10px;
     color: #a5b4fc;
 }
+
 .review-card {
     margin: 10px 0 12px;
     padding: 12px;
@@ -897,16 +1048,19 @@ html, body {
     line-height: 1.5;
     word-break: break-word;
 }
+
 .review-muted {
     color: #9ca3af;
     font-size: 12px;
     line-height: 1.45;
 }
+
 .review-error {
     color: #fca5a5;
     font-size: 12px;
     line-height: 1.45;
 }
+
 .review-legend {
     display: flex;
     flex-direction: column;
@@ -920,29 +1074,35 @@ html, body {
     font-size: 12px;
     line-height: 1.45;
 }
+
 .review-legend div {
     display: flex;
     align-items: center;
     gap: 8px;
 }
+
 .legend-swatch {
     width: 18px;
     height: 12px;
     flex-shrink: 0;
     border-radius: 3px;
 }
+
 .legend-swatch.planned {
     background: rgba(59, 130, 246, 0.32);
     border: 2px solid #3B82F6;
 }
+
 .legend-swatch.unchanged {
     background: rgba(209, 213, 219, 0.18);
     border: 2px dashed #3B82F6;
 }
+
 .legend-swatch.unavailable {
     background: rgba(209, 213, 219, 0.18);
     border: 2px dashed #9CA3AF;
 }
+
 .review-fieldset {
     display: flex;
     flex-direction: column;
@@ -954,12 +1114,14 @@ html, body {
     background: #151529;
     font-size: 12px;
 }
+
 .review-section-title {
     margin-bottom: 2px;
     font-size: 12px;
     font-weight: 700;
     color: #c7d2fe;
 }
+
 .review-fieldset label,
 .review-override {
     display: flex;
@@ -967,14 +1129,17 @@ html, body {
     gap: 8px;
     line-height: 1.45;
 }
+
 .review-fieldset input,
 .review-override input {
     margin-top: 2px;
     flex-shrink: 0;
 }
+
 .review-field-disabled {
     color: #9ca3af;
 }
+
 .review-fieldset select {
     width: 100%;
     min-height: 34px;
@@ -986,14 +1151,17 @@ html, body {
     font-size: 12px;
     white-space: normal;
 }
+
 .review-new-group {
     flex-direction: column;
     gap: 6px;
 }
+
 .review-new-group span {
     color: #c7d2fe;
     font-weight: 600;
 }
+
 .review-new-group input {
     width: 100%;
     min-height: 34px;
@@ -1004,9 +1172,11 @@ html, body {
     border-radius: 4px;
     font-size: 12px;
 }
+
 .review-new-group input::placeholder {
     color: #5a5a7a;
 }
+
 .review-advanced-options {
     display: flex;
     flex-direction: column;
@@ -1017,20 +1187,24 @@ html, body {
     border-radius: 8px;
     background: #171421;
 }
+
 .review-override {
     margin: 0;
     font-size: 12px;
     color: #fbbf24;
 }
+
 .review-advanced-hint {
     margin: -3px 0 4px 22px;
 }
+
 .review-actions {
     display: flex;
     flex-direction: column;
     gap: 8px;
     margin-top: 12px;
 }
+
 #normalization-review-apply,
 #normalization-review-undo {
     width: 100%;
@@ -1043,33 +1217,42 @@ html, body {
     font-weight: 600;
     font-size: 13px;
 }
+
 #normalization-review-apply {
     background: #2563eb;
 }
+
 #normalization-review-apply:hover {
     background: #1d4ed8;
 }
+
 #normalization-review-undo {
     background: #374151;
 }
+
 #normalization-review-undo:hover:not(:disabled) {
     background: #4b5563;
 }
+
 #normalization-review-undo:disabled {
     opacity: 0.45;
     cursor: not-allowed;
 }
+
 .normalization-review-overlay:hover rect {
     stroke-width: 4;
 }
+
 .normalization-review-overlay.svg-selected rect,
 .svg-selected.normalization-review-overlay rect {
     stroke: #fbbf24;
     stroke-width: 4;
 }
+
 .normalization-review-overlay.review-decision-applied rect {
     filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.35));
 }
+
 .normalization-review-overlay.review-decision-excluded rect {
     opacity: 0.72;
 }
