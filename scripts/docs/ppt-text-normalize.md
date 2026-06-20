@@ -7,7 +7,7 @@ It targets multi-author font-family and font-weight drift while preserving slide
 Current source command surface:
 
 - included: `scan.py`, `build_review_workspace.py`, `compile_review_decisions.py`, `apply.py`, reports, conservative normalization rules
-- optional review layer: visual review gate, review workspace builder, reviewed-rules compilation, browser review panel
+- formal opt-in review layer: visual review gate, review workspace builder, reviewed-rules compilation, browser review panel
 
 ## Commands
 
@@ -28,7 +28,7 @@ python3 scripts/ppt_text_normalize/apply.py <input.pptx> \
   --output <workdir>/ppt_text_normalize/<task_name>/output/normalized.pptx
 ```
 
-Optional visual review flow:
+Formal opt-in visual review flow:
 
 ```bash
 python3 scripts/ppt_text_normalize/build_review_workspace.py <input.pptx> \
@@ -45,6 +45,11 @@ python3 scripts/ppt_text_normalize/compile_review_decisions.py \
   --review-model <workdir>/ppt_text_normalize/<task_name>/normalization_review_preview/review_model.json \
   --decisions <workdir>/ppt_text_normalize/<task_name>/normalization_review_preview/review_decisions.json \
   --output <workdir>/ppt_text_normalize/<task_name>/normalization_review_preview/rules_reviewed.json
+
+python3 scripts/ppt_text_normalize/apply.py <input.pptx> \
+  --rules <workdir>/ppt_text_normalize/<task_name>/normalization_review_preview/rules_reviewed.json \
+  --task <task_name> \
+  --output <workdir>/ppt_text_normalize/<task_name>/output/normalized.reviewed.pptx
 ```
 
 The browser saves `review_decisions.json` only. It does not mutate the source

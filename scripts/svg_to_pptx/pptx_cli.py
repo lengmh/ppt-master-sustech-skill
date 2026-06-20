@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 import sys
+import json
 import shutil
 import argparse
 from datetime import datetime
 from pathlib import Path
 
-from .pptx_dimensions import CANVAS_FORMATS, get_project_info
+if __package__ in {None, ''}:
+    import types
+
+    package = types.ModuleType('svg_to_pptx')
+    package.__path__ = [str(Path(__file__).resolve().parent)]  # type: ignore[attr-defined]
+    sys.modules.setdefault('svg_to_pptx', package)
+    __package__ = 'svg_to_pptx'
+
+from .pptx_dimensions import CANVAS_FORMATS, get_project_info, get_viewbox_dimensions
 from .pptx_discovery import find_svg_files, find_notes_files
 from .pptx_builder import create_pptx_with_native_svg
 from .pptx_narration import NARRATION_EXTENSIONS, find_narration_files, probe_audio_duration
@@ -54,7 +63,7 @@ def _recorded_narration_on_click_slides(
     return blocked
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
     """CLI entry point for the SVG to PPTX conversion tool."""
     transition_choices = (
         ['none'] + (list(TRANSITIONS.keys()) if TRANSITIONS
@@ -154,13 +163,14 @@ Recorded narration:
                             help='Only generate one version: native (editable shapes) or legacy (SVG image)')
     mode_group.add_argument('--native', action='store_true', default=False,
                             help='(Deprecated, now default) Convert SVG to native DrawingML shapes')
-    parser.add_argument('--merge-paragraphs', action='store_true', default=False,
-                        help='Opt-in: merge mergeable paragraph blocks (same x, dy clustered '
-                             'around one base line-height) into a single editable text frame '
-                             'with multiple <a:p>. Improves editability of paragraph text in '
-                             'PowerPoint (one textbox per paragraph instead of per line) at '
-                             'the cost of strict SVG line layout fidelity — PowerPoint re-wraps '
-                             'merged paragraphs to fit the box width. Off by default.')
+    merge_group = parser.add_mutually_exclusive_group()
+    merge_group.add_argument('--merge-paragraphs', action='store_true', dest='merge_paragraphs',
+                             help='Compatibility no-op: mergeable paragraph blocks are merged '
+                                  'by default.')
+    merge_group.add_argument('--no-merge', action='store_false', dest='merge_paragraphs',
+                             help='Disable paragraph merging. Every dy-stacked line becomes '
+                                  'its own text frame for strict SVG line-layout fidelity.')
+    parser.set_defaults(merge_paragraphs=True)
     parser.add_argument('--conversion-trace', action='store_true', default=False,
                         help='Write a JSON diagnostics report next to the native PPTX '
                              '(<output>.trace.json). Records per-slide SVG element '
@@ -237,12 +247,12 @@ Recorded narration:
                         help='Parallel workers for SVG→PNG pre-rendering. '
                              'Default: min(cpu, pages, 8). Set 1 for sequential.')
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     project_path = Path(args.project_path)
     if not project_path.exists():
         print(f"Error: Path does not exist: {project_path}")
-        sys.exit(1)
+        return 1
 
     try:
         project_info = get_project_info(str(project_path))
@@ -294,7 +304,7 @@ Recorded narration:
     ref_files = native_files or legacy_files
     if not ref_files:
         print("Error: No SVG files found")
-        sys.exit(1)
+        return 1
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -324,6 +334,28 @@ Recorded narration:
 
     verbose = not args.quiet
 
+    # Honor the actual SVG pixels over a stale project-recorded format. The
+    # canvas_format read from project init can disagree with what the Executor
+    # actually drew — e.g. a mirror template imported at 2560×1440 while the
+    # project was initialized as ppt169 (1280×720). When the first SVG's real
+    # viewBox doesn't match the recorded format's dimensions, drop the format
+    # so the builder sizes the slide by pixels (custom_pixels path). Standard
+    # decks match exactly, so this only changes behavior on the conflict case.
+    # An explicit --format always wins and is never second-guessed.
+    if args.format is None and canvas_format:
+        fmt_info = CANVAS_FORMATS.get(canvas_format)
+        actual_dims = get_viewbox_dimensions(ref_files[0])
+        if fmt_info and actual_dims:
+            fmt_dims = (fmt_info.get('width'), fmt_info.get('height'))
+            if fmt_dims != actual_dims:
+                if verbose:
+                    print(
+                        f"  Recorded format '{canvas_format}' "
+                        f"({fmt_dims[0]}×{fmt_dims[1]}) differs from SVG viewBox "
+                        f"({actual_dims[0]}×{actual_dims[1]}); exporting by SVG pixels"
+                    )
+                canvas_format = None
+
     enable_notes = not args.no_notes
     notes: dict[str, str] = {}
     if enable_notes:
@@ -341,7 +373,7 @@ Recorded narration:
                 f"Error: Recorded narration directory does not exist: {narration_audio_dir}",
                 file=sys.stderr,
             )
-            sys.exit(1)
+            return 1
         narration_audio = find_narration_files(narration_audio_dir, ref_files)
         if verbose:
             print(f"  Narration audio directory: {narration_audio_dir}")
@@ -359,7 +391,7 @@ Recorded narration:
                     print(f"  Missing audio for: {stem}", file=sys.stderr)
                 if len(missing) > 20:
                     print(f"  ... and {len(missing) - 20} more", file=sys.stderr)
-                sys.exit(1)
+                return 1
             unreadable = [
                 f"{stem}: {audio_path}"
                 for stem, audio_path in sorted(narration_audio.items())
@@ -375,7 +407,7 @@ Recorded narration:
                     print(f"  {item}", file=sys.stderr)
                 if len(unreadable) > 20:
                     print(f"  ... and {len(unreadable) - 20} more", file=sys.stderr)
-                sys.exit(1)
+                return 1
         elif narration_audio_dir_arg and verbose:
             missing = [path.stem for path in ref_files if path.stem not in narration_audio]
             if missing:
@@ -390,13 +422,13 @@ Recorded narration:
             config_path = project_path / config_path
         if not config_path.exists():
             print(f"Error: Animation config does not exist: {config_path}")
-            sys.exit(1)
+            return 1
 
     try:
         animation_config = load_animation_config(project_path, args.animation_config)
     except Exception as exc:
         print(f"Error: Failed to load animation config: {exc}")
-        sys.exit(1)
+        return 1
     if animation_config and verbose:
         config_label = args.animation_config or str(project_path / 'animations.json')
         print(f"  Animation config: {config_label}")
@@ -471,7 +503,7 @@ Recorded narration:
                 print(f"  on-click trigger: {slide}", file=sys.stderr)
             if len(on_click_slides) > 20:
                 print(f"  ... and {len(on_click_slides) - 20} more", file=sys.stderr)
-            sys.exit(1)
+            return 1
 
     if args.no_cache:
         cache_dir: Path | None = None
@@ -484,8 +516,26 @@ Recorded narration:
 
     # svg_files is per-product (native vs legacy may now read different
     # directories); everything else is shared.
+    # Optional per-project document properties. Absent file → factual fields
+    # are still stamped at export; only the authored fields stay blank.
+    doc_metadata = None
+    metadata_path = project_path / 'metadata.json'
+    if metadata_path.is_file():
+        try:
+            loaded = json.loads(metadata_path.read_text(encoding='utf-8'))
+        except (json.JSONDecodeError, OSError) as exc:
+            print(f"  [warn] metadata.json ignored ({exc})", file=sys.stderr)
+        else:
+            if isinstance(loaded, dict):
+                doc_metadata = loaded
+                if verbose:
+                    print(f"  Document properties: metadata.json ({len(loaded)} field(s))")
+            else:
+                print("  [warn] metadata.json ignored (top level is not an object)", file=sys.stderr)
+
     shared_kwargs = dict(
         canvas_format=canvas_format,
+        doc_metadata=doc_metadata,
         verbose=verbose,
         transition=transition,
         transition_duration=transition_duration,
@@ -580,4 +630,8 @@ Recorded narration:
             if verbose:
                 print(f"  [warn] cache cleanup skipped: {exc}")
 
-    sys.exit(0 if success else 1)
+    return 0 if success else 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

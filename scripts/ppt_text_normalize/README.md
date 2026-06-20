@@ -41,9 +41,9 @@ Current built-in commands:
 - `compile_review_decisions.py`
 - `apply.py`
 
-The visual review gate is an optional review layer between `scan` and `apply`.
-The original Safe MVP `scan -> apply` path remains valid when users do not need
-browser review.
+The visual review gate is a formally supported, runtime opt-in review layer
+between `scan` and `apply`. The original Safe MVP `scan -> apply` path remains
+valid when users do not need browser review.
 
 ## Visual review gate
 
@@ -111,7 +111,7 @@ Test PPTX files, reports, logs, and generated outputs should live under a task w
 python3 scripts/ppt_text_normalize/scan.py <input.pptx> --task demo
 python3 scripts/ppt_text_normalize/build_review_workspace.py <input.pptx> --scan-dir <scan_dir> --workdir <scan_dir>/normalization_review_preview
 python3 scripts/ppt_text_normalize/compile_review_decisions.py --rules <scan_dir>/rules.json --review-model <scan_dir>/normalization_review_preview/review_model.json --decisions <scan_dir>/normalization_review_preview/review_decisions.json --output <scan_dir>/normalization_review_preview/rules_reviewed.json
-python3 scripts/ppt_text_normalize/apply.py <input.pptx> --rules <rules.json> --task demo
+python3 scripts/ppt_text_normalize/apply.py <input.pptx> --rules <scan_dir>/normalization_review_preview/rules_reviewed.json --task demo
 ```
 
 

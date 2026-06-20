@@ -17,7 +17,7 @@ Strategy (v1):
   so the visual lands without relying on PowerPoint list semantics.
 
 Color / font / size attributes propagate from a:rPr; missing attributes fall
-back to the paragraph's endParaRPr or to spec-default values.
+back to paragraph/list defaults, endParaRPr, or spec-default values.
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ from .color_resolver import ColorPalette, find_color_elem, resolve_color
 from .emu_units import (
     NS, Xfrm, fmt_num, emu_to_px, hundredths_pt_to_px,
 )
+from .fill_to_svg import resolve_fill
 
 
 # ---------------------------------------------------------------------------
@@ -53,6 +54,7 @@ class TextRun:
     font_family: str  # full font-family stack (latin, ea fallback joined)
     fill: str
     fill_opacity: float = 1.0
+    defs: list[str] = field(default_factory=list)
     bold: bool = False
     italic: bool = False
     underline: bool = False
@@ -81,7 +83,7 @@ class TextResult:
     """Resolved text body ready for SVG emission.
 
     `svg` is one or more <text> elements, already absolutely positioned
-    inside the slide coordinate system. `defs` is empty for now.
+    inside the slide coordinate system. `defs` holds text gradient fills.
     """
 
     svg: str = ""
@@ -102,6 +104,10 @@ def convert_txbody(
     *,
     theme_fonts: dict[str, str] | None = None,
     default_fill: str = DEFAULT_FILL_HEX,
+    default_font_size_px: float = DEFAULT_FONT_SIZE_PX,
+    fallback_lst_styles: tuple[ET.Element, ...] = (),
+    id_prefix: str = "txt",
+    id_seq: list[int] | None = None,
 ) -> TextResult:
     """Convert <p:txBody> under the given shape geometry to SVG <text>(s)."""
     if tx_body is None:
@@ -110,6 +116,9 @@ def convert_txbody(
     body_pr = tx_body.find("a:bodyPr", NS)
     paragraphs = _parse_paragraphs(
         tx_body, palette, theme_fonts or {}, default_fill=default_fill,
+        default_font_size_px=default_font_size_px,
+        fallback_lst_styles=fallback_lst_styles,
+        id_prefix=id_prefix, id_seq=id_seq,
     )
     if not paragraphs or not _has_visible_text(paragraphs):
         return TextResult()
@@ -159,7 +168,7 @@ def convert_txbody(
         if cursor_y >= bottom_y:
             break
 
-    return TextResult(svg="\n".join(text_blocks))
+    return TextResult(svg="\n".join(text_blocks), defs=_collect_text_defs(paragraphs))
 
 
 def is_vertical_txbody(tx_body: ET.Element | None, xfrm: Xfrm | None = None) -> bool:
@@ -180,6 +189,10 @@ def convert_vertical_txbody(
     *,
     theme_fonts: dict[str, str] | None = None,
     default_fill: str = DEFAULT_FILL_HEX,
+    default_font_size_px: float = DEFAULT_FONT_SIZE_PX,
+    fallback_lst_styles: tuple[ET.Element, ...] = (),
+    id_prefix: str = "txt",
+    id_seq: list[int] | None = None,
 ) -> TextResult:
     """Render East Asian vertical text as upright stacked glyphs.
 
@@ -193,6 +206,9 @@ def convert_vertical_txbody(
 
     paragraphs = _parse_paragraphs(
         tx_body, palette, theme_fonts or {}, default_fill=default_fill,
+        default_font_size_px=default_font_size_px,
+        fallback_lst_styles=fallback_lst_styles,
+        id_prefix=id_prefix, id_seq=id_seq,
     )
     runs = [
         run
@@ -250,7 +266,10 @@ def convert_vertical_txbody(
         return TextResult()
 
     attrs = _text_base_attrs(first_run, center_x, first_baseline, "middle")
-    return TextResult(svg=f"<text{attrs}>{''.join(spans)}</text>")
+    return TextResult(
+        svg=f"<text{attrs}>{''.join(spans)}</text>",
+        defs=_collect_text_defs(paragraphs),
+    )
 
 
 def _rotated_bbox(xfrm: Xfrm) -> tuple[float, float, float, float]:
@@ -321,15 +340,27 @@ def _parse_paragraphs(
     theme_fonts: dict[str, str],
     *,
     default_fill: str = DEFAULT_FILL_HEX,
+    default_font_size_px: float = DEFAULT_FONT_SIZE_PX,
+    fallback_lst_styles: tuple[ET.Element, ...] = (),
+    id_prefix: str = "txt",
+    id_seq: list[int] | None = None,
 ) -> list[TextParagraph]:
     """Walk <a:p> children producing TextParagraph objects."""
     paragraphs: list[TextParagraph] = []
     autonum_state: dict[int, int] = {}
+    lst_style = tx_body.find("a:lstStyle", NS)
+    lst_styles = (
+        (lst_style,) + fallback_lst_styles
+        if lst_style is not None else fallback_lst_styles
+    )
 
     for p_elem in tx_body.findall("a:p", NS):
         para = _parse_paragraph(
             p_elem, palette, theme_fonts, autonum_state,
+            lst_styles=lst_styles,
             default_fill=default_fill,
+            default_font_size_px=default_font_size_px,
+            id_prefix=id_prefix, id_seq=id_seq,
         )
         paragraphs.append(para)
 
@@ -342,51 +373,37 @@ def _parse_paragraph(
     theme_fonts: dict[str, str],
     autonum_state: dict[int, int],
     *,
+    lst_styles: tuple[ET.Element, ...] = (),
     default_fill: str = DEFAULT_FILL_HEX,
+    default_font_size_px: float = DEFAULT_FONT_SIZE_PX,
+    id_prefix: str = "txt",
+    id_seq: list[int] | None = None,
 ) -> TextParagraph:
     para = TextParagraph()
 
     p_pr = p_elem.find("a:pPr", NS)
     if p_pr is not None:
-        para.align = p_pr.attrib.get("algn", "l")
         try:
             para.level = int(p_pr.attrib.get("lvl", "0"))
         except ValueError:
             para.level = 0
-        try:
-            para.margin_left_px = emu_to_px(int(p_pr.attrib.get("marL", "0")))
-        except ValueError:
-            para.margin_left_px = 0.0
-        try:
-            para.indent_px = emu_to_px(int(p_pr.attrib.get("indent", "0")))
-        except ValueError:
-            para.indent_px = 0.0
-        ln_spc = p_pr.find("a:lnSpc", NS)
-        if ln_spc is not None:
-            spc_pct = ln_spc.find("a:spcPct", NS)
-            if spc_pct is not None:
-                try:
-                    para.line_height_ratio = float(spc_pct.attrib.get("val", "100000")) / 100000.0
-                except ValueError:
-                    pass
-        spc_bef = p_pr.find("a:spcBef/a:spcPts", NS)
-        if spc_bef is not None:
-            try:
-                para.space_before_px = hundredths_pt_to_px(int(spc_bef.attrib.get("val", "0")))
-            except ValueError:
-                pass
-        spc_aft = p_pr.find("a:spcAft/a:spcPts", NS)
-        if spc_aft is not None:
-            try:
-                para.space_after_px = hundredths_pt_to_px(int(spc_aft.attrib.get("val", "0")))
-            except ValueError:
-                pass
 
-        # Bullet / basic auto-numbering
-        para.bullet_prefix = _resolve_bullet_prefix(p_pr, para.level, autonum_state)
+    para_style_chain = (p_pr,) + _lst_style_level_prs(lst_styles, para.level)
+    para.align = _attr_chain(para_style_chain, "algn") or "l"
+    para.margin_left_px = _emu_px_attr_chain(para_style_chain, "marL", 0.0)
+    para.indent_px = _emu_px_attr_chain(para_style_chain, "indent", 0.0)
+    para.line_height_ratio = _line_height_ratio(para_style_chain)
+    para.space_before_px = _spacing_points_px(para_style_chain, "a:spcBef/a:spcPts")
+    para.space_after_px = _spacing_points_px(para_style_chain, "a:spcAft/a:spcPts")
+    para.bullet_prefix = _resolve_bullet_prefix(
+        para_style_chain, para.level, autonum_state,
+    )
 
     # Default endParaRPr style (applies if a run has no rPr)
     end_rpr = p_elem.find("a:endParaRPr", NS)
+    # defRPr from pPr and txBody/lstStyle, both optional.
+    def_rpr = p_pr.find("a:defRPr", NS) if p_pr is not None else None
+    list_def_rpr = _child_chain(para_style_chain[1:], "a:defRPr")
 
     for child in list(p_elem):
         if not isinstance(child.tag, str):
@@ -398,12 +415,17 @@ def _parse_paragraph(
             text = text_elem.text or "" if text_elem is not None else ""
             run = _build_run(
                 text, rpr, end_rpr, palette, theme_fonts,
+                def_rpr=def_rpr,
+                list_def_rpr=list_def_rpr,
                 default_fill=default_fill,
+                default_font_size_px=default_font_size_px,
+                id_prefix=id_prefix, id_seq=id_seq,
             )
             para.runs.append(run)
         elif local == "br":
             para.runs.append(TextRun(
-                text="", font_size_px=DEFAULT_FONT_SIZE_PX,
+                text="",
+                font_size_px=default_font_size_px,
                 font_family="sans-serif", fill=default_fill,
                 is_break=True,
             ))
@@ -415,7 +437,11 @@ def _parse_paragraph(
             if text:
                 run = _build_run(
                     text, rpr, end_rpr, palette, theme_fonts,
+                    def_rpr=def_rpr,
+                    list_def_rpr=list_def_rpr,
                     default_fill=default_fill,
+                    default_font_size_px=default_font_size_px,
+                    id_prefix=id_prefix, id_seq=id_seq,
                 )
                 para.runs.append(run)
 
@@ -429,25 +455,29 @@ def _build_run(
     palette: ColorPalette | None,
     theme_fonts: dict[str, str],
     *,
+    def_rpr: ET.Element | None = None,
+    list_def_rpr: ET.Element | None = None,
     default_fill: str = DEFAULT_FILL_HEX,
+    default_font_size_px: float = DEFAULT_FONT_SIZE_PX,
+    id_prefix: str = "txt",
+    id_seq: list[int] | None = None,
 ) -> TextRun:
-    """Resolve a single <a:r> run from its rPr (with endParaRPr as default)."""
-    # font-size: rPr@sz; default 1800 (18pt = 24px)
-    sz = _attr_chain((rpr, end_rpr), "sz")
-    font_size_px = hundredths_pt_to_px(sz, DEFAULT_FONT_SIZE_PX)
-
+    """Resolve a single <a:r> run from its rPr and fallback run properties."""
+    style_chain = (rpr, def_rpr, list_def_rpr, end_rpr)
+    # font-size: rPr > pPr/defRPr > lstStyle/lvlNpPr/defRPr > endParaRPr > default
+    sz = _attr_chain(style_chain, "sz")
+    font_size_px = hundredths_pt_to_px(sz, default_font_size_px)
     # Bold / italic
-    bold = _attr_chain((rpr, end_rpr), "b") == "1"
-    italic = _attr_chain((rpr, end_rpr), "i") == "1"
-
+    bold = _attr_chain(style_chain, "b") == "1"
+    italic = _attr_chain(style_chain, "i") == "1"
     # Underline / strike
-    u_val = _attr_chain((rpr, end_rpr), "u")
+    u_val = _attr_chain(style_chain, "u")
     underline = u_val not in (None, "", "none")
-    strike_val = _attr_chain((rpr, end_rpr), "strike")
+    strike_val = _attr_chain(style_chain, "strike")
     strikethrough = strike_val in ("sngStrike", "dblStrike")
 
     # Letter spacing (rPr@spc, in 1/100 pt)
-    spc = _attr_chain((rpr, end_rpr), "spc")
+    spc = _attr_chain(style_chain, "spc")
     letter_spacing_px = 0.0
     if spc is not None:
         try:
@@ -458,10 +488,24 @@ def _build_run(
     # Color
     fill = default_fill
     fill_opacity = 1.0
+    defs: list[str] = []
     color_source = None
-    for src in (rpr, end_rpr):
+    for src in style_chain:
         if src is None:
             continue
+        grad = src.find("a:gradFill", NS)
+        if grad is not None:
+            grad_fill = resolve_fill(
+                grad, palette,
+                id_prefix=id_prefix,
+                id_seq=id_seq,
+            )
+            if grad_fill.attrs.get("fill"):
+                fill = grad_fill.attrs["fill"]
+                fill_opacity = 1.0
+                defs.extend(grad_fill.defs)
+                color_source = None
+                break
         solid = src.find("a:solidFill", NS)
         if solid is not None:
             color_source = solid
@@ -474,9 +518,9 @@ def _build_run(
             fill_opacity = alpha
 
     # Font typeface
-    latin_face = _typeface(rpr, "latin") or _typeface(end_rpr, "latin")
-    ea_face = _typeface(rpr, "ea") or _typeface(end_rpr, "ea")
-    cs_face = _typeface(rpr, "cs") or _typeface(end_rpr, "cs")
+    latin_face = _typeface_chain(style_chain, "latin")
+    ea_face = _typeface_chain(style_chain, "ea")
+    cs_face = _typeface_chain(style_chain, "cs")
 
     # Resolve theme refs (e.g. typeface="+mn-lt" / "+mj-ea")
     latin_face = _resolve_theme_typeface(latin_face, theme_fonts)
@@ -491,12 +535,80 @@ def _build_run(
         font_family=font_family,
         fill=fill,
         fill_opacity=fill_opacity,
+        defs=defs,
         bold=bold,
         italic=italic,
         underline=underline,
         strikethrough=strikethrough,
         letter_spacing_px=letter_spacing_px,
     )
+
+
+def _lst_style_level_prs(
+    lst_styles: tuple[ET.Element, ...],
+    level: int,
+) -> tuple[ET.Element, ...]:
+    """Return txBody/lstStyle paragraph properties for a paragraph level."""
+    level_idx = min(max(level, 0), 8) + 1
+    level_prs: list[ET.Element] = []
+    for lst_style in lst_styles:
+        lvl_pr = lst_style.find(f"a:lvl{level_idx}pPr", NS)
+        if lvl_pr is not None:
+            level_prs.append(lvl_pr)
+    return tuple(level_prs)
+
+
+def _child_chain(
+    sources: tuple[ET.Element | None, ...],
+    path: str,
+) -> ET.Element | None:
+    for src in sources:
+        if src is None:
+            continue
+        child = src.find(path, NS)
+        if child is not None:
+            return child
+    return None
+
+
+def _emu_px_attr_chain(
+    sources: tuple[ET.Element | None, ...],
+    attr: str,
+    default: float,
+) -> float:
+    value = _attr_chain(sources, attr)
+    if value is None:
+        return default
+    try:
+        return emu_to_px(int(value))
+    except ValueError:
+        return default
+
+
+def _line_height_ratio(sources: tuple[ET.Element | None, ...]) -> float:
+    ln_spc = _child_chain(sources, "a:lnSpc")
+    if ln_spc is None:
+        return DEFAULT_LINE_HEIGHT_RATIO
+    spc_pct = ln_spc.find("a:spcPct", NS)
+    if spc_pct is None:
+        return DEFAULT_LINE_HEIGHT_RATIO
+    try:
+        return float(spc_pct.attrib.get("val", "100000")) / 100000.0
+    except ValueError:
+        return DEFAULT_LINE_HEIGHT_RATIO
+
+
+def _spacing_points_px(
+    sources: tuple[ET.Element | None, ...],
+    path: str,
+) -> float:
+    spacing = _child_chain(sources, path)
+    if spacing is None:
+        return 0.0
+    try:
+        return hundredths_pt_to_px(int(spacing.attrib.get("val", "0")))
+    except ValueError:
+        return 0.0
 
 
 def _attr_chain(sources: tuple[ET.Element | None, ...], attr: str) -> str | None:
@@ -518,6 +630,17 @@ def _typeface(rpr: ET.Element | None, child_tag: str) -> str | None:
         return None
     val = elem.attrib.get("typeface")
     return val or None
+
+
+def _typeface_chain(
+    sources: tuple[ET.Element | None, ...],
+    child_tag: str,
+) -> str | None:
+    for src in sources:
+        face = _typeface(src, child_tag)
+        if face:
+            return face
+    return None
 
 
 def _resolve_theme_typeface(face: str | None, theme_fonts: dict[str, str]) -> str | None:
@@ -562,20 +685,20 @@ def _quote_font(name: str) -> str:
 
 
 def _resolve_bullet_prefix(
-    p_pr: ET.Element,
+    sources: tuple[ET.Element | None, ...],
     level: int,
     autonum_state: dict[int, int],
 ) -> str:
     """Render bullet glyphs / numbering as a literal text prefix."""
-    bu_none = p_pr.find("a:buNone", NS)
+    bu_none = _child_chain(sources, "a:buNone")
     if bu_none is not None:
         autonum_state.pop(level, None)
         return ""
-    bu_char = p_pr.find("a:buChar", NS)
+    bu_char = _child_chain(sources, "a:buChar")
     if bu_char is not None:
         ch = bu_char.attrib.get("char", "•")
         return f"{ch} "
-    bu_auto = p_pr.find("a:buAutoNum", NS)
+    bu_auto = _child_chain(sources, "a:buAutoNum")
     if bu_auto is not None:
         start_at = bu_auto.attrib.get("startAt")
         if start_at is not None:
@@ -651,6 +774,19 @@ def _has_visible_text(paragraphs: list[TextParagraph]) -> bool:
     return False
 
 
+def _collect_text_defs(paragraphs: list[TextParagraph]) -> list[str]:
+    """Return unique text fill defs referenced by parsed runs."""
+    defs: list[str] = []
+    seen: set[str] = set()
+    for para in paragraphs:
+        for run in para.runs:
+            for item in run.defs:
+                if item not in seen:
+                    defs.append(item)
+                    seen.add(item)
+    return defs
+
+
 # ---------------------------------------------------------------------------
 # Word-wrap / text measurement
 # ---------------------------------------------------------------------------
@@ -674,10 +810,15 @@ def _char_width(ch: str, font_size: float, bold: bool) -> float:
         w = font_size  # CJK is approximately 1em per glyph
     elif ch == ' ':
         w = font_size * 0.3
-    elif ch in 'mMwWOQ':
+    elif ch in 'mMwWOQ%':
         w = font_size * 0.75
-    elif ch in 'iIlj1!|':
+    elif ch in 'iIlj!|':
         w = font_size * 0.3
+    elif ch.isdigit():
+        # digits are tabular (uniform ~0.55em) in most UI fonts, including
+        # '1' — classing it with 'il|' under-sizes the width and makes
+        # renderers that ignore wrap="none" (LibreOffice) wrap the line
+        w = font_size * 0.55
     else:
         w = font_size * 0.55
     # Bold Latin generally expands a little. CJK glyphs keep their em advance
@@ -818,6 +959,7 @@ def _copy_run(run: TextRun, *, text: str) -> TextRun:
         font_family=run.font_family,
         fill=run.fill,
         fill_opacity=run.fill_opacity,
+        defs=list(run.defs),
         bold=run.bold,
         italic=run.italic,
         underline=run.underline,

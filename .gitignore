@@ -20,6 +20,7 @@ venv/
 .synced_hash
 .agents/
 .codex/
+.playwright-local/
 
 # Skill runtime outputs
 /projects/
