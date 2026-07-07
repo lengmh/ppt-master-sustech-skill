@@ -49,14 +49,15 @@ Release page:
 
 ## 功能亮点
 
-- 支持 PDF、DOCX、PPTX、网页、Markdown、Excel 等多种输入源。
+- 支持 PDF、DOCX、PPTX、网页、Markdown、Excel 等多种输入源，并通过 `source_to_md.py` 统一调度来源转换、Markdown 输出与 conversion sidecar。
 - 通过 `design_spec.md` 和 `spec_lock.md` 驱动设计意图与执行约束。
 - 采用 SVG-first 页面构建流程，并导出可编辑 PPTX。
-- 支持浏览器 live preview，用于查看页面、direct edit 和提交标注。
-- 支持 staged Confirm UI、日文 UI 文案、native PPTX template-fill 与 existing-PPTX 增强工作流。
-- 支持 opt-in native PPTX tables/charts，并包含图表工作簿生成与负值点颜色修复。
+- 支持浏览器 live preview、direct edit 和页面标注，跟随 upstream v3.1.0 交互模型。
+- 支持 staged Confirm UI，分阶段确认方向锚点、设计系统、图像策略和执行选项，并包含日文 UI 文案。
+- 支持 PPTX 路由细分：raw PPTX template-fill、现有 PPTX 1:1 beautify、native enhance notes/audio/timing/transitions。
+- 支持 opt-in native PPTX tables/charts、chart workbook 生成、图表 chrome 可见性校验和负值点颜色修复。
 - 支持 `brand / layout / deck` 三分模板体系。
-- 支持 AI image manifest 工作流和图像 prompt catalog。
+- 支持 AI image manifest、image backend/provider、图像策略候选、style previews、icon sync 与 image slicing。
 - 内置 chart templates、图表校验指引、speaker notes、动画与导出辅助能力。
 - 内置 `ppt_text_normalize` Safe MVP：公开支持 `scan` / `apply` PPTX 文字样式归一化。
 - 支持 opt-in `visual-review`，用于渲染后页面检查。
