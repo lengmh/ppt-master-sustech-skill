@@ -4,7 +4,7 @@
 
 Single source of truth for what decks exist: [`decks_index.json`](./decks_index.json) (`deck_id → { summary, canvas_format, page_count, primary_color }`). This README explains the kind; it does **not** enumerate decks.
 
-Full data model: [`docs/zh/templates-architecture.md`](../../docs/zh/templates-architecture.md).
+Full data model: [`docs/zh/templates-architecture.md`](../../../../docs/zh/templates-architecture.md).
 
 ---
 
@@ -48,7 +48,7 @@ Decks may include additional supporting sections (Voice & Tone, Icon Style, Layo
 
 ## Fusion behavior at Step 3
 
-When the user gives a deck path **alone**, Strategist locks all segments; Eight Confirmations narrows to deck-content fields (target audience / page count / outline / tone tweaks).
+When the user gives a deck path **alone**, Strategist locks all segments; Strategist confirmation stage narrows to deck-content fields (target audience / page count / outline / tone tweaks).
 
 When the user gives a deck path **with** a brand path or layout path, identity / structure segments are overridden by the higher-priority source (brand wins on identity, layout wins on structure). See [`SKILL.md`](../../SKILL.md) Step 3 fusion table.
 
@@ -69,4 +69,4 @@ The register step updates [`decks_index.json`](./decks_index.json) — the singl
 
 - [`templates/layouts/`](../layouts/) — structure-only templates without identity
 - [`templates/brands/`](../brands/) — identity-only presets without page rosters
-- [`docs/zh/templates-architecture.md`](../../docs/zh/templates-architecture.md) — three-class data model + fusion rules
+- [`docs/zh/templates-architecture.md`](../../../../docs/zh/templates-architecture.md) — three-class data model + fusion rules

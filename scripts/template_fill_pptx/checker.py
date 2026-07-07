@@ -223,6 +223,7 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
             results.append(
                 {
                     "status": "ERROR",
+                    "code": "replacements_not_list",
                     "plan_slide": slide_index,
                     "source_slide": source_slide,
                     "message": "replacements must be a list",
@@ -239,6 +240,7 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
                 results.append(
                     {
                         "status": "ERROR",
+                        "code": "replacement_target_not_found",
                         "plan_slide": slide_index,
                         "source_slide": source_slide,
                         "selector": selectors[0] if selectors else "",
@@ -274,6 +276,7 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
             results.append(
                 {
                     "status": status,
+                    "code": "text_capacity" if status == "WARN" else "text_fit",
                     "plan_slide": slide_index,
                     "source_slide": source_slide,
                     "slot_id": slot.get("slot_id"),
@@ -296,6 +299,7 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
             results.append(
                 {
                     "status": "ERROR",
+                    "code": "table_edits_not_list",
                     "plan_slide": slide_index,
                     "source_slide": source_slide,
                     "message": "table_edits must be a list",
@@ -310,6 +314,7 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
                 results.append(
                     {
                         "status": "ERROR",
+                        "code": "table_target_not_found",
                         "plan_slide": slide_index,
                         "source_slide": source_slide,
                         "selector": selectors[0] if selectors else "",
@@ -323,6 +328,7 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
                 results.append(
                     {
                         "status": "ERROR",
+                        "code": "table_cells_not_list",
                         "plan_slide": slide_index,
                         "source_slide": source_slide,
                         "selector": selectors[0] if selectors else "",
@@ -340,6 +346,7 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
                     results.append(
                         {
                             "status": "ERROR",
+                            "code": "table_cell_out_of_bounds",
                             "plan_slide": slide_index,
                             "source_slide": source_slide,
                             "selector": selectors[0] if selectors else "",
@@ -352,6 +359,7 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
                 results.append(
                     {
                         "status": "OK",
+                        "code": "table_target_exists",
                         "plan_slide": slide_index,
                         "source_slide": source_slide,
                         "table_id": table.get("table_id"),
@@ -365,6 +373,7 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
             results.append(
                 {
                     "status": "ERROR",
+                    "code": "chart_edits_not_list",
                     "plan_slide": slide_index,
                     "source_slide": source_slide,
                     "message": "chart_edits must be a list",
@@ -379,10 +388,28 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
                 results.append(
                     {
                         "status": "ERROR",
+                        "code": "chart_target_not_found",
                         "plan_slide": slide_index,
                         "source_slide": source_slide,
                         "selector": selectors[0] if selectors else "",
                         "message": "chart target not found in slide library",
+                    }
+                )
+                summary["error"] += 1
+                continue
+            if len(chart.get("plot_types") or []) > 1:
+                results.append(
+                    {
+                        "status": "ERROR",
+                        "code": "chart_combo_unsupported",
+                        "plan_slide": slide_index,
+                        "source_slide": source_slide,
+                        "selector": selectors[0] if selectors else "",
+                        "chart_id": chart.get("chart_id"),
+                        "message": (
+                            "template-fill chart edits do not support multi-plot / combination charts; "
+                            "use beautify/main pipeline to redraw the chart, or leave the native chart untouched"
+                        ),
                     }
                 )
                 summary["error"] += 1
@@ -393,6 +420,7 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
                 results.append(
                     {
                         "status": "ERROR",
+                        "code": "chart_data_invalid",
                         "plan_slide": slide_index,
                         "source_slide": source_slide,
                         "selector": selectors[0] if selectors else "",
@@ -412,6 +440,7 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
                 results.append(
                     {
                         "status": "ERROR",
+                        "code": "chart_series_length_mismatch",
                         "plan_slide": slide_index,
                         "source_slide": source_slide,
                         "selector": selectors[0] if selectors else "",
@@ -424,6 +453,7 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
             results.append(
                 {
                     "status": "OK",
+                    "code": "chart_target_valid",
                     "plan_slide": slide_index,
                     "source_slide": source_slide,
                     "chart_id": chart.get("chart_id"),
@@ -461,6 +491,7 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
         results.append(
             {
                 "status": "WARN",
+                "code": "non_text_content_unedited",
                 "plan_slide": plan_slide_index,
                 "source_slide": source_slide,
                 "message": (
@@ -499,6 +530,7 @@ def check_plan(library: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
                 results.append(
                     {
                         "status": "WARN",
+                        "code": "source_reuse_concentration",
                         "source_slide": src,
                         "reuse_count": count,
                         "unused_source_slides": unused_lib_indices,

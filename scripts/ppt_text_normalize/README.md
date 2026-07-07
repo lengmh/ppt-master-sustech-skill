@@ -37,40 +37,10 @@ The default operating mode is end-to-end automatic processing:
 Current built-in commands:
 
 - `scan.py`
-- `build_review_workspace.py`
-- `compile_review_decisions.py`
 - `apply.py`
 
-The visual review gate is a formally supported, runtime opt-in review layer
-between `scan` and `apply`. The original Safe MVP `scan -> apply` path remains
-valid when users do not need browser review.
-
-## Visual review gate
-
-Use this flow when users need to see, exclude, regroup, or explicitly approve
-normalization targets before any PPTX mutation:
-
-1. Run `scan` to write the original `rules.json` and `scan_report.json`.
-2. Run `build_review_workspace` to create `normalization_review_preview/`.
-3. Open the workspace with `scripts/svg_editor/server.py --live`.
-4. Review colored overlays in the browser and save structured `review_decisions.json`.
-5. Run `compile_review_decisions` to write `rules_reviewed.json`.
-6. Run `apply` only after explicit user instruction, using `rules_reviewed.json`.
-
-The browser writes `review_decisions.json` only. It does not mutate `rules.json`,
-SVG geometry, or PPTX files. `apply.py` remains the only PPTX mutation path.
-
-Mutable fields in the visual-review MVP:
-- default: `font_family`, `bold`
-- optional: `color`, only when explicitly selected
-- advanced override: `override_field_gate` may open `font_family`, `bold`, and `color` for one reviewed block when the user explicitly chooses “开放非常规字段”
-- disabled: `font_size_pt`
-
-Advanced overrides are per-block review decisions. `override_frozen_skip` only
-lets a frozen/skipped block enter the mutation flow; `override_field_gate` only
-widens that block's editable field set, and the user must still choose the
-specific fields to mutate. Neither override makes `unsupported` blocks mutable,
-and neither override allows `font_size_pt` in this MVP.
+Additional review-workspace scripts may exist in source, but they are not part
+of the public `r3.1.0-v0.4.0` command surface until separately revalidated.
 
 `font_family` means both DrawingML Latin and East Asian font channels where
 canonical values exist: `font_family` and `east_asia_font_family`.
@@ -109,9 +79,7 @@ Test PPTX files, reports, logs, and generated outputs should live under a task w
 
 ```bash
 python3 scripts/ppt_text_normalize/scan.py <input.pptx> --task demo
-python3 scripts/ppt_text_normalize/build_review_workspace.py <input.pptx> --scan-dir <scan_dir> --workdir <scan_dir>/normalization_review_preview
-python3 scripts/ppt_text_normalize/compile_review_decisions.py --rules <scan_dir>/rules.json --review-model <scan_dir>/normalization_review_preview/review_model.json --decisions <scan_dir>/normalization_review_preview/review_decisions.json --output <scan_dir>/normalization_review_preview/rules_reviewed.json
-python3 scripts/ppt_text_normalize/apply.py <input.pptx> --rules <scan_dir>/normalization_review_preview/rules_reviewed.json --task demo
+python3 scripts/ppt_text_normalize/apply.py <input.pptx> --rules <scan_dir>/rules.json --task demo
 ```
 
 

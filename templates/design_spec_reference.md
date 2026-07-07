@@ -14,6 +14,8 @@
 | **Design Style** | {design_style} |
 | **Target Audience** | [Filled by Strategist] |
 | **Use Case** | [Filled by Strategist] |
+| **Delivery Purpose** | [`text` read-close / `balanced` business / `presentation` — confirmed at c; a deck-wide consumption mode that drives per-page density, page-count recommendation, page_rhythm lean, and the body baseline (px). See strategist.md §6.1.] |
+| **Content Strategy** | [Material divergence — the user's free-text intent on how closely to follow the source vs how freely to reshape it (or "balanced default"); facts stay sourced however free. Confirmed at c; consumed when authoring §IX. Not in spec_lock.] |
 | **Created Date** | {date_str} |
 
 ---
@@ -42,7 +44,7 @@
 ### Color Scheme
 
 > Strategist: determine values from project content, industry, brand colors.
-> Step 4 Confirm UI: present a few color candidates, each with a user-facing core `palette` (background / secondary_bg / primary / accent / secondary_accent / body_text), in `confirm_ui/recommendations.json`; the confirmed candidate from `result.json` seeds this table. Strategist derives the remaining text, border, state, and style-neutral colors when writing this full scheme. Schema: [`scripts/docs/confirm_ui.md`](../scripts/docs/confirm_ui.md).
+> Step 4 Confirm UI: present **≥3** color candidates (creative recommendations always offer real choice — same rule as h.5; fewer only on the honest-shortfall exception, with a stated reason), each with a user-facing core `palette` (background / secondary_bg / primary / accent / secondary_accent / body_text), in `confirm_ui/recommendations.json`; the confirmed candidate from `result.json` seeds this table. Strategist derives the remaining text, border, state, and style-neutral colors when writing this full scheme. Schema: [`scripts/docs/confirm_ui.md`](../scripts/docs/confirm_ui.md).
 
 | Role | HEX | Purpose |
 | ---- | --- | ------- |
@@ -93,11 +95,11 @@
 
 > **Per-role families are expected, not optional.** Title / Body / Emphasis / Code may each use a different family (e.g., display serif title + geometric sans body). One family throughout is not required. See [strategist.md §g — Font Combinations](../references/strategist.md) for starting directions; you may propose a combination not listed.
 >
-> **⚠️ PPT-safe stack discipline (HARD rule).** PPTX stores a single `typeface` per run — no runtime fallback. Every stack MUST end with a cross-platform pre-installed font: `"Microsoft YaHei", sans-serif` / `SimSun, serif` / `Arial, sans-serif` / `"Times New Roman", serif` / `Consolas, "Courier New", monospace`. Stacks led by a non-preinstalled font (Inter / Google Fonts / brand typefaces) are allowed only when this spec notes the font-install or embedding requirement.
+> **⚠️ PPT-safe stack discipline (HARD rule).** PPTX stores concrete exported Latin / EA typefaces per run — no runtime fallback. Every stack's exported Latin / EA typefaces MUST resolve to cross-platform pre-installed fonts: `"Microsoft YaHei"` / `SimSun` / `Arial` / `"Times New Roman"` / `Consolas`. Stacks that export non-preinstalled typefaces (Inter / Google Fonts / brand typefaces) are allowed only when this spec notes the font-install or embedding requirement.
 
 **Typography direction**: [Fill in one phrase, e.g., "modern CJK sans" / "academic serif" / "brand-specific: McKinsey Bower (requires font install)"]
 
-> Step 4 Confirm UI: present a few typography candidates, each splitting CJK + Latin for `heading` and `body` (with `css` preview stacks) and declaring `body_size` as the body baseline px, in `confirm_ui/recommendations.json`; the confirmed candidate from `result.json` seeds the plan below. Schema: [`scripts/docs/confirm_ui.md`](../scripts/docs/confirm_ui.md).
+> Step 4 Confirm UI: present **≥3** typography candidates (creative recommendations always offer real choice — same rule as h.5; fewer only on the honest-shortfall exception, with a stated reason), each splitting CJK + Latin for `heading` and `body` (with `css` preview stacks) and declaring `body_size` as the body baseline in **px** (the system's only unit, every canvas), in `confirm_ui/recommendations.json`; the confirmed `result.json` carries px directly — no conversion. Schema: [`scripts/docs/confirm_ui.md`](../scripts/docs/confirm_ui.md).
 
 Two views on the same font decisions — fill both, keep them consistent:
 
@@ -122,30 +124,33 @@ Two views on the same font decisions — fill both, keep them consistent:
 > - `Georgia, "Microsoft YaHei", serif` → Latin in Georgia (elegant serif), CJK falls through to Microsoft YaHei. **Use when Latin typography is the primary design statement** (academic / editorial / Latin-heavy covers).
 > - `"Microsoft YaHei", Georgia, serif` → Everything in Microsoft YaHei (Latin uses YaHei's Latin glyphs — a different design tone). **Use when the deck is CJK-primary and Latin is incidental**.
 >
-> The converter (`drawingml_utils.py parse_font_family`) maps these to PPTX `<a:latin>` / `<a:ea>` regardless of order — but browser preview and SVG native rendering reflect stack order. Pick the order matching your design intent.
+> The converter (`drawingml/utils.py parse_font_family`) maps these to PPTX `<a:latin>` / `<a:ea>` regardless of order — but browser preview and SVG native rendering reflect stack order. Pick the order matching your design intent.
 
 > **Why two views**: the breakdown shows role assignment at a glance; stacks carry the ordering info the breakdown can't encode. Keep both consistent — table cells should be exactly the fonts in the stacks (any order).
 
 ### Font Size Hierarchy
 
-> **Ramp discipline, not a fixed menu.** `body` is the single anchor; every other size is a ratio of it. Each row below gives the role's allowed ratio band — Executor may pick any px value inside the band (e.g., 40px hero number, 13px chart annotation, 72px cover headline) without pre-declaring intermediates in `spec_lock.md`.
-> **Unit**: px uniformly (SVG native) to avoid pt/px conversion errors.
-> **Baseline selection**: drive by **content density**, not design style.
+> **Ramp discipline, not a fixed menu.** `body` is the single anchor; every other size is a ratio of it. Each row below gives the role's allowed ratio band. **Structural roles (page title / body / subtitle / annotation / footnote) resolve to one size each and stay that size deck-wide** — pick the value once, lock it, reuse it on every page; same-role drift is what makes a deck look unprofessional. The in-band freedom to use an intermediate value without pre-declaring is for **special / feature elements** (hero number, cover / section display headline, one-off emphasis); if such a size recurs, declare it as its own slot so it too stays consistent.
+> **Unit boundary (HARD rule).** Author this section in **unitless px** — the system's only unit, every canvas. There is no pt layer and no conversion: the confirmed value is already px. Never write `pt`, `px`, `em`, or any unit in `spec_lock.md` or SVG. Geometry (margins / gaps / card sizes) is px everywhere.
+> **Baseline selection**: **delivery purpose** sets the body baseline to **one fixed value** (not a range); content density and visual style drive page treatment / rhythm / the *other* roles, **not** the body size.
 
-**Baseline**: Body font size = [fill in]px (any reasonable integer — `18` and `24` are most common; `16` for chart-heavy, `20`/`22` for medium density, `28-32` for poster / cover decks are all valid. Drive by content density.)
+**Baseline (unitless px)**: Body font size = [fill in]. For PPT 16:9, the confirmed delivery-purpose value is **one fixed px per purpose, not a range**: **`text` / read-close** `20`, **`balanced` / business** `24` (default), **`presentation`** `32`. The body baseline is purely a function of delivery purpose — density and visual style drive page treatment / rhythm / the other roles, never the body size. The user may also pin individual role sizes (`title` / `subtitle` / `annotation`) directly in the Confirm UI — a confirmed per-role value (`result.json typography.sizes`) is already px and becomes the locked slot for that role; the rest derive from the ramp. For non-PPT canvases, author px from the confirmed canvas scale (see [strategist.md §g](../references/strategist.md) per-canvas table).
 
-| Purpose | Ratio to body | Example @ body=24 (relaxed) | Example @ body=18 (dense) | Weight |
+| Purpose | Ratio to body | Example @ body=32 (`presentation`) | Example @ body=24 (`balanced`) | Weight |
 | ------- | ------------- | --------------------------- | ------------------------- | ------ |
-| Cover title (hero headline) | 2.5-5x | 60-120px | 45-90px | Bold / Heavy |
-| Chapter / section opener | 2-2.5x | 48-60px | 36-45px | Bold |
-| Page title | 1.5-2x | 36-48px | 27-36px | Bold |
-| Hero number (consulting KPIs) | 1.5-2x | 36-48px | 27-36px | Bold |
-| Subtitle | 1.2-1.5x | 29-36px | 22-27px | SemiBold |
-| **Body content** | **1x** | **24px** | **18px** | Regular |
-| Annotation / caption | 0.7-0.85x | 17-20px | 13-15px | Regular |
-| Page number / footnote | 0.5-0.65x | 12-16px | 9-12px | Regular |
+| Cover title (hero headline) | 2.5-5x | 80-160 | 60-120 | Bold / Heavy |
+| Chapter / section opener | 2-2.5x | 64-80 | 48-60 | Bold |
+| Page title | 1.5-2x | 48-64 | 36-48 | Bold |
+| Hero number (consulting KPIs) | 1.5-2x | 48-64 | 36-48 | Bold |
+| Subtitle | 1.2-1.5x | 38-48 | 29-36 | SemiBold |
+| Lead-in / intro | 1.1-1.4x | 35-45 | 26-34 | Regular / Medium |
+| Subheading | 1.1-1.3x | 35-42 | 26-31 | SemiBold |
+| **Body content** | **1x** | **32** | **24** | Regular |
+| Annotation / caption | 0.7-0.85x | 22-27 | 17-20 | Regular |
+| Page number / footnote | 0.5-0.65x | 16-21 | 12-16 | Regular |
 
-> The two px columns are illustrations for common baselines. For any other `body` value, multiply by each row's ratio — the checker (`svg_quality_checker._check_spec_lock_drift`) reads the live `body` from `spec_lock.md` and applies the bands, so no code change is needed for a different baseline.
+> **Subtitle / lead-in / subheading bands overlap by design** — choose among them by *role*, not size: `subtitle` sits under a title, `lead` is a lead-in / pull-quote in the body flow, `subheading` labels a block inside the content area. Each is its own slot, declared only when the deck uses it, and then held at one size deck-wide like any structural role. Font stays at the **family** level (no new typeface per role): `subheading` → heading / `title_family`, `lead` → `body_family` or `emphasis_family` — size + weight carry the hierarchy.
+> The two px columns are illustrations for common baselines. For any other `body` value, multiply by each row's ratio. All size values here and in `spec_lock.md` are px (no pt anywhere). The checker (`svg_quality_checker._check_spec_lock_drift`) reads the live `body` (px) from `spec_lock.md` and applies the bands, so no code change is needed for a different baseline.
 
 > Sizes outside **every** band remain forbidden — surface the need and extend `spec_lock.md typography` (e.g., `cover_title: 96`) rather than invent a one-off value.
 
@@ -230,7 +235,7 @@ Two views on the same font decisions — fill both, keep them consistent:
 
 > When pages map to a chart-library template (data charts OR structural patterns — team rosters, agendas, frameworks, etc.), Strategist lists them here for Executor reference. Single combined table — `summary-quote` column is the anti-fabrication audit, `path` + `usage` columns serve Executor lookup.
 
-Catalog read: 71 templates
+Catalog read: 76 templates
 
 | Page | Template | Path | Summary-quote (verbatim from `charts_index.json`) | Usage |
 | ---- | -------- | ---- | ------------------------------------------------- | ----- |
@@ -261,6 +266,7 @@ Catalog read: 71 templates
 - `Background` — cover / chapter / full-bleed atmosphere
 - `Photography` — real-world photo
 - `Illustration` — vector / flat / painterly art
+- `Illustration Sheet` — a grid of several spot illustrations generated as one image to be sliced (the `ai` sheet row of a `slice` set; never placed itself)
 - `Diagram` — schematic / architecture / flowchart
 - `Portrait` — single-subject person
 - `Latex Formula` — formula PNG rendered by `latex_render.py`
@@ -279,6 +285,9 @@ Catalog read: 71 templates
 - `formula` — already rendered by `latex_render.py` before this spec was written
 - `user` — user-supplied
 - `placeholder` — intentionally deferred
+- `slice` — a spot-illustration element derived in Step 5 by cutting it out of an `ai` sheet row (not generated on its own)
+
+> **Spot-illustration sheets (`slice`).** When the deck draws several same-family spot illustrations from one generated sheet (see [`image-generator.md`](../references/image-generator.md) §4.3), write **two kinds of rows**: one **sheet row** (`Acquire Via: ai`, `Type: Illustration Sheet`, name the intended cell shape + placement purpose in `Reference`, e.g. `portrait side-accent spot set` or `landscape footer-vignette spot set`) that is generated but **never placed** — keep it out of `spec_lock.md images`; and one **element row per used element** (`Acquire Via: slice`, `Reference` naming the parent sheet + cell/element, dimensions filled after slicing) that **is** placed — list every element row in `spec_lock.md images` so the Executor may reference it. Strategist states the shape intent; Image_Generator chooses the exact sheet ratio, grid, and slice command. An element row with no sheet row, or a sliced file absent from `spec_lock.md images`, is an invalid spec. **Each element row's Layout pattern must come from the decorative-cutout family** (`#63` sticker, `#4` edge bleed, `#58` corner fragment, `#66` fade-out, `#69` rotation, `#49` cluster) — a transparent spot is an accessory placed at the margins / off-edge / behind text, never centered in a boxed tile.
 
 **text_policy** (`ai` rows only; AI judges per row, no global default bias):
 
@@ -300,7 +309,8 @@ Catalog read: 71 templates
 
 #### Slide 01 - Cover
 
-- **Layout**: Full-screen background image + centered title
+- **Cover impact**: [MANDATORY — see strategist.md §6.2. Name one concrete hook (provocative core claim / hero number / object-scene metaphor / founder-product-audience moment / distilled conflict) + one composition strategy (full-bleed image + floating title / typographic poster / hero object / data hook / editorial scene / high-contrast abstract geometry / or a fresh one the subject suggests). This is the cover's spine — do NOT fall back to "title + subtitle + decorative background".]
+- **Layout**: [realize the Cover impact above; choose the composition that delivers it — not a default centered title block]
 - **Title**: [Main title]
 - **Subtitle**: [Subtitle]
 - **Info**: [Author / Date / Organization]
@@ -321,6 +331,14 @@ Catalog read: 71 templates
 ---
 
 [Strategist continues adding more pages based on source document content and page count planning...]
+
+---
+
+#### Slide NN - Closing  *(only if the deck genuinely lands on a conclusion / CTA / final-takeaway page — do NOT invent one to fill this slot; see strategist.md §6.2)*
+
+- **Closing impact**: [MANDATORY for the closing page — name the one thing the audience leaves with (distilled takeaway / forward call / memorable restatement of the core claim) + one composition that lands it. Do NOT write a generic "Thank you" / contact-only / centered-title reprise of the cover.]
+- **Layout**: [realize the Closing impact above — the deck's final impression, not a default sign-off]
+- **Content**: [the takeaway / call-to-action itself, phrased to land]
 
 ---
 

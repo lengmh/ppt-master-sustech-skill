@@ -4,10 +4,10 @@ Safe MVP tool for automatic PPTX text-style normalization.
 
 It targets multi-author font-family and font-weight drift while preserving slide content, geometry, hero compositions, and content-area hierarchy.
 
-Current source command surface:
+Public command surface for `r3.1.0-v0.4.0`:
 
-- included: `scan.py`, `build_review_workspace.py`, `compile_review_decisions.py`, `apply.py`, reports, conservative normalization rules
-- formal opt-in review layer: visual review gate, review workspace builder, reviewed-rules compilation, browser review panel
+- included: `scan.py`, `apply.py`, reports, conservative normalization rules
+- additional review-workspace flows remain source assets and require separate revalidation before being documented as active release capabilities
 
 ## Commands
 
@@ -27,44 +27,6 @@ python3 scripts/ppt_text_normalize/apply.py <input.pptx> \
   --task <task_name> \
   --output <workdir>/ppt_text_normalize/<task_name>/output/normalized.pptx
 ```
-
-Formal opt-in visual review flow:
-
-```bash
-python3 scripts/ppt_text_normalize/build_review_workspace.py <input.pptx> \
-  --scan-dir <workdir>/ppt_text_normalize/<task_name> \
-  --workdir <workdir>/ppt_text_normalize/<task_name>/normalization_review_preview
-
-python3 scripts/svg_editor/server.py \
-  <workdir>/ppt_text_normalize/<task_name>/normalization_review_preview \
-  --live \
-  --port 5050
-
-python3 scripts/ppt_text_normalize/compile_review_decisions.py \
-  --rules <workdir>/ppt_text_normalize/<task_name>/rules.json \
-  --review-model <workdir>/ppt_text_normalize/<task_name>/normalization_review_preview/review_model.json \
-  --decisions <workdir>/ppt_text_normalize/<task_name>/normalization_review_preview/review_decisions.json \
-  --output <workdir>/ppt_text_normalize/<task_name>/normalization_review_preview/rules_reviewed.json
-
-python3 scripts/ppt_text_normalize/apply.py <input.pptx> \
-  --rules <workdir>/ppt_text_normalize/<task_name>/normalization_review_preview/rules_reviewed.json \
-  --task <task_name> \
-  --output <workdir>/ppt_text_normalize/<task_name>/output/normalized.reviewed.pptx
-```
-
-The browser saves `review_decisions.json` only. It does not mutate the source
-PPTX, `rules.json`, SVG geometry, or `rules_reviewed.json`. Apply remains the
-only PPTX mutation path and must be run explicitly with reviewed rules.
-
-Review decisions support two explicit per-block advanced overrides:
-
-- `override_frozen_skip`: lets a frozen or skipped block enter the mutation flow.
-- `override_field_gate`: opens non-default fields for that block, limited to
-  `font_family`, `bold`, and `color` in this MVP. The user still chooses the
-  exact fields to mutate.
-
-Unsupported blocks remain immutable, and `font_size_pt` remains disabled even
-when advanced overrides are selected.
 
 ## Safety defaults
 
@@ -105,17 +67,6 @@ when advanced overrides are selected.
 - `rules.json`
 - `scan_report.json`
 - `scan_report.md`
-
-`build_review_workspace.py` writes:
-
-- `normalization_review_preview/review_model.json`
-- `normalization_review_preview/review_decisions.json`
-- `normalization_review_preview/svg_output/slide_NN.svg`
-- `normalization_review_preview/assets/flat_export/svg/slide_NN.svg`
-
-`compile_review_decisions.py` writes:
-
-- `rules_reviewed.json` with `review_gate` and `reviewed_overrides`
 
 `apply.py` writes:
 

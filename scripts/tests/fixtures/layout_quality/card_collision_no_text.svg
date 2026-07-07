@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-page="P03">
+  <rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <rect id="first-visual-panel" x="120" y="160" width="420" height="280" rx="14" fill="#F8FAFC"/>
+  <rect id="second-visual-panel" x="500" y="160" width="420" height="280" rx="14" fill="#F1F5F9"/>
+</svg>

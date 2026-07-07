@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <rect id="alpha-panel" x="80" y="140" width="520" height="360" rx="16" fill="#F8FAFC"/>
+  <rect id="beta-panel" x="680" y="140" width="520" height="360" rx="16" fill="#F8FAFC"/>
+  <text id="alpha-title" x="120" y="200" font-size="32" font-family="Arial">Alpha</text>
+  <text id="alpha-body" x="120" y="260" font-size="20" font-family="Arial">Short readable copy.</text>
+  <text id="beta-title" x="720" y="200" font-size="32" font-family="Arial">Beta</text>
+  <text id="beta-body" x="720" y="260" font-size="20" font-family="Arial">Short readable copy.</text>
+</svg>

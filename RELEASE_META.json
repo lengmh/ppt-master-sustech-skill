@@ -1,28 +1,28 @@
 {
   "schema_version": 1,
   "skill_name": "ppt-master",
-  "release_version": "r2.10.0-v0.3.0",
+  "release_version": "r3.1.0-v0.4.0",
   "upstream": {
     "repo": "hugohe3/ppt-master",
-    "version": "2.10.0",
-    "tag": "v2.10.0",
-    "commit": "34d1f0057d51ff2cc15bcbbec071ef35f6fc1ae1",
+    "version": "3.1.0",
+    "tag": "v3.1.0",
+    "commit": "b8808a3a17377ea4e7fd79bdad096bab613f86b9",
     "tracked_ref": "main",
-    "tracked_commit": "137e0e5ebc385620e9cc95fcc56d8f67e3d8c3a9",
-    "tracked_range": "v2.10.0..137e0e5ebc385620e9cc95fcc56d8f67e3d8c3a9"
+    "tracked_commit": "c2cb78ad997b41d16cefe083831d62571ab9f741",
+    "tracked_range": "v3.1.0..c2cb78ad997b41d16cefe083831d62571ab9f741"
   },
   "local": {
-    "version": "0.3.0"
+    "version": "0.4.0"
   },
   "support_files": {
     "requirements_source": "local",
     "env_example_source": "local",
-    "requirements_basis": "upstream skills/ppt-master/requirements.txt @ v2.10.0 plus tracked patchset through 137e0e5",
-    "env_example_basis": "upstream .env.example @ v2.10.0 plus tracked patchset through 137e0e5"
+    "requirements_basis": "upstream skills/ppt-master/requirements.txt @ v3.1.0 plus tracked main cutoff c2cb78a and SUSTech local overlay",
+    "env_example_basis": "upstream .env.example @ v3.1.0 plus tracked main cutoff c2cb78a and SUSTech local overlay"
   },
   "package": {
     "zip_name_pattern": "ppt-master-sustech-r<upstream>-v<local>-YYYY-MM-DD.zip",
     "root_dirname": "ppt-master"
   },
-  "notes": "SUSTech custom release line after upstream v2.10.0 merge plus tracked post-v2.10.0 patchset through 137e0e5. v0.3.0 adopts upstream v2.10 prompt architecture, Confirm UI, template-fill workflow, direct SVG edit live preview, and post-tag source/export fixes while preserving SUSTech release identity, template audit flow, and the formal ppt_text_normalize visual review gate introduced in v0.2.x."
+  "notes": "SUSTech custom release line after upstream v3.1.0 fusion plus tracked main cutoff c2cb78a. v0.4.0 adopts upstream v3.1.0 architecture, staged Confirm UI, source intake, native editable PPTX object/export improvements, chart fidelity hardening, and post-tag native chart fixes while preserving SUSTech release identity, template audit flow, local templates/assets, and conservative ppt_text_normalize scan/apply support."
 }

@@ -34,7 +34,6 @@ def build_canonical_style(
         font_size_pt=_majority([b.style.font_size_pt for b in members]) if "font_size_pt" in allowed_fields else None,
         bold=_majority([b.style.bold for b in members]) if "bold" in allowed_fields else None,
         italic=_majority([b.style.italic for b in members]) if "italic" in allowed_fields else None,
-        source_level="canonical",
     )
     sample_count = len(blocks)
     ratio = float(top["ratio"])

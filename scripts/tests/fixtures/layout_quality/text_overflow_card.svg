@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-page="P01">
+  <rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <rect id="content-shell" x="100" y="100" width="220" height="120" rx="12" fill="#F8FAFC"/>
+  <text id="renamed-copy" x="120" y="156" font-size="22" font-family="Arial">This sentence is intentionally far too long for the small panel.</text>
+</svg>

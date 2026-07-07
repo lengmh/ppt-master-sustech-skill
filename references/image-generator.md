@@ -2,9 +2,9 @@
 
 # Image_Generator Reference Manual
 
-Role definition for the **AI image generation path**: convert each `Acquire Via: ai` row into an optimized prompt, generate the image, and save it to `project/images/`.
+Role definition for the **AI image generation path**: convert each `Acquire Via: ai` row into an optimized prompt, generate the image, and save it to `project/images/`; also defines the `slice` derivation path for AI-generated illustration sheets.
 
-**Trigger**: resource list rows with `Acquire Via: ai`. The role is loaded only when at least one such row exists.
+**Trigger**: resource list rows with `Acquire Via: ai` or `slice`. The role is loaded only when at least one such row exists.
 
 ---
 
@@ -130,9 +130,9 @@ For each `Acquire Via: ai` row in `design_spec.md §VIII`:
 
 The assembled prompt is **one cohesive paragraph**, not a bulleted list of tags. See §4 for the assembly template.
 
-### Step 4 — Write the manifest and generate
+### Step 4 — Write the manifest and execute the confirmed path
 
-Write `project/images/image_prompts.json` per §6. Then run `image_gen.py --manifest` (§7 Path A). The CLI iterates `items[]`, writes status back, and re-renders the Markdown sidecar.
+Write `project/images/image_prompts.json` per §6. Then follow §7 Path Selection. `image_gen.py --manifest` is Path A only; confirmed `host-native` runs the host image tool directly, and confirmed `manual` renders the Markdown sidecar and hands off without API generation.
 
 ---
 
@@ -239,6 +239,62 @@ Example opening for a triptych hero:
 | engineering | schematic notation, dimension callouts, section-cut conventions |
 
 **When uncertain about field conventions**: read `sources/` before drafting the prompt.
+
+### 4.3 Illustration sheets — one generation, many spot elements
+
+When a deck wants several small **spot illustrations** scattered as decorative accessories across pages (the illustration counterpart to icons), do **not** generate them one image per slot — that multiplies generation cost and lets the style drift between calls. Generate **one sheet** that lays out all the elements in a grid, then slice it. One call buys a set of elements with an identical style, palette, and line quality — the same cross-page consistency the deck-wide `deck_rendering` / `deck_palette` lock exists to protect.
+
+**When to use**: the §VIII image resource plan needs ≥3 small spot illustrations from the same family across the deck. For a single hero/local image, stay with the normal one-row-per-image flow (§4.1). Use sheets only where decorative illustration genuinely lifts the page; an unused element costs nothing, but a deck papered in decoration reads cheap.
+
+**Hard rule**: a spot sheet is a generation source, not a slide asset. The sheet row is never listed in `spec_lock.md images` and never referenced from SVG. Only the sliced element rows are placed.
+
+**Sheet prompt convention** (one manifest item, `page_role: local`, `text_policy: none`, `image_size` chosen from final placement size):
+
+- Choose the sheet `aspect_ratio` and `--grid` from the target element shape. Do not default every sheet to `1:1` + a symmetric grid.
+- Lay the elements out in an explicit **R×C grid, evenly spaced with clear gutters**, each element **centered in its own cell** and isolated (no element bleeds into a neighbor).
+- State the intended cell shape in the prompt: compact square object, tall portrait element, or wide landscape vignette. Do not let the model shrink every subject into a centered square sticker.
+- One **flat single-color background** across the whole sheet, set to the deck's background/secondary HEX — this is what lets the slicer key it out cleanly and lets the cut element sit on the slide without a visible box.
+- Shared `deck_rendering` + `deck_palette` as always. NO text, labels, or numbers anywhere (§5.1, §5.3).
+
+**Cell geometry is designed, not assumed.** `slice_images.py --grid RxC` cuts rows first and columns second. The cell ratio is:
+
+```text
+cell_ratio = sheet_ratio * rows / cols
+```
+
+Use that deliberately. On a wide sheet (`16:9`, `21:9`, `4:1`, `8:1`), `1xN` makes each cell tall/portrait because the width is divided by `N` while height is kept; `Nx1` makes each cell wide/landscape because height is divided by `N` while width is kept. A designed `MxN` grid is also valid when the resulting cell ratio matches the intended placements.
+
+| Target spot shape | Sheet plan | Slice grid |
+|---|---|---|
+| Compact objects / badges | `1:1` sheet | `2x2`, `2x3`, or `3x3` |
+| Tall side accents / upright objects | wide or square sheet | `1xN`, or any `MxN` whose cells are portrait |
+| Wide banners / horizontal vignettes | wide sheet | `Nx1`, or any `MxN` whose cells are landscape |
+
+If one deck needs mixed shapes, create separate sheets per shape family unless one carefully designed grid gives every element enough room in its own cell. Keep the visual family consistent through the same `deck_rendering` and `deck_palette`, not by forcing all cells into one square sheet.
+
+**Resource contract — the sheet and its elements are different row kinds.** A sliced element can only be placed if it exists as a resource the Executor is allowed to reference (`spec_lock.md images`). So §VIII carries two row kinds (full rules: [`design_spec_reference.md`](../templates/design_spec_reference.md) §VIII):
+
+- **Sheet row** — `Acquire Via: ai`, `Type: Illustration Sheet`, the intent prompt, named as the slice source with its intended cell shape and placement purpose (`Reference: landscape footer-vignette spot set`). It is generated in Step 5 but **never placed on a slide** — keep it **out of** `spec_lock.md images`. Image_Generator resolves the exact `aspect_ratio`, grid, and slice command from this intent.
+- **Element rows** — one per used element, `Acquire Via: slice`, filename matching a `--names` output, `Reference` naming the parent sheet + cell/element. These **are** placed — list every one in `spec_lock.md images`, usually with ` | no-crop` (a tight-trimmed transparent spot should be fit, not cover-cropped). Their dimensions are filled in after slicing (Step 5 re-runs `analyze_images.py`). **Set each element row's Layout pattern from the decorative-cutout family, never a boxed container** — see Placement below.
+
+For traceability, add optional `slice_grid` and `slice_names` fields to the sheet item in `image_prompts.json` after choosing the geometry. `image_gen.py` ignores unknown item fields but preserves them in the manifest, so these fields document the exact command that must be used for slicing.
+
+**Slice** with [`slice_images.py`](../scripts/slice_images.py) — cells are cut row-major into individual files in `images/`. With `--alpha` they are **transparent cutout stickers** (image-layout-patterns `#63`), not rectangular content images. Recommended flags: `--names` (semantic per-cell filenames matching the element rows; the count **must** equal `rows*cols`), `--trim` (tight-crop each cell so imprecise placement inside a cell doesn't leave lopsided margins), `--alpha` (knock the flat background out to transparency so an element drops onto any slide color):
+
+```bash
+python3 scripts/slice_images.py <project>/images/illus_sheet.png --grid 2x3 \
+    --names team,product,customer,growth,risk,vision --trim --alpha
+```
+
+**Three constraints that decide whether it looks good**:
+
+1. **Flat background, matched to the slide.** `image_gen.py` has no transparent-background mode, so the cut element carries whatever was behind it. A flat sheet background (= deck background HEX) is what `--alpha` keys out and what makes non-keyed pieces blend.
+2. **Clean grid, or it cuts ugly.** The model will not place every element perfectly; force a clear grid with gutters, and generate **a few sheets** (re-roll the same prompt) to pick the cleanest-laid-out one before slicing. State the exact row/column structure and cell shape so the model does not invent a square matrix. `--trim` absorbs the rest.
+3. **Generate only as large as needed.** Each cell is a fraction of the sheet. Pick the smallest sheet size that keeps each sliced cell at least **1.5-2x** the intended display size. `1K` is usually enough for small 80-160px decorative spots; use `2K` for medium 180-320px placements; reserve `4K` for large, cropped, or potentially enlarged elements.
+
+**Placement — these are decorative accessories, not boxed pictures.** A transparent spot wasted in a centered rectangle looks cheaper than no spot at all. Each element row's Layout pattern comes from the decorative-cutout family in [`image-layout-patterns.md`](./image-layout-patterns.md): `#63` sticker/cutout, `#4` bleed off the canvas edge, `#58` corner fragment, `#66` fade into the background, `#69` slight editorial rotation, `#49` asymmetric cluster. Push spots to the margins, let them run off-edge or sit behind/beside text, vary size and angle across pages, and overlap the content rather than reserving a tidy tile for them. Anchor most pages on one primary element and let the rest stay small ([primary-per-page](./strategist.md) §h) — scattered same-weight tiles are exactly the generic look to avoid.
+
+**Through-line — one family, many roles.** A spot sheet pays off more when the same motif family also drives the deck's cover and section dividers, so the deck reads as one designed system rather than a hero plus unrelated doodles. Because the slicer cuts a **uniform grid**, a large cover / divider anchor is **not** a giant cell in the spot sheet — generate it as its own `page_role: hero_page` image (§4.1 primitives) that shares this sheet's `deck_rendering`, `deck_palette`, and subject world. In §VIII the hero_page anchor row(s) and the `slice` spot rows then belong to one visual family (name the shared subject world in each `Reference`), differing only in scale and role. Plan this only when the deck leans into illustration — never a per-section quota; the planning rule lives in [strategist.md](./strategist.md) (deck illustration motif).
 
 ---
 
@@ -395,6 +451,8 @@ Write `project/images/image_prompts.json` with this shape:
 | `items[].prompt` | yes | §4 assembly | The full assembled paragraph |
 | `items[].image_size` | no | Container sizing | `512px` / `1K` / `2K` / `4K` |
 | `items[].alt_text` | no | Accessibility | Short caption |
+| `items[].slice_grid` | no | §4.3 sheet geometry | Illustration sheet only; exact `RxC` grid to pass to `slice_images.py --grid` |
+| `items[].slice_names` | no | §4.3 sheet geometry | Illustration sheet only; semantic filenames to pass to `slice_images.py --names` |
 | `items[].status` | yes | CLI manages | `Pending` initially; CLI updates to `Generated` / `Failed` / `Needs-Manual` |
 
 > **Back-compat for legacy `type` values**: existing manifests using `background` / `hero` / `portrait` / `typography` (the four removed pseudo-types) remain readable. Read them as: `background` → `page_role: hero_page` + no type; `hero` → `page_role: hero_page` + no type (use §4.1 Primitive A in prompt); `portrait` → `page_role: local` + no type (use §4.1 Primitive B); `typography` → `page_role: hero_page` + `text_policy: embedded` + no type (use §4.1 Primitive C). New manifests should follow the rule above (omit `type` when `page_role: hero_page`).
@@ -405,7 +463,7 @@ Write `project/images/image_prompts.json` with this shape:
 
 ## 7. Generation Execution
 
-> Prerequisite: §3 Steps 1-3 complete; `images/image_prompts.json` exists and validates.
+> Prerequisite: §3 Steps 1-3 complete; `images/image_prompts.json` exists and validates. The manifest is the shared audit/source contract for all modes. It does **not** imply that `image_gen.py --manifest` should run; that command is Path A only.
 
 ### Path Selection (Deterministic)
 
@@ -421,8 +479,8 @@ C (AI-generated) supports three implementation modes sharing one `image_prompts.
 
 0. **Confirmed override (wins)** — honor the confirmed image source. The **chat choice is canonical**; the Confirm UI is only a convenience surface that, when used, records the same choice to `<project>/confirm_ui/result.json` as `image_ai_path` (so there is no `result.json` on the chat path — read the choice from the conversation). From either channel, if the choice is set and not `auto`, honor it directly, **even when it contradicts `IMAGE_BACKEND`**:
    - `api` → **Path A** (`image_gen.py --manifest`).
-   - `host-native` → **Path B** (host's native image tool) — skip A *even if `IMAGE_BACKEND` is configured*.
-   - `manual` → **Offline Manual** (write prompts, hand off).
+   - `host-native` → **Path B** (host's native image tool) — skip A and do **not** run `image_gen.py --manifest`, *even if `IMAGE_BACKEND` is configured*.
+   - `manual` → **Offline Manual** (write prompts, render the Markdown sidecar, hand off; do **not** run `image_gen.py --manifest`).
    ("use Codex's image tool" / "走接口生成" in chat = `host-native` / `api`.) If the chosen path turns out unavailable (e.g. `host-native` but the host has no image tool), fall through along the chain below from that point. Only when no source named a path (chat silent, and `image_ai_path` `auto` / absent) does the automatic chain decide.
 1. **Try Path A** — if `IMAGE_BACKEND` is configured (env or `.env`), run `image_gen.py --manifest`. If it fails twice in a row, fall to Path B.
 2. **Try Path B** — if `IMAGE_BACKEND` was not configured (A skipped), or A failed, and the host has a native image tool (Codex / Antigravity / Claude Code / similar), the agent invokes the host's image capability directly.
@@ -496,8 +554,11 @@ Precedence:
 Triggered automatically when `IMAGE_BACKEND` is not configured (or Path A fails) **and** the host provides a native image generation tool (Codex, Antigravity, Claude Code's image tool, and similar). No user prompting required — the agent detects the host capability and proceeds. The user may also explicitly name this path ("use Codex's image tool") to force it even when `IMAGE_BACKEND` is configured.
 
 - Agent invokes the host's native image tool directly; prompts come from `items[].prompt`
-- Outputs **must** land at `project/images/<filename-from-resource-list>` with dimensions matching the Image Resource List
-- After each placement, set the corresponding item's `status` to `Generated` in the manifest
+- Do **not** run `image_gen.py --manifest` in Path B. That command is Path A and may use configured API/proxy backends even when the user confirmed host-native.
+- Still run `python3 scripts/image_gen.py --render-md project/images/image_prompts.json` so the human-readable sidecar exists without touching any backend.
+- **Batch for speed, mind the rate**: when the host can run independent tool calls in parallel (e.g. Claude Code issues independent calls concurrently), fire several generations together in modest groups — a few rows at a time (~3–4), not the whole manifest at once — so their latency overlaps without flooding the host's image quota. When the host only runs tools serially, generate one row at a time. This mirrors Path A's default concurrency of 3.
+- Outputs **must** land at `project/images/<filename-from-resource-list>`. Match the Image Resource List dimensions when the host supports arbitrary sizes. Hosts with **fixed native resolutions** (common — e.g. ~1672x941 landscape / ~1086x1448 portrait) generate at the closest native size and backfill the actual pixels into the resource list `Dimensions` column — same convention as formula rows ("actual dimensions from formula manifest") and slice rows ("dimensions filled after slicing"). Do **not** upscale the file to fake the requested size (interpolation adds no detail); minor display-side upscaling (up to ~1.3x in practice) surfaces as a quality-checker warning — acknowledge and release per the warning policy.
+- Mark each item's `status` `Generated` in the manifest the moment its file lands — as each completes, not in one pass at the end (so an interrupted batch leaves accurate state)
 - Executor downstream is path-agnostic — no spec change required between Path A and Path B
 
 ### Offline Manual Mode (C's third implementation mode)
@@ -576,7 +637,7 @@ Diagnose the failure category, adjust the **one specific dimension** responsible
 **Variant workflow**:
 
 1. Set the unsatisfactory item's `status` back to `Pending` and update its `prompt` in place
-2. Re-run `image_gen.py --manifest` — only that item is re-processed
+2. Re-run the same confirmed path used for the original item: Path A may re-run `image_gen.py --manifest` (only that item is re-processed); Path B uses the host-native tool again for that item; Offline Manual re-renders the sidecar and hands off
 3. To try multiple stylistic approaches, append additional items with distinct filenames (e.g. `cover_bg_v2.png`) rather than overwriting
 
 ---

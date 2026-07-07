@@ -106,7 +106,6 @@ def main(argv: list[str] | None = None) -> int:
                     font_size_pt=canonical_entry["style"].get("font_size_pt"),
                     bold=canonical_entry["style"].get("bold"),
                     italic=canonical_entry["style"].get("italic"),
-                    source_level="canonical",
                 )
                 allowed_fields = _effective_allowed_fields(
                     allowed_style_fields(slot_rule.get("mutation_permission_profile", "conservative_text"), object_slot),
@@ -245,20 +244,6 @@ def _reviewed_canonical_for_block(block_id, canonical_entry, reviewed_overrides,
             if reassigned is not None:
                 return reassigned
     return canonical_entry
-
-
-def _reviewed_target_for_block(block_id, canonical_entry, reviewed_overrides, canonical_map=None):
-    entry = _reviewed_canonical_for_block(block_id, canonical_entry, reviewed_overrides, canonical_map)
-    style = (entry or {}).get("style") or {}
-    return StyleFingerprint(
-        font_family=style.get("font_family"),
-        east_asia_font_family=style.get("east_asia_font_family"),
-        color=style.get("color"),
-        font_size_pt=style.get("font_size_pt"),
-        bold=style.get("bold"),
-        italic=style.get("italic"),
-        source_level="reviewed" if entry is not canonical_entry else "canonical",
-    )
 
 
 if __name__ == "__main__":

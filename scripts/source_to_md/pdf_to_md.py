@@ -7,11 +7,22 @@ Supports heading levels, bold, italic, and list detection.
 
 import argparse
 import hashlib
+import json
 import os
 import re
 import sys
 from pathlib import Path
 from collections import Counter
+
+_SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from console_encoding import configure_utf8_stdio  # noqa: E402
+from _batch import run_path_batch  # noqa: E402
+from _conversion_profile import write_conversion_profile_best_effort  # noqa: E402
+
+configure_utf8_stdio()
 
 try:
     import fitz  # PyMuPDF
@@ -712,6 +723,7 @@ def extract_pdf_to_markdown(
         img_dir = output_path.parent / rel_img_dir
 
     img_count = 0
+    image_manifest: list[dict[str, object]] = []
 
     for page_num, page in enumerate(doc, 1):
         if page_num > 1:
@@ -951,6 +963,27 @@ def extract_pdf_to_markdown(
                         if prev_was_list:
                             markdown_content += "\n"
                         markdown_content += f"![{image_name}]({rel_img_dir}/{image_name})\n\n"
+                        width = int(block.get("width", 0) or 0)
+                        height = int(block.get("height", 0) or 0)
+                        ratio = width / height if width > 0 and height > 0 else None
+                        image_manifest.append({
+                            "index": len(image_manifest) + 1,
+                            "filename": image_name,
+                            "original_filename": image_name,
+                            "asset_kind": "bitmap",
+                            "svg_renderable": True,
+                            "pptx_native_supported": True,
+                            "source_kind": "pdf_image",
+                            "source_ext": f".{ext}",
+                            "page_index": page_num,
+                            "occurrence_index": img_count + 1,
+                            "pixel_width": width or None,
+                            "pixel_height": height or None,
+                            "pixel_ratio": round(ratio, 6) if ratio else None,
+                            "display_ratio": round(ratio, 6) if ratio else None,
+                            "source_sha256": hashlib.sha256(image_data).hexdigest(),
+                            "bbox": list(block.get("bbox", [])),
+                        })
                         img_count += 1
                         prev_was_list = False
                         print(f"  [OK] Extracted image: {image_name}")
@@ -980,6 +1013,29 @@ def extract_pdf_to_markdown(
                         if prev_was_list:
                             markdown_content += "\n"
                         markdown_content += f"![{image_name}]({rel_img_dir}/{image_name})\n\n"
+                        ratio = pix.width / pix.height if pix.width > 0 and pix.height > 0 else None
+                        image_manifest.append({
+                            "index": len(image_manifest) + 1,
+                            "filename": image_name,
+                            "original_filename": image_name,
+                            "asset_kind": "bitmap",
+                            "svg_renderable": True,
+                            "pptx_native_supported": True,
+                            "source_kind": "pdf_vector_figure",
+                            "source_ext": ".png",
+                            "page_index": page_num,
+                            "occurrence_index": img_count + 1,
+                            "pixel_width": pix.width,
+                            "pixel_height": pix.height,
+                            "pixel_ratio": round(ratio, 6) if ratio else None,
+                            "display_ratio": round(ratio, 6) if ratio else None,
+                            "bbox": [
+                                figure_rect.x0,
+                                figure_rect.y0,
+                                figure_rect.x1,
+                                figure_rect.y1,
+                            ],
+                        })
                         img_count += 1
                         prev_was_list = False
                         print(f"  [OK] Rendered vector figure: {image_name}")
@@ -1000,48 +1056,23 @@ def extract_pdf_to_markdown(
         os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(markdown_content)
+        if img_dir and image_manifest:
+            (img_dir / "image_manifest.json").write_text(
+                json.dumps(image_manifest, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+        profile_path = write_conversion_profile_best_effort(
+            input_path=pdf_path,
+            markdown_path=output_path,
+            converter="pdf_to_md.py",
+            conversion_type="pdf",
+            asset_dir=img_dir,
+        )
         print(f"[OK] Saved Markdown to: {output_path}")
+        if profile_path:
+            print(f"   Wrote conversion profile -> {profile_path}")
 
     return markdown_content
-
-
-def process_directory(
-    input_dir: str,
-    output_dir: str | None = None,
-    images: str = "filtered",
-    render_vector_figures: bool = False,
-    vector_figure_dpi: int = VECTOR_FIGURE_DPI,
-) -> None:
-    """Convert all PDFs in a directory to Markdown.
-
-    Args:
-        input_dir: Directory containing PDF files.
-        output_dir: Optional output directory for Markdown files.
-        images: Image extraction mode passed through to each file conversion.
-        render_vector_figures: Rasterize large vector drawing regions as PNGs.
-        vector_figure_dpi: DPI used for rendered vector figure PNGs.
-    """
-    input_path = Path(input_dir)
-
-    if output_dir:
-        output_path = Path(output_dir)
-    else:
-        output_path = input_path
-
-    pdf_files = sorted(input_path.glob('*.pdf'))
-
-    print(f"Found {len(pdf_files)} PDF files")
-
-    for pdf_file in pdf_files:
-        output_file = output_path / (pdf_file.stem + '.md')
-        print(f"Processing: {pdf_file.name}")
-        extract_pdf_to_markdown(
-            str(pdf_file),
-            str(output_file),
-            images=images,
-            render_vector_figures=render_vector_figures,
-            vector_figure_dpi=vector_figure_dpi,
-        )
 
 
 def main() -> int:
@@ -1052,10 +1083,10 @@ def main() -> int:
         epilog='''
 Examples:
   python pdf_to_md.py book.pdf                    # Convert a single file
+  python pdf_to_md.py book.pdf appendix.pdf       # Convert multiple files
+  python pdf_to_md.py ./pdfs -o ./markdown        # Convert PDFs in a directory
   python pdf_to_md.py book.pdf -o output.md      # Specify output file
   python pdf_to_md.py book.pdf --render-vector-figures
-  python pdf_to_md.py ./pdfs                      # Convert all PDFs in directory
-  python pdf_to_md.py ./pdfs -o ./markdown       # Specify output directory
 
 Structure detection features:
   - Auto-detect heading levels (based on font size)
@@ -1067,8 +1098,12 @@ Structure detection features:
 '''
     )
 
-    parser.add_argument('input', help='PDF file or directory containing PDFs')
-    parser.add_argument('-o', '--output', help='Output file or directory')
+    parser.add_argument('inputs', nargs='+', help='PDF file(s) or directories')
+    parser.add_argument(
+        '-o',
+        '--output',
+        help='Output Markdown file for one input, or output directory for multiple inputs/directories',
+    )
     parser.add_argument(
         '--images',
         choices=['all', 'filtered', 'none'],
@@ -1089,31 +1124,21 @@ Structure detection features:
 
     args = parser.parse_args()
 
-    input_path = Path(args.input)
-
-    if input_path.is_file():
-        output = args.output or str(input_path.with_suffix('.md'))
-        extract_pdf_to_markdown(
-            str(input_path),
-            output,
-            images=args.images,
-            render_vector_figures=args.render_vector_figures,
-            vector_figure_dpi=args.vector_figure_dpi,
-        )
-    elif input_path.is_dir():
-        process_directory(
-            str(input_path),
-            args.output,
-            images=args.images,
-            render_vector_figures=args.render_vector_figures,
-            vector_figure_dpi=args.vector_figure_dpi,
-        )
-    else:
-        print(f"Error: File or directory not found: {args.input}")
-        return 1
-
-    return 0
+    return run_path_batch(
+        args.inputs,
+        {'.pdf'},
+        args.output,
+        lambda source, output: bool(
+            extract_pdf_to_markdown(
+                str(source),
+                str(output),
+                images=args.images,
+                render_vector_figures=args.render_vector_figures,
+                vector_figure_dpi=args.vector_figure_dpi,
+            )
+        ),
+    )
 
 
 if __name__ == '__main__':
-    exit(main())
+    raise SystemExit(main())

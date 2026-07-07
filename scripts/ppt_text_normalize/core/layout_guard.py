@@ -11,7 +11,7 @@ def assess_layout_risk(block: TextBlock, target: StyleFingerprint) -> LayoutRisk
         reasons.append("font_family_width_risk")
     if target_size > current_size and block.width and len(block.text) * target_size > block.width * 0.9:
         reasons.append("near_capacity_risk")
-    if (block.paragraph_count or block.paragraphs) > 1:
+    if block.paragraph_count > 1:
         reasons.append("multi_paragraph_height_risk")
     level = "low"
     if len(reasons) >= 2:

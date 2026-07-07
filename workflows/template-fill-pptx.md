@@ -4,24 +4,36 @@ description: PPTX template fill workflow — use a native PowerPoint template de
 
 # Template Fill (PPTX) Workflow
 
-> Run when the user wants to fill new content into an existing deck. Typical requests include "fill this deck with the new content", "fill this back into the template", or "reuse this deck's design". They provide an existing `.pptx` as a native template deck plus topic / text materials and want the content filled back into that deck's design while selecting only the pages that fit the new story (a source page may be reused for several output slides).
+> Run when the user provides a raw `.pptx` template plus new content / a new topic and asks to generate a `.pptx` from that template. Typical requests include "use this PPT template to generate a PPTX", "fill this deck with the new content", "fill this back into the template", "replace the copy in this PowerPoint", or "keep the original PowerPoint pages and swap in this material". This workflow treats the existing `.pptx` as a native slide library and produces a new `.pptx` by selecting, cloning, and patching source slides.
 
 This workflow is **independent** from the SVG generation pipeline. It treats the source PPTX as a native template / slide library, keeps the original PowerPoint design intact, and writes a new `.pptx` by cloning selected source slides and replacing text directly in OOXML.
 
+**Boundary against template-based generation**: run this workflow for raw PPTX template + generated PPTX requests. Skip this workflow only when the user explicitly wants a reusable template package, SVG-derived template roster, or SVG-generated deck that can freely select / repeat / skip / adapt template pages. In that case, they must run [`create-template.md`](./create-template.md) first and then provide the generated template directory path to the main pipeline.
+
+| User wants | Route |
+|---|---|
+| Generate a PPTX from a raw PPTX template | This workflow |
+| Directly edit / fill cloned PPTX slides | This workflow |
+| Create a reusable design asset from the PPTX | `create-template` |
+| Generate a new PPT from a reusable template package | Main pipeline Step 3 with the explicit template directory path |
+| Generate through the SVG pipeline directly from a raw PPTX "template" | Not allowed; create the template package first |
+
 ## When to Run
 
-Recognize any request that combines an existing PowerPoint with new content or a topic, for example:
+Recognize requests that combine an existing PowerPoint template with new content or a topic and ask for a generated `.pptx` without explicitly requesting the reusable SVG/template-package route:
 
 | Pattern | Example |
 |---|---|
 | Existing `.pptx` + "fill back" intent | "Use this deck and fill in the attached material" |
-| Existing `.pptx` + topic reuse | "Rework this PPTX around the new topic" |
+| Raw PPTX template + generated PPTX | "Use this PowerPoint template to generate a PPTX about this topic" |
 | Existing `.pptx` + selective reuse | "Do not keep every page; only use the slides that fit" |
 | Existing `.pptx` + copywriting replacement | "Keep the original design and replace the copy with this text" |
-| Native PPT template fill | "Use this PowerPoint template for this content" |
+| Native PPT template fill | "Use this PowerPoint template for this content and fill the slides directly" |
 | Direct wording | "Fill this deck with the new content" |
 
 **Hard rule**: Do not run `pptx_to_svg.py`, `pptx_template_import.py`, `finalize_svg.py`, or `svg_to_pptx.py` for this workflow. SVG conversion is for presentation generation / template creation; this workflow is direct PowerPoint editing.
+
+**Deterministic routing rule**: do not ask a route-choice question for raw PPTX template + generated PPTX requests; route them here. If the user asks for SVG/template-package generation from a raw PPTX, state that `create-template` must run first and stop this workflow until they provide the generated template directory path.
 
 ---
 
@@ -41,11 +53,14 @@ If the content material is only a topic with no supporting facts, gather or ask 
 
 ## Step 2: Create the Project Workspace
 
-Create a dedicated project directory under `projects/`. Do not write outputs directly into `projects/` root.
+Create a dedicated project directory under `projects/`. Do not write outputs directly into `projects/` root. Reuse the standard project manager so source import rules stay consistent with the rest of the repository:
 
 ```bash
-mkdir -p "<project_dir>/sources" "<project_dir>/analysis" "<project_dir>/exports" "<project_dir>/validation"
+python3 skills/ppt-master/scripts/project_manager.py init "<project_name>" --format ppt169
+python3 skills/ppt-master/scripts/project_manager.py import-sources "<project_dir>" "<source.pptx>" "<material...>"
 ```
+
+**Source import rule**: `project_manager.py import-sources` copies files from outside the repository and moves repo-local files by default, unless `--copy` / `--move` is explicitly supplied. Keep this shared behavior; do not create a separate template-fill import path.
 
 Use this fixed layout:
 
@@ -60,15 +75,15 @@ Use this fixed layout:
 
 ---
 
-## Step 3: Extract the Slide Library
+## Step 3: Extract the PPTX Intake Bundle
 
-Run:
+`project_manager.py import-sources` automatically runs the standard PPTX intake for imported PowerPoint files and writes `<stem>.slide_library.json` into `<project_dir>/analysis/`. If you are working from a manually assembled project that does not have the intake artifact, run the template-fill analyzer directly:
 
 ```bash
-python3 skills/ppt-master/scripts/template_fill_pptx.py analyze "<project_dir>/sources/<source.pptx>" -o "<project_dir>/analysis/slide_library.json"
+python3 skills/ppt-master/scripts/template_fill_pptx.py analyze "<project_dir>/sources/<source.pptx>" -o "<project_dir>/analysis/<stem>.slide_library.json"
 ```
 
-Read `<project_dir>/analysis/slide_library.json` and identify:
+Read `<project_dir>/analysis/<stem>.slide_library.json` (intake prefixes per-deck artifacts by the template deck's file stem) and identify:
 
 | Field | Use |
 |---|---|
@@ -83,7 +98,7 @@ Read `<project_dir>/analysis/slide_library.json` and identify:
 
 A page's layout already encodes a rhetorical shape — a single hero statement, a lead-then-detail split, a 2×2 comparison, a stepwise progression, a metric row. Match the source material's own logic to a page whose structure expresses that same logic; do not pour unrelated content into a slot just because it is empty. When no selected page fits a piece of content well, drop that page or that content rather than forcing it — a forced fill reads as stiff. It is fine to use fewer pages than the source deck has.
 
-**Layout-first planning**: Treat `slide_library.json` as a layout inventory, not as an ordered deck outline. Before writing `fill_plan.json`, infer each reusable source page's affordance from JSON fields:
+**Layout-first planning**: Treat `<stem>.slide_library.json` as a layout inventory, not as an ordered deck outline. Before writing `fill_plan.json`, infer each reusable source page's affordance from JSON fields:
 
 | JSON signal | Layout planning use |
 |---|---|
@@ -95,7 +110,7 @@ A page's layout already encodes a rhetorical shape — a single hero statement, 
 
 **Hard rule**: The target story controls output order. Source slides may move forward, move backward, be omitted, or be reused several times when their layout matches multiple target messages. Never treat source slide order as a default outline unless the user explicitly asks to preserve it.
 
-**Required mapping pass**: Create a concise page-to-layout rationale in `<project_dir>/analysis/` before finalizing the plan. It can be JSON or Markdown, but it must record the intended target slide, chosen `source_slide`, and the layout reason (for example: `three-column strategy`, `two-problem contrast`, `timeline`, `metric focus`, `chapter divider`). This is evidence that selection came from template structure rather than sequential replacement.
+**Required mapping pass**: Record a concise page-to-layout rationale in each planned slide before finalizing the plan. Use the per-slide `layout_rationale` object in `fill_plan.json` with `layout_pattern`, `why_fit`, and `risk`. This is human-review evidence that selection came from template structure rather than sequential replacement; it is not a mechanical checker gate.
 
 ---
 
@@ -104,25 +119,39 @@ A page's layout already encodes a rhetorical shape — a single hero statement, 
 Create a scaffold:
 
 ```bash
-python3 skills/ppt-master/scripts/template_fill_pptx.py scaffold "<project_dir>/analysis/slide_library.json" -o "<project_dir>/analysis/fill_plan.json" --slides "1,3,4"
+python3 skills/ppt-master/scripts/template_fill_pptx.py scaffold "<project_dir>/analysis/<stem>.slide_library.json" -o "<project_dir>/analysis/fill_plan.json" --slides "1,3,4"
 ```
 
 Then edit `<project_dir>/analysis/fill_plan.json` by hand from the source material. The plan is the single execution contract.
 
 **Pages are reusable**: the output is the ordered `slides` list, not a one-to-one copy of the source deck. A source page is not single-use — list the same `source_slide` as many times as you need, each entry with its own `replacements`, to drive several output slides from one good layout (e.g., reuse a single content layout for five content pages). Likewise you may omit source pages entirely and put the selected ones in any order.
 
-**Scaffold boundary**: `scaffold --slides` is only a convenience starter. If the final plan needs repeated source pages or a story order that differs from the template order, duplicate / reorder entries in `fill_plan.json` manually or generate the plan from `slide_library.json`; do not let scaffold output constrain the deck structure.
+**Scaffold boundary**: `scaffold --slides` is only a convenience starter. If the final plan needs repeated source pages or a story order that differs from the template order, duplicate / reorder entries in `fill_plan.json` manually or generate the plan from `<stem>.slide_library.json`; do not let scaffold output constrain the deck structure.
 
 The plan structure:
 
 ```json
 {
   "schema": "template_fill_pptx_plan.v1",
+  "status": "draft",
   "source_pptx": "projects/source.pptx",
+  "accepted_warnings": [
+    {
+      "plan_slide": 3,
+      "slot_id": "s03_sh5",
+      "code": "text_capacity",
+      "reason": "User accepted dense wording"
+    }
+  ],
   "slides": [
     {
       "source_slide": 1,
       "purpose": "cover",
+      "layout_rationale": {
+        "layout_pattern": "hero cover",
+        "why_fit": "Large title and subtitle slots fit the opening message without redesign.",
+        "risk": "Subtitle must stay short."
+      },
       "notes": "Speaker notes for this filled slide.",
       "transition": "fade",
       "replacements": [
@@ -158,7 +187,10 @@ The plan structure:
 
 | Decision | Rule |
 |---|---|
+| `status` | Keep `"draft"` until the user has reviewed the page sequence / reuse / deletion decisions. Set to `"confirmed"` only after approval. |
 | `source_slide` | Repeat the same value across multiple entries to reuse one source layout for several output slides; order is free and must follow the target story rather than source deck order |
+| `layout_rationale` | Human review aid for page selection. Include `layout_pattern`, `why_fit`, and `risk`; it is not a mechanical checker gate. |
+| `accepted_warnings` | Optional audit trail for warnings the user or agent explicitly accepts. `check-plan` warnings remain non-blocking; errors must be fixed. |
 | `notes` | Optional spoken speaker notes for the filled slide — see **Speaker notes** below; write prose, not a copy of the on-slide text |
 | `transition` | Optional per-slide page transition; overrides the `apply --transition` default. Accepts an effect name (`fade` / `push` / `wipe` / `split` / `strips` / `cover` / `random`), `none` to strip it, or `{ "effect": "push", "duration": 0.6 }` |
 | `replacements` | Target by `slot_id` whenever possible; `shape_id` and `shape_name` are fallback selectors |
@@ -169,6 +201,7 @@ The plan structure:
 | Empty slots | Use `scaffold --include-empty` only when a real placeholder is empty in the source deck |
 | Native tables | Keep the original table row and column count; this workflow edits existing cells, not table structure |
 | Native charts | Each series `values` list must match the category count; this workflow edits chart data, not chart styling |
+| Multi-plot / combo charts | Not supported for direct `chart_edits`; `check-plan` reports an error rather than silently writing the wrong plot. Use beautify / main pipeline to redraw them, or leave the native chart untouched. |
 | Facts | Every substantive claim must come from the user material |
 
 **Fit check before apply**:
@@ -206,7 +239,7 @@ Example `notes` value for a Chinese content slide:
 Run the data-based capacity check before applying the plan:
 
 ```bash
-python3 skills/ppt-master/scripts/template_fill_pptx.py check-plan "<project_dir>/analysis/slide_library.json" "<project_dir>/analysis/fill_plan.json" -o "<project_dir>/analysis/check_report.json"
+python3 skills/ppt-master/scripts/template_fill_pptx.py check-plan "<project_dir>/analysis/<stem>.slide_library.json" "<project_dir>/analysis/fill_plan.json" -o "<project_dir>/analysis/check_report.json"
 ```
 
 Interpret the report:
@@ -218,11 +251,15 @@ Interpret the report:
 | Body much longer than source slot | Compress, split across another selected page, or choose a larger source page |
 | Missing target | Fix `slot_id` / `shape_id`; do not apply the plan |
 
+`check-plan` emits stable `code` fields in its JSON results so warnings can be tracked without parsing message text. Warnings are advisory and do not fail the command; record any intentionally accepted warning in `accepted_warnings` when it matters for review. Errors are blocking and must be fixed before apply.
+
 **Default fitting policy**: Check fit against visual capacity, not raw character count. CJK characters, Latin letters, numbers, and punctuation occupy different visual widths; old placeholder text is only a weak signal. Use `capacity_visual_width` when present, together with `slots[].geometry` and `slots[].text_metrics.font_size_px`, to decide whether to rewrite, split, or choose a different source layout. Do not use per-item font shrinking as a default strategy because it breaks template consistency.
 
 ---
 
 ## Step 6: Apply the Plan
+
+⛔ **BLOCKING GATE**: The user has reviewed the planned output order, omitted pages, reused pages, and material-to-layout fit. Set `<project_dir>/analysis/fill_plan.json` top-level `status` to `"confirmed"` only after that review. `apply` rejects an unconfirmed plan by default; `--force` exists only for deliberate recovery/debug use.
 
 Run:
 
@@ -255,10 +292,10 @@ The script:
 Run a lightweight readability check:
 
 ```bash
-python3 skills/ppt-master/scripts/source_to_md/ppt_to_md.py "<project_dir>/exports/<output.pptx>"
+python3 skills/ppt-master/scripts/template_fill_pptx.py validate "<project_dir>"
 ```
 
-Move or copy the read-back Markdown and extracted files into `<project_dir>/validation/` so `exports/` contains only final deliverables.
+The validator finds the latest PPTX in `<project_dir>/exports/`, runs `ppt_to_md.py` into `<project_dir>/validation/readback.md`, and writes `<project_dir>/validation/validate_report.json`. `exports/` must contain only final deliverables.
 
 Verify:
 
@@ -268,9 +305,9 @@ Verify:
 | Slide count | Matches `len(fill_plan.slides)` |
 | Key title text | Appears in the extracted Markdown |
 | Native table cells | Updated values appear in the extracted Markdown table |
-| Native chart data | Updated labels / values are present in the cloned chart XML |
+| Native chart data | Updated labels / values are readable from the extracted Markdown when `ppt_to_md.py` can surface them |
 | Multi-line body text | Preserves intended line / paragraph breaks |
-| Speaker notes | `ppt_to_md.py` can read the generated PPTX without notes-related errors |
+| Speaker notes | Read-back note count matches planned `notes` fields |
 | Missing target errors | None from `template_fill_pptx.py apply` |
 
 If the extracted text is correct but visual overflow is likely, reduce the text in `fill_plan.json` and re-run Step 4.
@@ -278,12 +315,13 @@ If the extracted text is correct but visual overflow is likely, reduce the text 
 ```markdown
 ## ✅ Template Fill Complete
 
-- [x] `slide_library.json` extracted from the source PPTX
+- [x] Standard PPTX intake extracted from the source deck, including `<stem>.slide_library.json`
 - [x] `fill_plan.json` selects only pages that fit the target story
-- [x] `check-plan` run and capacity warnings resolved or explicitly accepted
+- [x] User reviewed the story structure and `fill_plan.json` has `status: "confirmed"`
+- [x] `check-plan` run; errors fixed; warnings reviewed / optionally recorded in `accepted_warnings`
 - [x] Output PPTX generated through direct OOXML text replacement
 - [x] Speaker notes embedded when `notes` fields are present
-- [x] `ppt_to_md.py` readability check passed
+- [x] `template_fill_pptx.py validate` read-back check passed
 ```
 
 ---
@@ -303,3 +341,4 @@ If the extracted text is correct but visual overflow is likely, reduce the text 
 | Edit chart formatting / axes / legend layout | Not in v1 |
 | Edit SmartArt deeply | Not in v1 |
 | Automatic visual overflow detection | Not in v1; use text-capacity judgment from the library slots |
+| Material-divergence reshaping (§c content strategy) | Not applicable — this workflow fills text into existing slots, it does not author an outline from a source, so the main pipeline's `content_divergence` free-text field has no role here |

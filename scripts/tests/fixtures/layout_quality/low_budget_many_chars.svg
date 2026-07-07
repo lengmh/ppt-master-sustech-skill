@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-page="P05">
+  <rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <text x="80" y="120" font-size="20" font-family="Arial">This page declares a low text budget but contains a deliberately long paragraph. The purpose of this fixture is to ensure that the checker uses the declared budget as a reporting hint rather than tuning behavior to a filename. The text keeps going with enough visible characters to cross the low budget threshold while still remaining simple SVG text. More visible characters make the mismatch explicit and deterministic.</text>
+</svg>

@@ -6,7 +6,7 @@ Whiteboard-ink minimalism — a pale field, confident black hand-ink line work, 
 
 ## 1. Shape & decoration
 
-- Shape language: hand-drawn line work with slight, intentional wobble — boxes, arrows, dividers and brackets sketched as if on a thoughtful whiteboard; never mechanically straight. Line defines structure; no filled cards.
+- Shape language: hand-drawn line work with slight, intentional wobble — boxes, arrows, dividers and brackets sketched as if on a thoughtful whiteboard; never mechanically straight — realize it as `<path>` / `<polyline>` with off-grid points, not `<rect>` / `<line>` primitives. Line defines structure; no filled cards.
 - Decoration: minimal — a few doodle marks (stars, dashes, dots, underlines) for emphasis. Restraint is the look; clutter breaks the "considered" feel.
 - Whitespace: generous and empty; the pale field carries most of the canvas, elements float with room around them.
 
@@ -31,3 +31,7 @@ Whiteboard-ink minimalism — a pale field, confident black hand-ink line work, 
 ## 5. Paired image-rendering
 
 `ink-notes` — black-ink visual-note imagery on a clean field, matching the considered hand-drawn aesthetic.
+
+## 6. Illustration propensity
+
+**supportive** — the style is already sparse and considered; a few hand-ink spots fit, but restraint is its temperament — use only where one genuinely earns its place. With no user steer this is the default lean; an explicit user request wins either way, and `image_usage: none` writes no illustration rows.

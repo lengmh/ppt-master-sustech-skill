@@ -11,6 +11,7 @@
             page_title: "PPT Master - Live Preview",
             panel_slides: "Slides",
             panel_annotations: "Annotations",
+            panel_edit_annotate: "Edit / Annotate",
             placeholder_select_slide: "Select a slide on the left to begin",
             label_selected_element: "Selected element",
             empty_selected_element: "Click an element on the slide to select it",
@@ -22,14 +23,19 @@
             section_text_style: "Text",
             section_raw_attrs: "Raw attributes",
             label_edit_instruction: "Edit instruction",
-            label_layout_issues: "Layout issues",
-            panel_review: "Review",
+            pending_none: "No pending changes",
+            pending_summary: "{edits} direct edit(s), {annotations} annotation page(s) pending",
+            pending_pages: "Pages: {pages}",
+            quick_align: "Align / move",
+            quick_resize: "Resize",
+            quick_replace_image: "Replace image",
+            quick_copy: "Revise copy",
+            quick_relayout: "Relayout area",
             placeholder_annotation: "Describe how the AI should modify this element...",
             placeholder_annotation_multi: "Describe how to modify all {count} elements...",
             btn_add_annotation: "Add annotation",
             label_annotations_on_slide: "Annotations on this slide",
             btn_submit_annotations: "Apply changes",
-            btn_review_done: "Review done, return to chat",
             btn_exit_preview: "Exit preview",
             modal_submit: "Submit",
             modal_cancel: "Cancel",
@@ -47,7 +53,6 @@
             err_remove_annotation: "Failed to remove annotation: ",
             err_save: "Save failed: ",
             err_edit: "Edit failed: ",
-            err_review_readonly: "Review mode is read-only; save review decisions instead.",
             label_direct_edit: "Object attributes (pending until Apply changes)",
             prop_multiline_hint: "Multi-line — select a single line (tspan) to edit text",
             edit_saved_hint: "Change staged. Click Apply changes to write it to svg_output.",
@@ -57,17 +62,18 @@
             overlap_caption: "Overlapping here — pick one",
             err_empty_svg: "Slide loaded but the canvas is empty. The SVG may be malformed or missing a root <svg> element.",
             warn_icon_inline: "{count} icon(s) failed to render: {names}",
-            warn_svg_no_dims: "SVG is missing width/height attributes. Please ask the AI to strictly follow shared-standards.md §4 and include width & height in the SVG root element.",
+            warn_matrix_transform: "This geometry edit is stored as a transform matrix. Preview is exact; PPTX export depends on matrix-aware conversion.",
+            modal_matrix_transform_note: "\n\nNote: at least one staged geometry edit uses a transform matrix. Re-export with the current PPTX exporter so the matrix is applied.",
             slide_error_tooltip: "Failed to parse this slide: ",
             reload_banner: "This slide was updated on disk. Click to reload.",
-            modal_confirm_submit: "Apply staged attribute edits and annotations to disk?\n\nThe preview service will keep running. Click Exit preview when you want to stop it.",
-            modal_success_submit: "Changes saved to svg_output.\n\nReturn to the chat to re-export the PPTX or apply AI-needed annotations. The preview service is still running.",
-            modal_review_done: "review_decisions.json is saved as you click each review decision.\n\nReturn to the chat and tell the AI to compile reviewed rules and apply normalization.",
-            modal_success_review_done: "Review decisions are ready.\n\nReturn to the chat and say: \"review complete, continue apply\".",
+            modal_confirm_submit: "Apply staged direct edits and AI annotations to disk?\n\nThe preview service will keep running. Click Exit preview when you want to stop it.",
+            modal_success_submit: "Changes saved to svg_output.\n\nThe preview service is still running.",
+            modal_success_direct_only: "Changes saved to svg_output.\n\nDirect edits are now in the SVG source. Return to the chat and ask to re-export when you want a refreshed PPTX. The preview service is still running.",
+            modal_success_annotations_only: "Annotations saved to svg_output.\n\nReturn to the chat and ask to apply annotations when you want AI to interpret them. The preview service is still running.",
+            modal_success_mixed: "Direct edits and annotations saved to svg_output.\n\nReturn to the chat to apply AI-needed annotations, then re-export the PPTX when ready. The preview service is still running.",
             modal_confirm_exit: "Exit preview and stop the local server?\n\nUnapplied edits and annotations will be discarded.",
             modal_success_exit: "Preview stopped.\n\nYou can close this tab and return to the chat.",
             modal_stopping: "Stopping preview server...",
-            selected_help_review: "Select a text block and save review decisions. The browser only writes review_decisions.json.",
             lang_toggle_title: "Switch language",
             nav_first: "First slide (Home)",
             nav_prev: "Previous slide (←)",
@@ -76,10 +82,86 @@
             nav_counter: "{current} / {total}",
             nav_empty: "— / —"
         },
+        ja: {
+            page_title: "PPT Master - ライブプレビュー",
+            panel_slides: "スライド",
+            panel_annotations: "注釈",
+            panel_edit_annotate: "編集 / 注釈",
+            placeholder_select_slide: "左のスライドを選択して開始",
+            label_selected_element: "選択中の要素",
+            empty_selected_element: "スライド上の要素をクリックして選択",
+            btn_select_group: "親グループを選択",
+            label_batch_edit: "一括編集",
+            label_group_edit: "グループ編集",
+            section_geometry: "位置・サイズ",
+            section_style: "スタイル",
+            section_text_style: "テキスト",
+            section_raw_attrs: "生の属性",
+            label_edit_instruction: "編集指示",
+            pending_none: "未適用の変更はありません",
+            pending_summary: "直接編集{edits}件、AI注釈のあるページ{annotations}件が未適用",
+            pending_pages: "対象ページ：{pages}",
+            quick_align: "整列 / 移動",
+            quick_resize: "サイズ変更",
+            quick_replace_image: "画像を差し替え",
+            quick_copy: "文言を修正",
+            quick_relayout: "この領域を再レイアウト",
+            placeholder_annotation: "この要素をAIにどう修正してほしいか記述…",
+            placeholder_annotation_multi: "選択した{count}個の要素をどう修正するか記述…",
+            btn_add_annotation: "注釈を追加",
+            label_annotations_on_slide: "このスライドの注釈",
+            btn_submit_annotations: "変更を適用",
+            btn_exit_preview: "プレビューを終了",
+            modal_submit: "送信",
+            modal_cancel: "キャンセル",
+            empty_waiting_slides: "スライドの生成を待っています…",
+            empty_no_slides: "スライドが見つかりません",
+            placeholder_live_ready: "ライブプレビュー準備完了。生成されたスライドがここに表示されます。",
+            placeholder_slide_writing: "スライドはまだ書き込み中です。次の更新を待っています…",
+            empty_annotations: "注釈はまだありません",
+            tooltip_remove_annotation: "注釈を削除",
+            multi_selected: "{count}個の要素を選択中",
+            multi_mixed: "混在",
+            err_load_slides: "スライド一覧の読み込みに失敗: ",
+            err_load_slide: "スライドの読み込みに失敗: ",
+            err_add_annotation: "注釈の追加に失敗: ",
+            err_remove_annotation: "注釈の削除に失敗: ",
+            err_save: "保存に失敗: ",
+            err_edit: "編集に失敗: ",
+            label_direct_edit: "オブジェクト属性（「変更を適用」までは保留）",
+            prop_multiline_hint: "複数行テキストです — 文字を編集するには1行（tspan）を選択してください",
+            edit_saved_hint: "変更を一時保存しました。「変更を適用」で svg_output に書き込まれます。",
+            btn_undo: "元に戻す",
+            undo_done: "直前の一時保存済み編集を取り消しました",
+            undo_empty: "取り消せる編集はありません",
+            overlap_caption: "要素が重なっています — 1つ選択してください",
+            err_empty_svg: "スライドは読み込めましたがキャンバスが空です。SVGが不正か、ルート<svg>要素がない可能性があります。",
+            warn_icon_inline: "{count}個のアイコンを描画できませんでした: {names}",
+            warn_matrix_transform: "このジオメトリ編集は transform matrix として保存されます。プレビューは正確ですが、PPTX出力にはmatrix対応の現行エクスポーターが必要です。",
+            modal_matrix_transform_note: "\n\n注意：一時保存済みのジオメトリ編集に transform matrix を使うものがあります。matrixが反映されるよう、現行のPPTXエクスポーターで再エクスポートしてください。",
+            slide_error_tooltip: "このスライドの解析に失敗: ",
+            reload_banner: "このスライドはディスク上で更新されました。クリックで再読み込み。",
+            modal_confirm_submit: "一時保存済みの直接編集とAI注釈をディスクに書き込みますか？\n\nプレビューサービスは動き続けます。止めたいときは「プレビューを終了」を押してください。",
+            modal_success_submit: "変更を svg_output に保存しました。\n\nプレビューサービスは引き続き動作中です。",
+            modal_success_direct_only: "変更を svg_output に保存しました。\n\n直接編集はSVGソースに反映済みです。PPTXを更新したいときは、チャットに戻って再エクスポートを依頼してください。プレビューサービスは引き続き動作中です。",
+            modal_success_annotations_only: "注釈を svg_output に保存しました。\n\nAIに注釈を解釈・反映させたいときは、チャットに戻って注釈の適用を依頼してください。プレビューサービスは引き続き動作中です。",
+            modal_success_mixed: "直接編集と注釈を svg_output に保存しました。\n\nチャットに戻ってAI判断が必要な注釈の適用を先に依頼し、確認できたらPPTXを再エクスポートしてください。プレビューサービスは引き続き動作中です。",
+            modal_confirm_exit: "プレビューを終了してローカルサーバーを停止しますか？\n\n未適用の編集と注釈は破棄されます。",
+            modal_success_exit: "プレビューを停止しました。\n\nこのタブを閉じてチャットに戻れます。",
+            modal_stopping: "プレビューサーバーを停止しています…",
+            lang_toggle_title: "言語を切り替え",
+            nav_first: "最初のスライド (Home)",
+            nav_prev: "前のスライド (←)",
+            nav_next: "次のスライド (→)",
+            nav_last: "最後のスライド (End)",
+            nav_counter: "{current} / {total}",
+            nav_empty: "— / —"
+        },
         zh: {
             page_title: "PPT Master - 实时预览",
             panel_slides: "幻灯片",
             panel_annotations: "标注",
+            panel_edit_annotate: "编辑 / 标注",
             placeholder_select_slide: "在左侧选择一张幻灯片开始",
             label_selected_element: "已选元素",
             empty_selected_element: "点击幻灯片中的元素进行选择",
@@ -91,14 +173,19 @@
             section_text_style: "文本",
             section_raw_attrs: "原始属性",
             label_edit_instruction: "修改说明",
-            label_layout_issues: "排版问题",
-            panel_review: "审阅",
+            pending_none: "没有待应用修改",
+            pending_summary: "{edits} 条直接修改、{annotations} 个页面有 AI 标注待应用",
+            pending_pages: "页面：{pages}",
+            quick_align: "对齐/移动",
+            quick_resize: "调整大小",
+            quick_replace_image: "换图",
+            quick_copy: "改文案",
+            quick_relayout: "重排此区域",
             placeholder_annotation: "描述希望 AI 如何修改该元素……",
             placeholder_annotation_multi: "描述希望如何修改所选 {count} 个元素……",
             btn_add_annotation: "添加标注",
             label_annotations_on_slide: "本页标注",
             btn_submit_annotations: "应用修改",
-            btn_review_done: "审阅完成，回到对话应用",
             btn_exit_preview: "退出预览",
             modal_submit: "提交",
             modal_cancel: "取消",
@@ -116,7 +203,6 @@
             err_remove_annotation: "删除标注失败:",
             err_save: "保存失败:",
             err_edit: "编辑失败:",
-            err_review_readonly: "审阅模式只读；请保存审阅决策。",
             label_direct_edit: "对象属性(点击应用修改后写入)",
             prop_multiline_hint: "多行文本——选中单行(tspan)编辑文字",
             edit_saved_hint: "修改已暂存。点击“应用修改”后写入 svg_output。",
@@ -126,17 +212,18 @@
             overlap_caption: "此处重叠元素——点击选择",
             err_empty_svg: "幻灯片已加载但画布为空。SVG 可能损坏或缺少根 <svg> 元素。",
             warn_icon_inline: "{count} 个图标渲染失败:{names}",
-            warn_svg_no_dims: "SVG 缺少 width/height 属性，预览可能异常。请让 AI 严格遵守 shared-standards.md §4 规范，在 SVG 根元素中补全 width 和 height。",
+            warn_matrix_transform: "本次几何修改会以 transform matrix 保存。预览是准确的；PPTX 导出需要使用支持 matrix 的当前导出器。",
+            modal_matrix_transform_note: "\n\n提示：至少有一条暂存几何修改使用了 transform matrix。请用当前 PPTX 导出器重新导出，确保 matrix 被应用。",
             slide_error_tooltip: "该幻灯片解析失败:",
             reload_banner: "当前页已在磁盘上更新,点此重新加载。",
-            modal_confirm_submit: "确认将暂存属性修改和标注写入磁盘?\n\n预览服务会继续运行。需要关闭时请点击退出预览。",
-            modal_success_submit: "修改已保存到 svg_output。\n\n请回到对话窗口重新导出 PPTX，或让 AI 应用需要判断的标注。预览服务仍在运行。",
-            modal_review_done: "review_decisions.json 已保存；浏览器不会直接修改 PPTX。\n\n请回到对话窗口，让 AI 继续 compile + apply。",
-            modal_success_review_done: "审阅决策已就绪。\n\n请回到对话窗口并告诉 AI：审阅完成，继续应用。",
+            modal_confirm_submit: "确认将暂存的直接修改和 AI 标注写入磁盘?\n\n预览服务会继续运行。需要关闭时请点击退出预览。",
+            modal_success_submit: "修改已保存到 svg_output。\n\n预览服务仍在运行。",
+            modal_success_direct_only: "修改已保存到 svg_output。\n\n直接修改已经写入 SVG 源文件；需要刷新 PPTX 时，请回到对话窗口要求重新导出。预览服务仍在运行。",
+            modal_success_annotations_only: "标注已保存到 svg_output。\n\n需要 AI 理解并执行这些标注时，请回到对话窗口要求应用标注。预览服务仍在运行。",
+            modal_success_mixed: "直接修改和标注已保存到 svg_output。\n\n请回到对话窗口先应用需要 AI 判断的标注，确认后再重新导出 PPTX。预览服务仍在运行。",
             modal_confirm_exit: "退出预览并停止本地服务?\n\n未应用的属性修改和标注将被丢弃。",
             modal_success_exit: "预览已停止。\n\n可以关闭本标签页并回到对话窗口。",
             modal_stopping: "正在停止预览服务……",
-            selected_help_review: "请选择文本框并保存审阅决策；浏览器只保存 review_decisions.json。",
             lang_toggle_title: "切换语言",
             nav_first: "第一页 (Home)",
             nav_prev: "上一页 (←)",
@@ -150,10 +237,12 @@
     var LANG = (function () {
         try {
             var stored = window.localStorage.getItem("ppt_lang");
-            if (stored === "zh" || stored === "en") return stored;
+            if (stored === "zh" || stored === "en" || stored === "ja") return stored;
         } catch (e) { /* ignore */ }
         var nav = (navigator.language || navigator.userLanguage || "en").toLowerCase();
-        return nav.indexOf("zh") === 0 ? "zh" : "en";
+        if (nav.indexOf("zh") === 0) return "zh";
+        if (nav.indexOf("ja") === 0) return "ja";
+        return "en";
     })();
 
     function t(key, params) {
@@ -170,7 +259,7 @@
     }
 
     function applyI18n() {
-        document.documentElement.setAttribute("lang", LANG === "zh" ? "zh-CN" : "en");
+        document.documentElement.setAttribute("lang", LANG === "zh" ? "zh-CN" : (LANG === "ja" ? "ja" : "en"));
         document.title = t("page_title");
         document.querySelectorAll("[data-i18n]").forEach(function (el) {
             el.textContent = t(el.getAttribute("data-i18n"));
@@ -184,21 +273,33 @@
         updateNavLabel();
     }
 
+    var LANG_NAMES = { zh: "中文", en: "English", ja: "日本語" };
+
+    function refreshLangUI(lang) {
+        // Custom dropdown (OS-independent): button shows the CURRENT language.
+        var cur = document.getElementById("lang-current");
+        if (cur) cur.textContent = LANG_NAMES[lang] || lang;
+        var btn = document.getElementById("btn-lang-toggle");
+        if (btn) btn.title = t("lang_toggle_title");
+        document.querySelectorAll("#lang-menu li").forEach(function (li) {
+            var selected = li.getAttribute("data-lang") === lang;
+            li.classList.toggle("selected", selected);
+            li.setAttribute("aria-selected", selected ? "true" : "false");
+        });
+    }
+
     function setLang(lang) {
-        if (lang !== "zh" && lang !== "en") return;
+        if (lang !== "zh" && lang !== "en" && lang !== "ja") return;
         LANG = lang;
         try { window.localStorage.setItem("ppt_lang", lang); } catch (e) { /* ignore */ }
         applyI18n();
-        applyReviewModeUi();
-        var toggleBtn = document.getElementById("btn-lang-toggle");
-        if (toggleBtn) {
-            toggleBtn.textContent = lang === "zh" ? "EN" : "中";
-            toggleBtn.title = t("lang_toggle_title");
-        }
+        refreshLangUI(lang);
         // Re-render dynamic regions so they pick up the new language
         updateSelectionPanel();
         updateAnnotationList();
         updateUndoButton();
+        updatePendingStatus();
+        initAnnotationQuickActions();
         loadSlides();
     }
 
@@ -208,13 +309,11 @@
     var svgContent        = document.getElementById("svg-content");
     var selectedElementEl = document.getElementById("selected-element");
     var annotationInput   = document.getElementById("annotation-input");
+    var annotationQuickActions = document.getElementById("annotation-quick-actions");
     var annotationText    = document.getElementById("annotation-text");
     var btnAddAnnotation  = document.getElementById("btn-add-annotation");
     var annotationsEl     = document.getElementById("annotations");
     var btnUndo           = document.getElementById("btn-undo");
-    var layoutIssuesEl    = document.getElementById("layout-issues");
-    var layoutIssuesListEl = document.getElementById("layout-issues-list");
-    var layoutIssuesActionsEl = document.getElementById("layout-issues-actions");
     var btnSave           = document.getElementById("btn-save");
     var btnExitPreview    = document.getElementById("btn-exit-preview");
     var modalOverlay      = document.getElementById("modal-overlay");
@@ -222,6 +321,7 @@
     var modalConfirm      = document.getElementById("modal-confirm");
     var modalCancel       = document.getElementById("modal-cancel");
     var elementPropsEl    = document.getElementById("element-props");
+    var pendingStatusEl   = document.getElementById("pending-status");
 
     var navFirstBtn       = document.getElementById("nav-first");
     var navPrevBtn        = document.getElementById("nav-prev");
@@ -235,17 +335,105 @@
     var slideNames        = [];     // ordered slide filenames for navigation
     var selectedElementIds = new Set(); // id attrs of selected SVG elements
     var slideAnnotations  = {};     // {element_id: annotation_text} for current slide
-    var currentLayoutIssues = [];
     var liveMode          = false;
-    var reviewMode        = false;
     var slidePollTimer    = null;
     var pendingModalAction = "submit";
     var slideMtimes       = {};     // {name: mtime} — last-seen mtime for each slide
     var reloadBannerEl    = null;   // singleton banner element shown when currentSlide mtime drifts
     var editStackCount    = {};     // {name: staged edit count} — mirrors backend PENDING_EDITS
     var savedHintShown    = false;  // show the "staged edit" hint once per session
+    var matrixHintShown   = false;  // show transform-matrix export hint once per session
+    var matrixEditSlides  = {};     // {name: true} when a staged edit wrote transform=matrix(...)
     var annotationsDirty  = false;  // unsaved annotations added/removed this session
-    var EditorLogic       = window.PptSvgEditorLogic || null;
+    var annotationEditSlides = {};  // {name: true} when annotations changed this session
+
+    function pendingDirectEditCount() {
+        return Object.keys(editStackCount).reduce(function (total, name) {
+            return total + Math.max(0, editStackCount[name] || 0);
+        }, 0);
+    }
+
+    function pendingDirectEditSlides() {
+        return Object.keys(editStackCount).filter(function (name) {
+            return (editStackCount[name] || 0) > 0;
+        });
+    }
+
+    function pendingAnnotationSlides() {
+        return Object.keys(annotationEditSlides).filter(function (name) {
+            return !!annotationEditSlides[name];
+        });
+    }
+
+    function pendingAnnotationChangeCount() {
+        return pendingAnnotationSlides().length;
+    }
+
+    function pendingSlideNames() {
+        var seen = {};
+        pendingDirectEditSlides().concat(pendingAnnotationSlides()).forEach(function (name) {
+            seen[name] = true;
+        });
+        return Object.keys(seen).sort();
+    }
+
+    function updatePendingStatus() {
+        if (!pendingStatusEl) return;
+        var edits = pendingDirectEditCount();
+        var annotations = pendingAnnotationChangeCount();
+        if (edits === 0 && annotations === 0) {
+            pendingStatusEl.className = "pending-status empty";
+            pendingStatusEl.textContent = t("pending_none");
+            return;
+        }
+        var pages = pendingSlideNames();
+        pendingStatusEl.className = "pending-status active";
+        pendingStatusEl.innerHTML =
+            '<div>' + escapeHtml(t("pending_summary", {
+                edits: edits,
+                annotations: annotations,
+            })) + '</div>' +
+            (pages.length ? '<div class="pending-pages">' + escapeHtml(t("pending_pages", {
+                pages: pages.join(", "),
+            })) + '</div>' : '');
+    }
+
+    function markAnnotationChanged(slide) {
+        if (!slide) return;
+        annotationEditSlides[slide] = true;
+        annotationsDirty = true;
+        updatePendingStatus();
+    }
+
+    function initAnnotationQuickActions() {
+        if (!annotationQuickActions) return;
+        var actions = [
+            { key: "quick_align" },
+            { key: "quick_resize" },
+            { key: "quick_replace_image" },
+            { key: "quick_copy" },
+            { key: "quick_relayout" },
+        ];
+        annotationQuickActions.innerHTML = "";
+        actions.forEach(function (action) {
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "annotation-quick-chip";
+            btn.textContent = t(action.key);
+            btn.addEventListener("click", function () {
+                var label = t(action.key);
+                var prefix = (LANG === "zh" || LANG === "ja") ? label + "：" : label + ": ";
+                if (!annotationText.value.trim()) {
+                    annotationText.value = prefix;
+                } else if (annotationText.value.indexOf(prefix) === -1) {
+                    annotationText.value = prefix + annotationText.value;
+                }
+                annotationText.focus();
+                annotationText.selectionStart = annotationText.selectionEnd = annotationText.value.length;
+            });
+            annotationQuickActions.appendChild(btn);
+        });
+    }
 
     // Staged edits live in server memory until "Apply changes"; the server can
     // still idle-timeout or be killed and drop them. Warn before the tab leaves
@@ -325,6 +513,7 @@
                         svgContent.style.display = "none";
                     }
                     updateNavLabel();
+                    updatePendingStatus();
                     return;
                 }
 
@@ -377,6 +566,7 @@
                     showReloadBanner(currentSlide);
                 }
                 updateNavLabel();
+                updatePendingStatus();
             })
             .catch(function (err) {
                 console.error("loadSlides:", err);
@@ -406,10 +596,6 @@
         // Selecting a slide implicitly dismisses any stale "page updated" banner.
         hideReloadBanner();
 
-        // Remove any stale spec-violation banner from a previous load.
-        var oldSpecBanner = document.getElementById("spec-banner");
-        if (oldSpecBanner) oldSpecBanner.remove();
-
         fetch("/api/slide/" + encodeURIComponent(name))
             .then(function (res) { return res.json(); })
             .then(function (data) {
@@ -432,16 +618,24 @@
                 // Empty-canvas guard: surface a clear error if the SVG parsed
                 // to nothing renderable (issue #115's silent-blank scenario).
                 var rootSvg = svgContent.querySelector("svg");
-                // Spec observability: missing width/height → red banner only
-                if (rootSvg && (!rootSvg.hasAttribute("width") || !rootSvg.hasAttribute("height"))) {
-                    var specBanner = document.createElement("div");
-                    specBanner.id = "spec-banner";
-                    specBanner.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);"
-                        + "background:#fee2e2;color:#b91c1c;border:2px solid #f87171;border-radius:8px;"
-                        + "padding:24px 36px;font-size:16px;font-weight:bold;text-align:center;z-index:9999;"
-                        + "width:420px;line-height:1.6;box-shadow:0 4px 12px rgba(0,0,0,0.15);";
-                    specBanner.textContent = t("warn_svg_no_dims");
-                    document.body.appendChild(specBanner);
+                // viewBox is the PPT Master canvas authority. Normalize the
+                // preview DOM from it so stale or missing root width/height
+                // cannot shrink the slide. View-layer only — the file on disk
+                // is never touched.
+                if (rootSvg) {
+                    var vb = (rootSvg.getAttribute("viewBox") || "").trim().split(/[\s,]+/);
+                    var vbWidth = Number(vb[2]);
+                    var vbHeight = Number(vb[3]);
+                    if (
+                        vb.length === 4 &&
+                        Number.isFinite(vbWidth) &&
+                        Number.isFinite(vbHeight) &&
+                        vbWidth > 0 &&
+                        vbHeight > 0
+                    ) {
+                        rootSvg.setAttribute("width", vb[2]);
+                        rootSvg.setAttribute("height", vb[3]);
+                    }
                 }
                 var hasContent = false;
                 if (rootSvg) {
@@ -486,13 +680,10 @@
 
                 editStackCount[name] = data.undo_depth || 0;
                 setupSvgInteraction();
-                if (window.PptTextNormalizeReview) {
-                    window.PptTextNormalizeReview.onSlideLoaded(rootSvg);
-                }
                 refreshAnnotationVisuals();
                 updateAnnotationList();
                 updateUndoButton();
-                renderLayoutIssuesForSelection();
+                updatePendingStatus();
             })
             .catch(function (err) {
                 console.error("selectSlide:", err);
@@ -608,11 +799,6 @@
             annotationText.value = "";
             propsEl.style.display = "none";
             propsEl.innerHTML = "";
-            clearScaleHandles();
-            hideLayoutIssues();
-            if (window.PptTextNormalizeReview) {
-                window.PptTextNormalizeReview.onSelectionChange([], svgContent);
-            }
             return;
         }
 
@@ -637,19 +823,6 @@
             attachMultiSelectionEditors(Array.from(selectedElementIds));
         }
 
-        if (reviewMode) {
-            annotationInput.style.display = "none";
-            annotationText.value = "";
-            propsEl.style.display = "none";
-            propsEl.innerHTML = "";
-            clearScaleHandles();
-            hideLayoutIssues();
-            if (window.PptTextNormalizeReview) {
-                window.PptTextNormalizeReview.onSelectionChange(Array.from(selectedElementIds), svgContent);
-            }
-            return;
-        }
-
         annotationInput.style.display = "block";
         annotationText.placeholder = count > 1
             ? t("placeholder_annotation_multi", { count: count })
@@ -657,11 +830,6 @@
         annotationText.value = count === 1
             ? (slideAnnotations[selectedElementIds.values().next().value] || "")
             : "";
-        renderLayoutIssuesForSelection();
-        renderScaleHandles();
-        if (window.PptTextNormalizeReview) {
-            window.PptTextNormalizeReview.onSelectionChange(Array.from(selectedElementIds), svgContent);
-        }
     }
 
     // ---- Rubber band selection ----
@@ -679,16 +847,6 @@
     var dragMoved = false;      // crossed the move threshold this gesture
     var dragEls = [];           // top-level selected elements being moved
     var dragStartAttrs = {};    // {id: startGeometryAttrs} for drift-free preview
-    var scaleHandleLayer = null;
-    var scaleState = {
-        active: false,
-        el: null,
-        handle: null,
-        startBox: null,
-        startAttrs: null,
-        lastAttrs: null,
-        moved: false
-    };
 
     function hitSelectedAncestor(target) {
         // Walk up from the pressed node to the first element already in the
@@ -844,224 +1002,6 @@
         dragEls = [];
         dragStartAttrs = {};
         document.body.classList.remove("svg-dragging");
-    }
-
-    function getSvgRoot() {
-        return svgContent.querySelector("svg");
-    }
-
-    function rootPointToScreen(x, y) {
-        var svg = getSvgRoot();
-        var m = svg && svg.getScreenCTM ? svg.getScreenCTM() : null;
-        if (!m) return null;
-        return { x: x * m.a + y * m.c + m.e, y: x * m.b + y * m.d + m.f };
-    }
-
-    function screenPointToRoot(x, y) {
-        var svg = getSvgRoot();
-        if (!svg || typeof svg.createSVGPoint !== "function") return null;
-        var m = svg.getScreenCTM ? svg.getScreenCTM() : null;
-        if (!m || typeof m.inverse !== "function") return null;
-        try {
-            var pt = svg.createSVGPoint();
-            pt.x = x;
-            pt.y = y;
-            return pt.matrixTransform(m.inverse());
-        } catch (err) {
-            return null;
-        }
-    }
-
-    function geometrySnapshot(el) {
-        var attrs = {};
-        [
-            "x", "y", "cx", "cy", "x1", "y1", "x2", "y2",
-            "width", "height", "transform"
-        ].forEach(function (key) {
-            attrs[key] = el.hasAttribute(key) ? el.getAttribute(key) : null;
-        });
-        return attrs;
-    }
-
-    function ensureScaleHandleLayer() {
-        if (scaleHandleLayer) return scaleHandleLayer;
-        scaleHandleLayer = document.createElement("div");
-        scaleHandleLayer.id = "scale-handle-layer";
-        document.body.appendChild(scaleHandleLayer);
-        return scaleHandleLayer;
-    }
-
-    function clearScaleHandles() {
-        if (!scaleHandleLayer) return;
-        scaleHandleLayer.innerHTML = "";
-        scaleHandleLayer.style.display = "none";
-    }
-
-    function buildScaleHandle(x, y, handleName) {
-        var handle = document.createElement("div");
-        handle.className = "scale-handle scale-handle-" + handleName;
-        handle.style.left = (x - 6) + "px";
-        handle.style.top = (y - 6) + "px";
-        handle.dataset.handle = handleName;
-        handle.addEventListener("mousedown", function (e) {
-            if (e.button !== 0 || reviewMode) return;
-            e.preventDefault();
-            e.stopPropagation();
-            beginScale(handleName);
-        });
-        return handle;
-    }
-
-    function renderScaleHandles() {
-        clearScaleHandles();
-        if (reviewMode || selectedElementIds.size !== 1 || !currentSlide) return;
-        var eid = selectedElementIds.values().next().value;
-        var el = svgContent.querySelector("#" + CSS.escape(eid));
-        if (!el) return;
-        var rb;
-        try { rb = computeRenderBox(el); } catch (err) { return; }
-        if (!Number.isFinite(rb.w) || !Number.isFinite(rb.h) || rb.w <= 0 || rb.h <= 0) return;
-
-        var layer = ensureScaleHandleLayer();
-        var corners = [
-            { name: "nw", x: rb.x, y: rb.y },
-            { name: "ne", x: rb.x + rb.w, y: rb.y },
-            { name: "sw", x: rb.x, y: rb.y + rb.h },
-            { name: "se", x: rb.x + rb.w, y: rb.y + rb.h }
-        ];
-        layer.style.display = "block";
-        corners.forEach(function (corner) {
-            var p = rootPointToScreen(corner.x, corner.y);
-            if (p) layer.appendChild(buildScaleHandle(p.x, p.y, corner.name));
-        });
-    }
-
-    function beginScale(handleName) {
-        if (reviewMode || selectedElementIds.size !== 1) return;
-        var eid = selectedElementIds.values().next().value;
-        var el = svgContent.querySelector("#" + CSS.escape(eid));
-        if (!el) return;
-        var rb;
-        try { rb = computeRenderBox(el); } catch (err) { return; }
-        if (!Number.isFinite(rb.w) || !Number.isFinite(rb.h) || rb.w <= 0 || rb.h <= 0) return;
-        scaleState = {
-            active: true,
-            el: el,
-            handle: handleName,
-            startBox: rb,
-            startAttrs: geometrySnapshot(el),
-            lastAttrs: null,
-            moved: false
-        };
-        document.body.classList.add("svg-scaling");
-    }
-
-    function resizeBoxFromHandle(startBox, handleName, pointer) {
-        var left = startBox.x;
-        var right = startBox.x + startBox.w;
-        var top = startBox.y;
-        var bottom = startBox.y + startBox.h;
-        var minSize = 1;
-        if (handleName.indexOf("w") !== -1) left = Math.min(right - minSize, pointer.x);
-        if (handleName.indexOf("e") !== -1) right = Math.max(left + minSize, pointer.x);
-        if (handleName.indexOf("n") !== -1) top = Math.min(bottom - minSize, pointer.y);
-        if (handleName.indexOf("s") !== -1) bottom = Math.max(top + minSize, pointer.y);
-        return { x: left, y: top, w: right - left, h: bottom - top };
-    }
-
-    function resizeAnchorForHandle(startBox, handleName) {
-        var west = handleName.indexOf("w") !== -1;
-        var north = handleName.indexOf("n") !== -1;
-        return {
-            x: west ? startBox.x + startBox.w : startBox.x,
-            y: north ? startBox.y + startBox.h : startBox.y
-        };
-    }
-
-    function matrixAfterResizeAtAnchor(el, rb, nw, nh, anchorRoot) {
-        var pm = parentCTM(el);
-        var sx = nw / rb.w;
-        var sy = nh / rb.h;
-        var im = pm.inverse();
-        var ax = im.a * anchorRoot.x + im.c * anchorRoot.y + im.e;
-        var ay = im.b * anchorRoot.x + im.d * anchorRoot.y + im.f;
-        return new DOMMatrix()
-            .translate(ax, ay).scale(sx, sy).translate(-ax, -ay)
-            .multiply(ownMatrix(el));
-    }
-
-    function updateScalePreview(event) {
-        if (!scaleState.active || !scaleState.el || !scaleState.startBox) return;
-        var pointer = screenPointToRoot(event.clientX, event.clientY);
-        if (!pointer) return;
-        var nextBox = resizeBoxFromHandle(scaleState.startBox, scaleState.handle, pointer);
-        var anchor = resizeAnchorForHandle(scaleState.startBox, scaleState.handle);
-        var nextMatrix;
-        try {
-            nextMatrix = matrixAfterResizeAtAnchor(
-                scaleState.el, scaleState.startBox, nextBox.w, nextBox.h, anchor
-            );
-        } catch (err) {
-            return;
-        }
-        var tstr = matrixToString(nextMatrix);
-        if (!tstr) return;
-        var attrs = { transform: tstr };
-        applyAttrSnapshot(scaleState.el, scaleState.startAttrs);
-        applyElementAttrs(scaleState.el, attrs);
-        scaleState.lastAttrs = attrs;
-        scaleState.moved = true;
-        refreshGeoInputs(scaleState.el, elementPropsEl);
-        renderScaleHandles();
-    }
-
-    function finishScale() {
-        if (!scaleState.active) return false;
-        var st = scaleState;
-        scaleState = {
-            active: false,
-            el: null,
-            handle: null,
-            startBox: null,
-            startAttrs: null,
-            lastAttrs: null,
-            moved: false
-        };
-        document.body.classList.remove("svg-scaling");
-        if (!st.moved || !st.el || !st.lastAttrs) {
-            renderScaleHandles();
-            return true;
-        }
-        stageEditRequest(st.el.id, { attrs: st.lastAttrs })
-            .then(function () {
-                markCommittedAttrs(st.el, st.lastAttrs);
-                refreshGeoInputs(st.el, elementPropsEl);
-                renderScaleHandles();
-            })
-            .catch(function (err) {
-                applyAttrSnapshot(st.el, st.startAttrs);
-                refreshGeoInputs(st.el, elementPropsEl);
-                renderScaleHandles();
-                showError(t("err_edit") + err.message);
-        });
-        return true;
-    }
-
-    function cancelScale() {
-        if (scaleState.active && scaleState.el && scaleState.startAttrs) {
-            applyAttrSnapshot(scaleState.el, scaleState.startAttrs);
-        }
-        scaleState = {
-            active: false,
-            el: null,
-            handle: null,
-            startBox: null,
-            startAttrs: null,
-            lastAttrs: null,
-            moved: false
-        };
-        document.body.classList.remove("svg-scaling");
-        clearScaleHandles();
     }
 
     // Per-element nudge staging is serialized: a held arrow key fires many
@@ -1226,7 +1166,7 @@
             // Pressing on an already-selected element arms a drag of the whole
             // selection instead of a rubber band. Selecting stays a separate
             // click, so the background is never dragged by accident.
-            if (!reviewMode && hitSelectedAncestor(e.target)) {
+            if (hitSelectedAncestor(e.target)) {
                 dragStart = { x: e.clientX, y: e.clientY };
                 dragMoved = false;
                 return;
@@ -1241,10 +1181,6 @@
         });
 
         document.addEventListener("mousemove", function (e) {
-            if (scaleState.active) {
-                updateScalePreview(e);
-                return;
-            }
             if (dragStart) {
                 var ddx = e.clientX - dragStart.x;
                 var ddy = e.clientY - dragStart.y;
@@ -1292,12 +1228,6 @@
         });
 
         document.addEventListener("mouseup", function (e) {
-            if (scaleState.active) {
-                finishScale();
-                suppressNextSvgClick = true;
-                window.setTimeout(function () { suppressNextSvgClick = false; }, 50);
-                return;
-            }
             if (dragStart) {
                 if (dragMoved) {
                     commitDrag(e.clientX - dragStart.x, e.clientY - dragStart.y);
@@ -1381,7 +1311,6 @@
         if (ov) ov.classList.remove("active");
         suppressNextSvgClick = false;
         endDrag();
-        cancelScale();
         closeOverlapPicker();
     }
 
@@ -1438,7 +1367,7 @@
         document.addEventListener("keydown", function (e) {
             // Ctrl+Z / Cmd+Z: drop the last staged edit. Let inputs/selects handle
             // their own native undo when focused.
-            if (!reviewMode && (e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) {
+            if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) {
                 var ae = document.activeElement;
                 if (ae && (ae === annotationText || ae.tagName === "INPUT" ||
                            ae.tagName === "TEXTAREA" || ae.tagName === "SELECT")) {
@@ -1481,7 +1410,7 @@
 
             // Arrow keys nudge the selection (1px, Shift = 10px) instead of
             // navigating slides whenever something is selected.
-            if (!reviewMode && selectedElementIds.size > 0 &&
+            if (selectedElementIds.size > 0 &&
                 (e.key === "ArrowLeft" || e.key === "ArrowRight" ||
                  e.key === "ArrowUp" || e.key === "ArrowDown")) {
                 e.preventDefault();
@@ -1521,7 +1450,6 @@
     //  6.  Add annotation  -- POST /api/slide/{name}/annotate
     // ================================================================
     btnAddAnnotation.addEventListener("click", function () {
-        if (reviewMode) return;
         if (!currentSlide || selectedElementIds.size === 0) return;
 
         var text = annotationText.value.trim();
@@ -1541,7 +1469,7 @@
                 ids.forEach(function (eid) {
                     slideAnnotations[eid] = text;
                 });
-                annotationsDirty = true;
+                markAnnotationChanged(currentSlide);
                 refreshAnnotationVisuals();
                 updateAnnotationList();
                 annotationText.value = "";
@@ -1557,7 +1485,6 @@
     //  7.  removeAnnotation  -- DELETE /api/slide/{name}/annotate/{id}
     // ================================================================
     function removeAnnotation(elementId) {
-        if (reviewMode) return;
         if (!currentSlide) return;
 
         fetch("/api/slide/" + encodeURIComponent(currentSlide) + "/annotate/" + encodeURIComponent(elementId), {
@@ -1566,7 +1493,7 @@
             .then(function (res) { return res.json(); })
             .then(function () {
                 delete slideAnnotations[elementId];
-                annotationsDirty = true;
+                markAnnotationChanged(currentSlide);
                 refreshAnnotationVisuals();
                 updateAnnotationList();
                 loadSlides();
@@ -1575,122 +1502,6 @@
                 console.error("removeAnnotation:", err);
                 showError(t("err_remove_annotation") + err.message);
             });
-    }
-
-    function clearLayoutIssueVisuals() {
-        svgContent.querySelectorAll(".svg-layout-warning").forEach(function (el) {
-            el.classList.remove("svg-layout-warning");
-        });
-    }
-
-    function hideLayoutIssues() {
-        currentLayoutIssues = [];
-        clearLayoutIssueVisuals();
-        if (layoutIssuesEl) layoutIssuesEl.style.display = "none";
-        if (layoutIssuesListEl) layoutIssuesListEl.innerHTML = "";
-        if (layoutIssuesActionsEl) layoutIssuesActionsEl.innerHTML = "";
-    }
-
-    function elementBBoxSafe(el) {
-        try {
-            return el.getBBox();
-        } catch (e) {
-            return null;
-        }
-    }
-
-    function findLikelyContainerForText(textEl) {
-        var textBox = elementBBoxSafe(textEl);
-        if (!textBox) return null;
-
-        var candidates = Array.from(svgContent.querySelectorAll("rect,image"));
-        var best = null;
-        var bestArea = Infinity;
-
-        candidates.forEach(function (candidate) {
-            if (candidate === textEl) return;
-            var box = elementBBoxSafe(candidate);
-            if (!box || box.width <= 0 || box.height <= 0) return;
-            var contains =
-                textBox.x >= box.x - 2 &&
-                textBox.y >= box.y - 2 &&
-                textBox.x + textBox.width <= box.x + box.width + 2 &&
-                textBox.y + textBox.height <= box.y + box.height + 2;
-            if (!contains) return;
-            var area = box.width * box.height;
-            if (area < bestArea) {
-                best = { element: candidate, box: box };
-                bestArea = area;
-            }
-        });
-
-        return best;
-    }
-
-    function collectTextLayoutIssues(el) {
-        if (!EditorLogic || !el) return [];
-        var box = elementBBoxSafe(el);
-        if (!box) return [];
-        var style = window.getComputedStyle(el);
-        var fontSizePx = parseFloat(style.fontSize || el.getAttribute("font-size") || "0") || 0;
-        var container = findLikelyContainerForText(el);
-        return EditorLogic.detectTextLayoutIssues({
-            fontSizePx: fontSizePx,
-            textLength: (el.textContent || "").trim().length,
-            textBox: { width: box.width, height: box.height },
-            containerBox: container ? { width: container.box.width, height: container.box.height } : null,
-            containerTolerance: 2
-        });
-    }
-
-    function issueTitle(issue) {
-        if (issue.kind === "overflow") return LANG === "zh" ? "文字可能溢出" : "Possible overflow";
-        if (issue.kind === "font_too_small") return LANG === "zh" ? "字号可能过小" : "Font may be too small";
-        if (issue.kind === "font_too_large") return LANG === "zh" ? "字号可能过大" : "Font may be too large";
-        return LANG === "zh" ? "排版问题" : "Layout issue";
-    }
-
-    function suggestionForIssue(issue) {
-        return LANG === "zh" ? (issue.suggestion_zh || issue.message) : (issue.suggestion_en || issue.message);
-    }
-
-    function renderLayoutIssuesForSelection() {
-        hideLayoutIssues();
-        if (!layoutIssuesEl || !layoutIssuesListEl || !layoutIssuesActionsEl) return;
-        if (reviewMode || selectedElementIds.size !== 1) return;
-
-        var eid = selectedElementIds.values().next().value;
-        var el = svgContent.querySelector("#" + CSS.escape(eid));
-        if (!el) return;
-
-        var tag = el.tagName.toLowerCase();
-        if (tag !== "text" && tag !== "tspan") return;
-
-        currentLayoutIssues = collectTextLayoutIssues(el);
-        if (!currentLayoutIssues.length) return;
-
-        el.classList.add("svg-layout-warning");
-        layoutIssuesEl.style.display = "block";
-
-        currentLayoutIssues.forEach(function (issue, idx) {
-            var item = document.createElement("div");
-            item.className = "layout-issue";
-            item.innerHTML =
-                '<div class="layout-issue-title">' + escapeHtml(issueTitle(issue)) + '</div>' +
-                '<div class="layout-issue-text">' + escapeHtml(issue.message) + '</div>';
-            layoutIssuesListEl.appendChild(item);
-
-            var action = document.createElement("button");
-            action.type = "button";
-            action.className = "layout-issue-action";
-            action.textContent = LANG === "zh" ? ("生成建议批注 " + (idx + 1)) : ("Suggest annotation " + (idx + 1));
-            action.addEventListener("click", function () {
-                annotationInput.style.display = "block";
-                annotationText.value = suggestionForIssue(issue);
-                annotationText.focus();
-            });
-            layoutIssuesActionsEl.appendChild(action);
-        });
     }
 
     // ================================================================
@@ -1770,17 +1581,9 @@
     // 10.  Save all  -- two-step: confirm then save
     // ================================================================
     btnSave.addEventListener("click", function () {
-        if (reviewMode) {
-            pendingModalAction = "review_done";
-            modalMessage.textContent = t("modal_review_done");
-            modalConfirm.textContent = t("modal_submit");
-            modalConfirm.style.display = "";
-            modalCancel.style.display = "";
-            modalOverlay.style.display = "flex";
-            return;
-        }
         pendingModalAction = "submit";
-        modalMessage.textContent = t("modal_confirm_submit");
+        modalMessage.textContent = t("modal_confirm_submit") +
+            (hasPendingMatrixEdits() ? t("modal_matrix_transform_note") : "");
         modalConfirm.textContent = t("modal_submit");
         modalConfirm.style.display = "";
         modalCancel.style.display = "";
@@ -1797,13 +1600,6 @@
     });
 
     modalConfirm.addEventListener("click", function () {
-        if (pendingModalAction === "review_done") {
-            modalConfirm.style.display = "none";
-            modalCancel.style.display = "none";
-            modalMessage.textContent = t("modal_success_review_done");
-            return;
-        }
-
         if (pendingModalAction === "exit") {
             modalConfirm.style.display = "none";
             modalCancel.style.display = "none";
@@ -1823,6 +1619,8 @@
         }
 
         // Step 2: save annotations. Service lifetime is controlled only by Exit preview.
+        var hadDirectEdits = pendingDirectEditCount() > 0;
+        var hadAnnotationChanges = pendingAnnotationChangeCount() > 0;
         modalConfirm.style.display = "none";
         modalCancel.style.display = "none";
 
@@ -1835,11 +1633,23 @@
                 if (data.error) {
                     modalMessage.textContent = t("err_save") + data.error;
                 } else {
-                    modalMessage.textContent = t("modal_success_submit");
+                    if (hadDirectEdits && hadAnnotationChanges) {
+                        modalMessage.textContent = t("modal_success_mixed");
+                    } else if (hadDirectEdits) {
+                        modalMessage.textContent = t("modal_success_direct_only");
+                    } else if (hadAnnotationChanges) {
+                        modalMessage.textContent = t("modal_success_annotations_only");
+                    } else {
+                        modalMessage.textContent = t("modal_success_submit");
+                    }
                     editStackCount = {};
+                    matrixEditSlides = {};
+                    matrixHintShown = false;
                     savedHintShown = false;
                     annotationsDirty = false;
+                    annotationEditSlides = {};
                     updateUndoButton();
+                    updatePendingStatus();
                     var activeSlide = currentSlide;
                     loadSlides().then(function () {
                         if (activeSlide) {
@@ -1949,30 +1759,14 @@
         });
     }
 
-    function applyReviewModeUi() {
-        var panelRight = document.getElementById("panel-right");
-        if (panelRight) panelRight.classList.toggle("normalization-review-mode", reviewMode);
-        var panelHeader = panelRight ? panelRight.querySelector(".panel-header") : null;
-        if (panelHeader) panelHeader.textContent = reviewMode ? t("panel_review") : t("panel_annotations");
-        if (btnSave) btnSave.textContent = reviewMode ? t("btn_review_done") : t("btn_submit_annotations");
-        if (btnUndo) btnUndo.style.display = reviewMode ? "none" : "";
-    }
-
     function loadConfig() {
         return fetch("/api/config")
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 liveMode = !!data.live;
-                reviewMode = !!(data.normalization_review && data.normalization_review.enabled);
-                applyReviewModeUi();
-                if (data.normalization_review && window.PptTextNormalizeReview) {
-                    window.PptTextNormalizeReview.init(data.normalization_review);
-                }
             })
             .catch(function () {
                 liveMode = false;
-                reviewMode = false;
-                applyReviewModeUi();
             });
     }
 
@@ -1992,14 +1786,15 @@
     }
 
     function runUndo() {
-        if (reviewMode) return;
         if (!currentSlide || !editStackCount[currentSlide]) return;
         fetch("/api/slide/" + encodeURIComponent(currentSlide) + "/undo", { method: "POST" })
             .then(jsonOrThrow)
             .then(function (data) {
                 if (data.status === "empty") {
                     editStackCount[currentSlide] = 0;
+                    matrixEditSlides[currentSlide] = false;
                     updateUndoButton();
+                    updatePendingStatus();
                     showWarning(t("undo_empty"));
                     return;
                 }
@@ -2010,6 +1805,7 @@
                 // selectSlide refreshes editStackCount + the undo button.
                 var item = slideListEl.querySelector('.slide-item[data-name="' + cssAttr(currentSlide) + '"]');
                 selectSlide(currentSlide, item || undefined);
+                updatePendingStatus();
                 showWarning(t("undo_done"));
             })
             .catch(function (err) {
@@ -2021,6 +1817,24 @@
         if (savedHintShown) return;
         savedHintShown = true;
         showWarning(t("edit_saved_hint"));
+    }
+
+    function payloadHasMatrixTransform(payload) {
+        var transform = payload && payload.attrs && payload.attrs.transform;
+        return typeof transform === "string" && /^\s*matrix\s*\(/i.test(transform);
+    }
+
+    function hasPendingMatrixEdits() {
+        return Object.keys(matrixEditSlides).some(function (name) {
+            return !!matrixEditSlides[name];
+        });
+    }
+
+    function markMatrixTransformEdit(slide) {
+        matrixEditSlides[slide] = true;
+        if (matrixHintShown) return;
+        matrixHintShown = true;
+        showWarning(t("warn_matrix_transform"));
     }
 
     // ================================================================
@@ -2059,17 +1873,27 @@
         } catch (e) { /* no geometry */ }
         html += '</table>';
 
-        // L1: text content — only when the element owns no <tspan> children.
-        if (tag === "text" || tag === "tspan") {
+        var textStyleTargets = textStyleTargetsForSelection(el);
+
+        // L1: text content + computed text styles. When a textbox/group is
+        // selected, style controls target its descendant text leaves.
+        if (tag === "text" || tag === "tspan" || textStyleTargets.length > 0) {
             html += '<div class="prop-section">' + escapeHtml(t("section_text_style")) + '</div>';
             html += '<table class="prop-table">';
-            if (el.querySelector("tspan")) {
+            if ((tag === "text" || tag === "tspan") && el.querySelector("tspan")) {
                 html += '<tr><td class="prop-key">content</td><td class="prop-val prop-note">' +
                     escapeHtml(t("prop_multiline_hint")) + '</td></tr>';
-            } else {
+            } else if (tag === "text" || tag === "tspan") {
                 html += '<tr><td class="prop-key">content</td><td class="prop-val">' +
                     '<textarea class="prop-edit prop-edit-content" rows="2">' +
                     escapeHtml(el.textContent || "") + '</textarea></td></tr>';
+            }
+            if (textStyleTargets.length > 0) {
+                textStyleSpecs(textStyleTargets).forEach(function (spec) {
+                    html += '<tr><td class="prop-key">' + escapeHtml(spec.key) + '</td><td class="prop-val">';
+                    html += renderTextStyleControl(spec, textStyleTargets);
+                    html += '</td></tr>';
+                });
             }
             html += '</table>';
         }
@@ -2118,6 +1942,88 @@
         if (k === "id" || k === "class" || k === "href" || k === "xlink:href") return false;
         if (k.indexOf("on") === 0) return false;
         return /^[A-Za-z_][A-Za-z0-9_.:-]*$/.test(key);
+    }
+
+    function textStyleTargetsForSelection(el) {
+        if (!el) return [];
+        var tag = localName(el);
+        if (tag === "tspan") return el.id ? [el] : [];
+        if (tag === "text") return textStyleLeavesForText(el);
+
+        var targets = [];
+        el.querySelectorAll("text").forEach(function (textEl) {
+            targets = targets.concat(textStyleLeavesForText(textEl));
+        });
+        return uniqueElements(targets);
+    }
+
+    function textStyleLeavesForText(textEl) {
+        var tspans = Array.from(textEl.querySelectorAll("tspan")).filter(function (tspan) {
+            return !!tspan.id;
+        });
+        if (tspans.length > 0) return tspans;
+        return textEl.id ? [textEl] : [];
+    }
+
+    function uniqueElements(elements) {
+        var seen = new Set();
+        return elements.filter(function (el) {
+            if (!el || !el.id || seen.has(el.id)) return false;
+            seen.add(el.id);
+            return true;
+        });
+    }
+
+    function textStyleSpecs(targets) {
+        return [
+            { key: "fill", type: "color" },
+            { key: "font-size", type: "text" },
+            { key: "font-family", type: "text" },
+            { key: "font-weight", type: "select",
+              options: ["", "normal", "bold", "300", "400", "500", "600", "700", "800"] },
+            { key: "text-anchor", type: "select", options: ["", "start", "middle", "end"] }
+        ].map(function (spec) {
+            var value = commonAttrValue(targets, spec.key);
+            var copy = Object.assign({}, spec);
+            copy.value = value === null ? "" : value;
+            copy.mixed = value === null;
+            return copy;
+        });
+    }
+
+    function renderTextStyleControl(spec, targets) {
+        var targetIds = encodeURIComponent(JSON.stringify(targets.map(function (el) { return el.id; })));
+        var placeholder = spec.mixed ? t("multi_mixed") : "";
+        if (spec.type === "color") {
+            return '<input type="color" class="prop-edit prop-edit-text-style-color" data-key="' +
+                escapeHtml(spec.key) + '" data-target-ids="' + targetIds +
+                '" value="' + normalizeHexForPicker(spec.value) + '">' +
+                '<input type="text" class="prop-edit prop-edit-text-style" data-key="' +
+                escapeHtml(spec.key) + '" data-target-ids="' + targetIds +
+                '" placeholder="' + escapeHtml(placeholder) +
+                '" value="' + escapeHtml(spec.mixed ? "" : spec.value) + '">';
+        }
+        if (spec.type === "select") {
+            var html = '<select class="prop-edit prop-edit-text-style" data-key="' +
+                escapeHtml(spec.key) + '" data-target-ids="' + targetIds + '">';
+            var hasValue = spec.options.indexOf(spec.value) !== -1;
+            if (!spec.mixed && spec.value && !hasValue) {
+                html += '<option value="' + escapeHtml(spec.value) + '" selected>' +
+                    escapeHtml(spec.value) + '</option>';
+            }
+            spec.options.forEach(function (opt) {
+                var label = opt || placeholder || "";
+                var selected = !spec.mixed && spec.value === opt ? " selected" : "";
+                html += '<option value="' + escapeHtml(opt) + '"' + selected + '>' +
+                    escapeHtml(label) + '</option>';
+            });
+            html += '</select>';
+            return html;
+        }
+        return '<input type="text" class="prop-edit prop-edit-text-style" data-key="' +
+            escapeHtml(spec.key) + '" data-target-ids="' + targetIds +
+            '" placeholder="' + escapeHtml(placeholder) +
+            '" value="' + escapeHtml(spec.mixed ? "" : spec.value) + '">';
     }
 
     function isColorAttribute(key, value) {
@@ -2234,6 +2140,27 @@
             return "#" + s[1] + s[1] + s[2] + s[2] + s[3] + s[3];
         }
         return "#000000";
+    }
+
+    var SVG_UNIT_OPTIONAL_LENGTH_ATTRS = new Set([
+        "x", "y", "x1", "x2", "y1", "y2",
+        "cx", "cy", "r", "rx", "ry",
+        "dx", "dy", "width", "height",
+        "font-size", "stroke-width", "stroke-dashoffset",
+        "letter-spacing", "word-spacing"
+    ]);
+
+    function normalizeSvgLengthValue(key, value) {
+        var s = String(value || "");
+        if (!SVG_UNIT_OPTIONAL_LENGTH_ATTRS.has(String(key).toLowerCase())) return s;
+        s = s.trim();
+        var m = s.match(/^(-?\d+(?:\.\d+)?)px$/i);
+        return m ? m[1] : s;
+    }
+
+    function normalizeEditableAttrValue(key, value) {
+        var s = String(value || "").trim();
+        return normalizeSvgLengthValue(key, s);
     }
 
     function isSafeColor(val) {
@@ -2570,10 +2497,30 @@
             });
         });
 
+        panel.querySelectorAll(".prop-edit-text-style-color").forEach(function (picker) {
+            var key = picker.getAttribute("data-key");
+            var textInput = panel.querySelector('.prop-edit-text-style[data-key="' + key + '"]');
+            picker.addEventListener("input", function () {
+                if (textInput) textInput.value = picker.value;
+            });
+            picker.addEventListener("change", function () {
+                if (textInput) textInput.value = picker.value;
+                stageTextStyleAttr(key, picker.value, picker.getAttribute("data-target-ids"));
+            });
+        });
+        panel.querySelectorAll(".prop-edit-text-style").forEach(function (input) {
+            input.addEventListener("change", function () {
+                var key = input.getAttribute("data-key");
+                var value = normalizeEditableAttrValue(key, input.value);
+                if (!value) return;
+                stageTextStyleAttr(key, value, input.getAttribute("data-target-ids"));
+            });
+        });
+
         panel.querySelectorAll(".prop-edit-attr, .prop-edit-attr-area").forEach(function (input) {
             var key = input.getAttribute("data-key");
             input.addEventListener("change", function () {
-                stageAttr(el, eid, key, input.value.trim());
+                stageAttr(el, eid, key, normalizeEditableAttrValue(key, input.value));
             });
         });
 
@@ -2633,7 +2580,39 @@
         }
     }
 
+    function stageTextStyleAttr(key, value, encodedTargetIds) {
+        value = normalizeEditableAttrValue(key, value);
+        if ((key === "fill" || key === "stroke") && !isSafeColor(value)) {
+            showError(t("err_edit") + key);
+            return;
+        }
+        var ids;
+        try {
+            ids = JSON.parse(decodeURIComponent(encodedTargetIds || "%5B%5D"));
+        } catch (e) {
+            ids = [];
+        }
+        var targets = ids.map(function (id) {
+            return svgContent.querySelector("#" + CSS.escape(id));
+        }).filter(function (target) {
+            return target && attrOrComputedValue(target, key) !== value;
+        });
+        if (targets.length === 0) return;
+
+        var attrs = {};
+        attrs[key] = value;
+        var jobs = targets.map(function (target) {
+            return stageEditRequest(target.id, { attrs: attrs }).then(function () {
+                target.setAttribute(key, value);
+            });
+        });
+        Promise.all(jobs)
+            .then(function () { updateSelectionPanel(); })
+            .catch(function (err) { showError(t("err_edit") + err.message); });
+    }
+
     function stageAttr(el, eid, key, value) {
+        value = normalizeEditableAttrValue(key, value);
         if ((key === "fill" || key === "stroke") && !isSafeColor(value)) {
             showError(t("err_edit") + key);
             return;
@@ -2660,9 +2639,6 @@
     }
 
     function stageEditRequest(eid, payload, slideName) {
-        if (reviewMode) {
-            return Promise.reject(new Error(t("err_review_readonly")));
-        }
         // Pin the slide at call time: a queued nudge may fire after the user has
         // navigated, and must still POST to the slide it was made on, not the
         // global currentSlide.
@@ -2679,6 +2655,10 @@
             if (data && data.undo_depth !== undefined) {
                 editStackCount[slide] = data.undo_depth;
                 if (slide === currentSlide) updateUndoButton();
+                updatePendingStatus();
+            }
+            if (payloadHasMatrixTransform(payload)) {
+                markMatrixTransformEdit(slide);
             }
             maybeShowSavedHint();
             return data;
@@ -2757,7 +2737,7 @@
 
     function attrOrComputedValue(el, key) {
         var value = el.getAttribute(key);
-        if (value !== null && value !== "") return value;
+        if (value !== null && value !== "") return normalizeSvgLengthValue(key, value);
         var style = window.getComputedStyle(el);
         var map = {
             "fill": "fill",
@@ -2768,7 +2748,7 @@
             "font-weight": "fontWeight",
             "text-anchor": "textAnchor"
         };
-        return (map[key] && style[map[key]]) || "";
+        return normalizeSvgLengthValue(key, (map[key] && style[map[key]]) || "");
     }
 
     function renderBatchControl(spec) {
@@ -2859,7 +2839,7 @@
         panel.querySelectorAll(".prop-edit-batch").forEach(function (input) {
             input.addEventListener("change", function () {
                 var key = input.getAttribute("data-key");
-                var value = input.value.trim();
+                var value = normalizeEditableAttrValue(key, input.value);
                 if (!value) return;
                 commitBatchAttr(key, value, moveEls);
             });
@@ -2867,6 +2847,7 @@
     }
 
     function commitBatchAttr(key, value, elements) {
+        value = normalizeEditableAttrValue(key, value);
         if ((key === "fill" || key === "stroke") && !isSafeColor(value)) {
             showError(t("err_edit") + key);
             return;
@@ -2887,12 +2868,76 @@
     //  Boot
     // ================================================================
     applyI18n();
+    initAnnotationQuickActions();
+    updatePendingStatus();
     var langToggleBtn = document.getElementById("btn-lang-toggle");
-    if (langToggleBtn) {
-        langToggleBtn.textContent = LANG === "zh" ? "EN" : "中";
-        langToggleBtn.title = t("lang_toggle_title");
-        langToggleBtn.addEventListener("click", function () {
-            setLang(LANG === "zh" ? "en" : "zh");
+    var langMenu = document.getElementById("lang-menu");
+    if (langToggleBtn && langMenu) {
+        refreshLangUI(LANG);
+        var setMenuOpen = function (open) {
+            langMenu.hidden = !open;
+            langToggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+            if (open) {
+                var sel = langMenu.querySelector("li.selected") || langMenu.querySelector("li[data-lang]");
+                if (sel) sel.focus();
+            }
+        };
+        var chooseLang = function (v) {
+            setMenuOpen(false);
+            langToggleBtn.focus();
+            if (v) setLang(v);
+        };
+        langToggleBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            setMenuOpen(langMenu.hidden);
+        });
+        langToggleBtn.addEventListener("keydown", function (e) {
+            if (e.key === "Escape" && !langMenu.hidden) {
+                e.stopPropagation();
+                setMenuOpen(false);
+            } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && langMenu.hidden) {
+                e.preventDefault();
+                e.stopPropagation();
+                setMenuOpen(true);
+            }
+        });
+        langMenu.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var li = e.target && e.target.closest ? e.target.closest("li[data-lang]") : null;
+            if (li) chooseLang(li.getAttribute("data-lang"));
+            else setMenuOpen(false);
+        });
+        langMenu.addEventListener("keydown", function (e) {
+            e.stopPropagation();   // keep nudge / slide-nav shortcuts away while the menu is open
+            var items = Array.prototype.slice.call(langMenu.querySelectorAll("li[data-lang]"));
+            var idx = items.indexOf(document.activeElement);
+            if (e.key === "Escape") {
+                setMenuOpen(false);
+                langToggleBtn.focus();
+            } else if (e.key === "ArrowDown") {
+                e.preventDefault();
+                (items[idx + 1] || items[0]).focus();
+            } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                (items[idx - 1] || items[items.length - 1]).focus();
+            } else if (e.key === "Home") {
+                e.preventDefault();
+                items[0].focus();
+            } else if (e.key === "End") {
+                e.preventDefault();
+                items[items.length - 1].focus();
+            } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                e.preventDefault();
+            } else if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                if (idx >= 0) chooseLang(items[idx].getAttribute("data-lang"));
+            }
+        });
+        langToggleBtn.parentElement.addEventListener("focusout", function (e) {
+            if (!langMenu.hidden && !langToggleBtn.parentElement.contains(e.relatedTarget)) setMenuOpen(false);
+        });
+        document.addEventListener("click", function () {
+            if (!langMenu.hidden) setMenuOpen(false);
         });
     }
 

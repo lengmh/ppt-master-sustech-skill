@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-page="P01">
+  <rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <g transform="translate(140 80)">
+    <rect id="translated-panel" x="0" y="0" width="190" height="105" rx="10" fill="#F8FAFC"/>
+    <text id="translated-copy" x="20" y="56" font-size="20" font-family="Arial">Translated group text is too long for the panel.</text>
+  </g>
+</svg>

@@ -23,6 +23,8 @@ Magazine-grade hierarchy. Columns, hairline rules, a serif / sans interplay, str
 - Mostly monochrome text on a light field; one accent for emphasis (a rule, a highlighted figure, a kicker).
 - Restraint — color marks structure and emphasis, not decoration.
 
+> HEX values come from confirmation `e`; this style only governs the monochrome-with-structural-accent discipline — it names no colors.
+
 ## 4. Texture / elevation
 
 - Flat to barely-raised. Rules and whitespace separate content, not shadows. Shadow only on a genuine floating element.
@@ -30,3 +32,7 @@ Magazine-grade hierarchy. Columns, hairline rules, a serif / sans interplay, str
 ## 5. Paired image-rendering
 
 `editorial` — magazine-style infographic look for AI images.
+
+## 6. Illustration propensity
+
+**supportive** — editorial spot illustrations beside articles are classic here; use them where they lift a section or break text density, kept restrained. With no user steer this is the default lean; an explicit user request wins either way, and `image_usage: none` writes no illustration rows.

@@ -58,7 +58,6 @@ def _extract_shape_block(slide_index: int, shape_index: int, sp: ET.Element) -> 
     runs: list[TextRunStyle] = []
     for para in paragraphs:
         runs.extend(_extract_runs(para))
-    source_level = "run" if runs else "paragraph"
     style = _summarize_style(runs)
     return TextBlock(
         block_id=f"s{slide_index:02d}_sp{shape_index:02d}",
@@ -71,10 +70,8 @@ def _extract_shape_block(slide_index: int, shape_index: int, sp: ET.Element) -> 
         top=top,
         width=width,
         height=height,
-        paragraphs=len(paragraphs),
         paragraph_count=len(paragraphs),
         run_count=len(runs),
-        source_level=source_level,
         style=style,
         runs=tuple(runs),
     )
@@ -108,10 +105,8 @@ def _extract_table_blocks(slide_index: int, table_index: int, graphic_frame: ET.
                     top=cell_top,
                     width=cell_width,
                     height=cell_height,
-                    paragraphs=len(paragraphs),
                     paragraph_count=len(paragraphs),
                     run_count=len(runs),
-                    source_level="run" if runs else "paragraph",
                     unsupported_reason=unsupported_reason,
                     style=style,
                     runs=tuple(runs),
@@ -263,6 +258,5 @@ def _summarize_style(runs: list[TextRunStyle]) -> StyleFingerprint:
                 font_size_pt=run.font_size_pt,
                 bold=run.bold,
                 italic=run.italic,
-                source_level="run",
             )
-    return StyleFingerprint(source_level="paragraph")
+    return StyleFingerprint()
