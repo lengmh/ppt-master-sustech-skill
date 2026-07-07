@@ -169,10 +169,10 @@ One offending character invalidates the file and aborts export. Numeric refs (`&
 
 ## 4. Basic SVG Rules
 
-- **viewBox** must match the canvas dimensions (`width`/`height` must match `viewBox`)
+- **viewBox** MUST match the canvas dimensions; it is the single source of truth for canvas size. Root `width`/`height` are optional compatibility attributes and are not used as PPT Master canvas authority.
 - **Background**: Use `<rect>` to define the page background color
 - **`<tspan>`** has two purposes: (1) manual line breaks (use `dy` or explicit `y`); (2) inline run formatting on the same line (color/weight/size). `<foreignObject>` is FORBIDDEN. See "Single logical line" rule below.
-- **Fonts**: every `font-family` stack MUST end with a pre-installed family (Microsoft YaHei / SimSun / Arial / Times New Roman / Consolas …); `@font-face` is FORBIDDEN. Full rule: [`strategist.md §g`](strategist.md).
+- **Fonts**: every `font-family` stack MUST resolve to pre-installed exported Latin / EA typefaces (Microsoft YaHei / SimSun / Arial / Times New Roman / Consolas …); `@font-face` is FORBIDDEN. Full rule: [`strategist.md §g`](strategist.md).
 - **Styles**: inline only (`fill=""`, `font-size=""`); `<style>`/`class` FORBIDDEN (`id` inside `<defs>` is fine)
 - **Colors**: HEX only; transparency via `fill-opacity`/`stroke-opacity`
 - **Images**: `<image href="../images/xxx.png" preserveAspectRatio="xMidYMid slice"/>`
@@ -299,7 +299,7 @@ Must be executed in order — skipping or adding extra flags is FORBIDDEN:
 # 1. Split speaker notes into per-page note files
 python3 scripts/total_md_split.py <project_path>
 
-# 2. SVG post-processing (icon embedding, image crop/embed, text flattening, rounded rect to path)
+# 2. SVG post-processing (icon embedding, image crop/embed/optimization, text flattening, rounded rect to path)
 python3 scripts/finalize_svg.py <project_path>
 
 # 3. Export PPTX (embeds speaker notes by default)
@@ -314,7 +314,7 @@ python3 scripts/svg_to_pptx.py <project_path>
 
 **Optional animation flags** (only when the user asks):
 - `-t <effect>` — page transition (`fade` / `push` / `wipe` / `split` / `strips` / `cover` / `random` / `none`; default `fade`)
-- `-a <effect>` — per-element entrance animation (`fade` / `auto` / `mixed` / `random` / one of 22 named effects / `none`; default `auto`, maps effect from group id — image-like ids cycle zoom/dissolve/circle/box/diamond/wheel, other matches map to a single effect, unmatched ids cycle fade/wipe/fly/zoom). Anchors on top-level `<g id="...">` groups.
+- `-a <effect>` — per-element entrance animation (`fade` / `auto` / `mixed` / `random` / one of 22 named effects / `none`; **default `none`** — pages appear as a whole, no auto element builds; opt in with `auto`, which maps effect from group id — image-like ids cycle zoom/dissolve/circle/box/diamond/wheel, other matches map to a single effect, unmatched ids cycle fade/wipe/fly/zoom). Anchors on top-level `<g id="...">` groups.
 - `--animation-trigger {on-click,with-previous,after-previous}` — Start mode matching PowerPoint's animation-pane Start dropdown. Default `after-previous` (cascade on slide entry; pace via `--animation-stagger <seconds>`); `on-click` advances per click; `with-previous` plays all groups together.
 - `--animation-config <path>` — optional object-level animation sidecar. Default: `<project>/animations.json` when present.
 - `--auto-advance <seconds>` — kiosk-style auto-play
@@ -339,7 +339,9 @@ Full reference: [`animations.md`](animations.md).
 - NEVER force `-s output` for the legacy/preview pptx (PowerPoint's internal SVG parser drops icons and rounded corners). Default auto-split already gives native the high-fidelity source it needs without affecting legacy.
 - NEVER use `--only` (it suppresses one of the two output files)
 
-> Source-directory split: by default `svg_to_pptx.py` reads `svg_output/` for the native pptx (preserves icon `<use>`, image `preserveAspectRatio` → `srcRect`, rounded rect `rx/ry` → `prstGeom roundRect`) and `svg_final/` for the legacy/preview pptx (PowerPoint's internal SVG parser needs the flattened form). Pass `-s output` or `-s final` only when you specifically want both products to read from a single source.
+> Source-directory split: by default `svg_to_pptx.py` reads `svg_output/` for the native pptx (preserves icon `<use>`, image `preserveAspectRatio` as native picture-crop metadata, rounded rect `rx/ry` → `prstGeom roundRect`) and `svg_final/` for the legacy/preview pptx (PowerPoint's internal SVG parser needs the flattened form). Pass `-s output` or `-s final` only when you specifically want both products to read from a single source.
+
+**Default — raster size control**: `finalize_svg.py` optimizes raster images using a rendered-size budget of `2x` display pixels with a `2560px` maximum dimension; it may crop pixels for the flattened SVG snapshot. Native `svg_to_pptx.py` defaults to `--image-sizing cap`: it downscales only oversized full source images to `--image-max-dimension 2560`, keeps display cropping as editable PPT picture-crop metadata, and does not shrink a picture merely because its current SVG placement is small. Opaque PNG photos may become JPEG; transparent assets remain PNG. Use `finalize_svg.py --no-compress` / a higher `--max-dimension` only for diagnostic SVG snapshots, `svg_to_pptx.py --no-image-optimize` only when the native PPTX must retain original image bytes, and `svg_to_pptx.py --image-sizing display --image-scale 2` only for aggressive size reduction.
 
 **Re-run rule**: Any change to `svg_output/` after post-processing requires re-running Steps 2-3. Step 1 only re-runs if `notes/total.md` changed.
 
@@ -555,7 +557,7 @@ Best for: slides needing strong visual brand identity.
 
 | Scenario | Recommended Technique | Avoid |
 |----------|-----------------------|-------|
-| Card / panel shadow (only when floating over photo/colored panel) | Filter soft shadow (`flood-opacity` 0.06–0.12, single light source) | Hard black shadow, full-page abundance |
+| Card / panel shadow (only when floating over photo/colored panel) | Filter soft shadow (`flood-opacity` 0.06–0.10, single light source) | Hard black shadow, full-page abundance |
 | Equal peer cards in a grid | All flat (no shadow) | Lifting every card uniformly |
 | Page-section background panel | Flat fill, no shadow | Treating panels as floating cards |
 | Accent / CTA button (one per page) | Colored shadow (same hue family, `flood-opacity` 0.12–0.20) | Generic gray shadow, applying to every button |
@@ -687,6 +689,229 @@ The child `<path>`'s `stroke` becomes the foreground color (the pattern's line c
 | Decorative | `horzBrick` · `diagBrick` · `weave` · `plaid` · `trellis` · `zigZag` · `wave` · `sphere` · `divot` · `shingle` · `solidDmnd` · `openDmnd` · `dotDmnd` |
 
 > `svg_quality_checker.py` warns on missing `data-pptx-pattern` and errors on values outside the enum. Catch these pre-export — PowerPoint's repair dialog hides which pattern broke.
+
+### Native PPTX Table / Chart Markers (Experimental)
+
+Native PowerPoint tables and Excel-backed charts activate at export time only. The default chart/table route remains hand-authored SVG geometry so the deck stays pixel-stable across PowerPoint / Keynote / LibreOffice / WPS.
+
+**Authoring — markers are standard on supported data charts and text-grid tables**: Executor writes the marker at draw time on every data chart whose type falls in the supported set and on every pure text-grid data table ([executor-base.md §3.2](executor-base.md)), so any deck can later form native objects without regeneration. Tables with merged or graphical cells stay unmarked on the SVG fallback route. The marker group supplies both: visible SVG fallback children for browser/live-preview rendering, and JSON metadata for `svg_to_pptx` native export.
+
+**Hard rule — activation is the opt-in, dormant unless exported with `--native-objects`**: A marker only declares that a group is eligible for native export. Normal `svg_to_pptx.py` runs keep the fallback SVG children. Pass `--native-objects` only when editability in PowerPoint matters more than cross-renderer layout fidelity: it emits the PowerPoint object and skips the fallback children to avoid duplicates. Native styling preserves the core palette, text, axis, grid, and background colors where possible, but it is still a PowerPoint chart/table object rather than a pixel-identical SVG drawing.
+
+| Marker | Native output | Required metadata |
+|---|---|---|
+| `<g data-pptx-native="table">` | `<p:graphicFrame>` with `<a:tbl>` | bounds + `columns` or `rows` |
+| `<g data-pptx-native="chart">` | `<p:graphicFrame>` with `c:chart` / `cx:chart` + chart part + embedded workbook | bounds + `type`, plus chart data |
+
+**Metadata placement**: Put JSON in a child `<metadata data-pptx-native="...">`. Attribute JSON (`data-pptx-json="..."`) is supported but harder to XML-escape correctly.
+
+**Bounds**: Provide `x`, `y`, `width`, and `height` in metadata, or as
+`data-pptx-x` / `data-pptx-y` / `data-pptx-width` / `data-pptx-height` on the
+marker group. If any bound is omitted, the exporter infers the object frame
+from the visible fallback geometry; this keeps SVG fallback and native object
+placement aligned.
+
+**Validation**: `svg_quality_checker.py` validates native marker kind, JSON
+metadata, bounds/fallback availability, table rows/columns, supported chart
+type, and chart data shape before export.
+
+```xml
+<g id="p03-revenue-chart" data-pptx-native="chart">
+  <metadata data-pptx-native="chart">
+    {
+      "x": 120, "y": 150, "width": 520, "height": 320,
+      "type": "column",
+      "title": "Revenue by Segment",
+      "categories": ["Q1", "Q2", "Q3"],
+      "series": [
+        {"name": "Cloud", "values": [12, 15, 19]},
+        {"name": "Services", "values": [8, 9, 11]}
+      ]
+    }
+  </metadata>
+  <!-- Visible SVG fallback for live preview / non-native export goes here. -->
+</g>
+```
+
+**Table schema**: Native tables are rectangular DrawingML grids. Use `columns`
+for the optional header row and `rows` for body rows; shorter rows are padded
+with blank cells unless `strict_grid: true` is set. Use `column_widths` and
+`row_heights` as relative weights. Cell objects accept `text`, `fill`, `color`,
+`align`, `valign`, `bold`, `font_size`, `padding`, `border_color`, and
+`border_width`; the same `padding`, `border_color`, and `border_width` keys may
+also live under `style` as table defaults. Native table typography mirrors the
+visible SVG fallback: put `style.font_family` and `style.font_size` on the
+marker from the table text already drawn, then use `style.header_font_size` or
+per-cell `font_size` only when the fallback visibly differs. If the fallback
+has no explicit table font, use the deck body family and locked body size from
+`spec_lock.md`.
+
+**Hard rule — table metadata is the native source of truth**: Every row,
+summary line, value, and cell-level style that must survive
+`--native-objects` must be present in `columns` / `rows`. SVG fallback text is
+discarded during native export. `svg_quality_checker.py` warns when visible
+fallback `<text>` inside a native table marker does not appear in metadata.
+For numeric or currency columns, use cell objects with `align: "r"`; SVG
+`text-anchor="end"` does not carry into the native table.
+
+**Forbidden — native merged table cells**: Do not use `rowSpan`, `colSpan`,
+`gridSpan`, `hMerge`, `vMerge`, or top-level merge lists in native table
+metadata. `svg_to_pptx.py --native-objects` rejects them so merged-cell tables
+do not silently degrade into incorrect grids. Keep merged-cell tables on the
+default SVG fallback route, or merge cells manually in PowerPoint after native
+export.
+
+**Category chart schema**: `column`, `bar`, `line`, `area`, `pie`,
+`doughnut`, `pieOfPie`, `barOfPie`, and `radar` use `categories` plus
+`series[].values`. Pie-family charts (`pie`, `doughnut`, `pieOfPie`, and
+`barOfPie`) must have exactly one series; the exporter assigns per-category
+slice colors so single-series charts do not collapse into one solid color.
+Column and bar charts may set per-point colors with `series[].point_colors`
+or `series[].pointColors`; the list must match `series[].values` length.
+Classic category charts may set native PowerPoint data labels with
+`data_labels`. Use `data_labels: true` for default value labels, or an object
+with `show_value`, `position`, `number_format`, `font_size`, `font_family`,
+`bold`, `color`, and optional per-point `colors`. Supported label positions
+depend on chart type: clustered column/bar labels may use `outside_end`,
+`inside_end`, `inside_base`, or `center`; stacked / percent-stacked column/bar
+labels may use `inside_end`, `inside_base`, or `center`; line labels may use
+`above`, `center`, or `best_fit`; area labels do not emit a native label
+position. To label only selected data points, use `data_labels.points` with
+zero-based `idx` plus optional per-point `position`, `number_format`,
+`font_size`, `font_family`, `bold`, and `color`.
+
+**Combo chart schema**: `combo` uses shared `categories` plus either `plots[]`
+or typed `series[]`. Each plot supports `type: "column" | "line" | "area"`,
+its own `series`, and optional `axis: "secondary"` for a right-side value axis.
+Typed `series[]` accepts the same `type` and `axis` fields per series, and
+adjacent compatible series are grouped into the same PowerPoint plot. Area
+series may set `fill_opacity` / `fillOpacity` as a `0..1` SVG opacity value
+when the SVG fallback uses a transparent area fill under an opaque line. A line plot with `area_fill: true`
+is exported as a PowerPoint area chart under the hood; `fill_opacity` only sets
+the fill style and does not trigger conversion by itself. Combo export layers
+area plots below columns and lines while preserving the original series indices.
+Line and area series may set `line_width` / `lineWidth` in SVG px units to
+match fallback `stroke-width`.
+
+**XY chart schema**: `scatter` and `bubble` use `series[].x` + `series[].y`; `bubble` also requires one `series[].size` / `series[].sizes` value per point. `series[].points` is also accepted as `[x, y]` / `[x, y, size]` tuples or `{x, y, size}` objects.
+
+**Chart typography**: Native classic chart typography mirrors the visible SVG
+fallback. Copy fallback chart text sizes into metadata using the same px-style
+unit as SVG text (`1px = 0.75pt`). Put the shared visible chart font in
+`style.font_family`, and override local chart text objects or `data_labels`
+with `font_family` only when the fallback visibly differs. If omitted, the
+exporter infers the shared font family and base chart text size from visible
+fallback text inside the native marker, but explicit metadata remains the
+stable contract when roles differ. Typical mappings are chart title
+(`title_font_size`), chart subtitle (`subtitle_font_size`), chart labels
+(`axis_font_size`, shared by axis titles / ticks / legend unless the fallback
+differs), and notes (`note_font_size`). Use `axis_title_font_size`,
+`legend_font_size`, or per-entry companion `font_size` only when the fallback
+visibly uses a separate size. When no explicit fallback size exists for a role,
+default to compact PowerPoint text: `title_font_size: 16` (12pt),
+`subtitle_font_size: 12` (9pt), `axis_font_size: 12` (9pt), and
+`note_font_size: 12` (9pt).
+
+**Chart chrome metadata**: Text that is visually part of the chart must be in
+metadata, not only in SVG fallback children; metadata MUST still match visible
+fallback chrome. `title` becomes the native chart title on classic charts; it
+is not an object name, so use `name` for semantic object naming. `subtitle`
+becomes the second rich-text line of that classic chart title. `title`,
+`subtitle`, and axis-title values may be strings or objects with `text`,
+`font_size`, `font_family`, and `color` when the fallback uses local role
+typography. `svg_quality_checker.py` rejects `title`, `subtitle`, or axis-title
+metadata whose text is not visible inside the native marker's fallback. Direct
+`--native-objects` export keeps the chart native but omits that inconsistent
+chrome with a warning. chartEx keeps PowerPoint's empty `<cx:title>` and emits
+the title / subtitle as companion editable text boxes until chartEx rich titles
+are validated. Axis
+titles are optional and explicit: use `axis_titles` with
+`category`, `value`, `x`, `y`, or `secondary_value` keys, or the root aliases
+`category_axis_title`, `value_axis_title`, `x_axis_title`, `y_axis_title`, and
+`secondary_value_axis_title`; do not add semantic axis titles that are not
+visible in the fallback. Set `show_value_axis_labels: false` when the fallback
+keeps category labels but omits numeric value-axis tick labels, such as a radar
+chart without radial coordinates. Native legends are metadata-controlled: use
+`show_legend: true` and `legend_position` only when the fallback's legend is
+meant to be replaced by PowerPoint's native legend.
+Companion text such as `caption`, `source`, `note`, `notes`, `footnote`, and
+`footnotes` is exported as editable PPT text boxes next to the native chart. A
+companion entry may be a string or an object with `text`, `x`, `y`, `width`,
+`height`, `font_size`, `color`, `align`, and `bold`; explicit bounds are
+recommended so the native export matches the SVG fallback placement. Explicit
+companion bounds are slide coordinates, not local coordinates inside a
+transformed marker group. Use companion text for chart captions, source notes,
+center labels, and freeform annotations; use `data_labels` for values that
+belong to chart points.
+
+**Chart color styling**: For classic native charts, `style.colors` sets series
+colors. The exporter also writes explicit chart-area fill, plot-area fill,
+axis line, gridline, and label text colors so PowerPoint does not substitute a
+white/default-theme chart. If omitted, the exporter infers these colors from
+the visible SVG fallback: the largest panel-like `<rect>` becomes the chart
+background, fallback text supplies label color, and fallback strokes supply
+axis/grid colors. Override any of them explicitly under `style` with
+`chart_area_fill`, `plot_area_fill`, `text_color`, `axis_color`, and
+`grid_color`; use `"none"` for transparent chart or plot area fill. Color
+values may be `#RRGGBB`, `#RGB`, `rgb(...)` / `rgba(...)`, or common CSS names
+such as `white`, `black`, and `gray`; the exporter normalizes them to 6-digit
+OOXML RGB. Bar and column series also disable PowerPoint's negative-value
+inversion so negative bars keep the same series fill instead of turning into
+white/theme fill.
+
+**PowerPoint chartEx schema**: `treemap`, `sunburst`, `histogram`, `pareto`,
+`boxWhisker`, `waterfall`, and `funnel` use Office 2016+ chartEx parts. Use
+these input shapes:
+
+| Type | Required data |
+|---|---|
+| `treemap`, `sunburst` | `values` plus either `levels` (`levels[level][point]`) or path-style `categories` (`[["Region", "Group", "Leaf"], ...]`) |
+| `treemap` display note | Top-level group labels default to `overlapping`; override with `parent_label_layout: "banner" \| "overlapping" \| "none"`. PowerPoint labels only the top level and leaves — intermediate levels group tiles spatially without labels (sunburst shows every ring). |
+| `histogram` | `values` |
+| `pareto`, `waterfall`, `funnel` | `categories` + `values`; `waterfall` also accepts `subtotals` / `subtotal_indices` point indexes |
+| `boxWhisker` | `series[].values`; optional `series[].categories` per value |
+
+> Note: chartEx files are valid PPTX and editable in PowerPoint; non-Microsoft
+> renderers can display a limited subset.
+
+**Stock chart schema**: `stock` uses numeric Excel date serials in
+`categories` or `dates`, plus exactly four series in open / high / low / close
+order. Use either `series` with four entries, or top-level `open`, `high`,
+`low`, and `close` arrays.
+
+**Deferred chart types**: Exploded pie / doughnut variants, `map`, `heatmap`,
+`bullet`, and `gantt` are intentionally outside the current native-object
+support boundary. The exporter fails fast for these types until each mapping is
+implemented and validated one by one.
+
+**Supported chart types**:
+
+- `column`, `bar`: `clustered`, `stacked`, or `percentStacked` (`grouping`)
+- `line`: `standard`, `stacked`, or `percentStacked` (`grouping`); `line` or `lineMarker` (`line_style`, default `line` / no markers)
+- `area`: `standard`, `stacked`, or `percentStacked` (`grouping`)
+- `pie`: exactly one series, per-slice colors
+- `doughnut`: exactly one series, per-slice colors
+- `pieOfPie`, `barOfPie`: exactly one series, per-slice colors
+- `radar`, `radarMarkers`, `radarFilled`
+- `scatter`: `marker` (default), `lineMarker`, `line`, `smoothMarker`, or `smooth` (`scatter_style`)
+- `bubble`: x/y/size series
+- `combo`: `column`, `line`, and `area` plots, optional secondary value axis
+- `treemap`, `sunburst`: hierarchical chartEx charts
+- `histogram`, `pareto`
+- `boxWhisker`
+- `waterfall`, `funnel`
+- `stock`: open / high / low / close series
+
+3D chart aliases (`3DColumn`, `3DBar`, `3DLine`, `3DArea`, `3DPie`, cone,
+cylinder, pyramid variants, and `surface`) are intentionally unsupported. They
+add compatibility risk without meaningful presentation value.
+
+Native chart legends are off by default because right-side legends routinely
+steal plot area in PPT. Add `show_legend: true` only when the legend is needed;
+`legend_position` defaults to `bottom` and also accepts `top`, `left`, or
+`right`.
+
+**Forbidden — native marker transforms**: Do not rotate, skew, or matrix-transform native table/chart marker groups. Translate / scale is accepted; complex transforms fail export because PowerPoint native table/chart frames do not preserve arbitrary SVG transforms.
 
 ### transform: rotate — Element Rotation
 

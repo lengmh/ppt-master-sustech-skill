@@ -39,10 +39,15 @@ import sys
 from collections import OrderedDict
 from pathlib import Path
 
+from console_encoding import configure_utf8_stdio
+
 try:
     import yaml  # type: ignore
 except ImportError:
     yaml = None
+
+
+configure_utf8_stdio()
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -161,15 +166,6 @@ def _summary_from_use_cases(use_cases: str | None) -> str | None:
     return f"{cleaned}."
 
 
-def _split_keywords(value: object) -> list[str]:
-    if isinstance(value, list):
-        return [str(item).strip() for item in value if str(item).strip()]
-    if isinstance(value, str):
-        parts = re.split(r"[,，;；/、]", value)
-        return [p.strip() for p in parts if p.strip()]
-    return []
-
-
 def _list_pages(template_dir: Path) -> list[str]:
     return sorted(p.stem for p in template_dir.glob("*.svg"))
 
@@ -201,21 +197,10 @@ def _extract_entry(kind: str, template_id: str, template_dir: Path) -> dict:
     fm = frontmatter or {}
 
     declared_kind = fm.get("kind")
-    legacy_template_id = fm.get("template_id")
-    if declared_kind is None and legacy_template_id and kind == "layout":
-        declared_kind = "layout"
     if declared_kind not in (None, kind):
         raise SpecParseError(
             f"design_spec.md frontmatter declares kind={declared_kind!r}; "
             f"expected kind={kind!r} — use --kind {declared_kind} instead"
-        )
-
-    expected_id_key = KIND_CONFIG[kind]["id_key"]
-    declared_id = fm.get(expected_id_key) or (fm.get("template_id") if kind == "layout" else None)
-    if declared_id and str(declared_id) != template_id:
-        raise SpecParseError(
-            f"design_spec.md frontmatter declares {expected_id_key}={declared_id!r}; "
-            f"expected {template_id!r}"
         )
 
     summary = (fm.get("summary") or "").strip()
@@ -255,25 +240,9 @@ def _extract_entry(kind: str, template_id: str, template_dir: Path) -> dict:
     else:
         raise SpecParseError(f"unknown kind {kind!r}")
 
-    category = fm.get("category", "general")
-    use_cases = (
-        fm.get("use_cases")
-        or _extract_section_field(body, "I. Template Overview", ["Use Cases", "Use cases"])
-        or _extract_section_field(body, "I. Brand Overview", ["Use Cases", "Use cases"])
-        or ""
-    )
-    design_tone = (
-        fm.get("design_tone")
-        or _extract_section_field(body, "I. Template Overview", ["Design Tone", "Tone"])
-        or _extract_section_field(body, "I. Brand Overview", ["Design Tone", "Tone"])
-        or ""
-    )
     extras = OrderedDict(
         pages=pages,
         primary_color=str(primary_color),
-        category=str(category),
-        use_cases=str(use_cases),
-        design_tone=str(design_tone),
     )
     return {"entry": entry, "extras": extras}
 
@@ -326,8 +295,6 @@ def _print_completion_card(kind: str, template_id: str, entry: dict, extras: dic
         pc = entry.get("page_count") or "—"
         print(f"**Canvas**: {canvas}")
         print(f"**Pages**: {pc}")
-    if extras.get("category"):
-        print(f"**Category**: {extras.get('category')}")
     print(f"**Summary**: {entry.get('summary') or '—'}")
     print("**Index Registration**: Done")
     print()

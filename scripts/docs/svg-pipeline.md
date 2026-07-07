@@ -20,9 +20,7 @@ Unified post-processing entry point. This is the preferred way to run SVG cleanu
 
 It aggregates:
 - `embed_icons.py`
-- `crop_images.py`
-- `fix_image_aspect.py`
-- `embed_images.py`
+- `align_embed_images.py` (`crop-images` / `fix-aspect` / `embed-images` aliases route here)
 - `flatten_tspan.py`
 - `svg_rect_to_path.py`
 
@@ -122,13 +120,29 @@ python3 scripts/svg_quality_checker.py examples/project
 python3 scripts/svg_quality_checker.py examples/project --format ppt169
 python3 scripts/svg_quality_checker.py --all examples
 python3 scripts/svg_quality_checker.py examples/project --export
+python3 scripts/svg_quality_checker.py examples/project --layout-json /home/sustech/TempFiles/layout-quality.json
 ```
 
 Checks include:
 - `viewBox`
 - banned elements
-- width/height consistency
 - line-break structure
+- layout-quality diagnostics for common text overflow, font-size, card overlap, and budget mismatch warnings
+
+Layout-quality findings are warnings and diagnostics only; the checker does not reflow text, resize cards, split pages, shrink fonts, or modify SVG/PPTX/spec files. Ambiguous static warnings may include `probe_recommended=true` in `--layout-json`.
+
+## `svg_layout_probe.py`
+
+Optional browser geometry probe for layout-quality diagnostics.
+
+```bash
+uv run --with playwright python scripts/svg_layout_probe.py <project_path> --pages 03 --output /home/sustech/TempFiles/layout-probe.json
+uv run --with playwright python scripts/svg_layout_probe.py --fixture-mode scripts/tests/fixtures/layout_quality/text_overflow_card.svg --json
+```
+
+Project mode expects the live-preview server to be reachable and uses its `/api/slide/<page>` materialized SVG, matching icon inlining and relative image resolution. `--fixture-mode` is for synthetic local SVG fixtures only.
+
+Run the probe when static layout warnings are ambiguous, especially dense card layouts, many text-fit warnings, image-overlay pages, or high-stakes decks before final export. The probe is still diagnostic only and never edits files.
 
 ## `svg_position_calculator.py`
 
@@ -180,15 +194,18 @@ python3 scripts/svg_finalize/svg_rect_to_path.py path/to/file.svg
 
 Use when rounded corners must survive PowerPoint shape conversion.
 
-### `fix_image_aspect.py`
+### `align_embed_images.py`
 
 ```bash
-python3 scripts/svg_finalize/fix_image_aspect.py path/to/slide.svg
-python3 scripts/svg_finalize/fix_image_aspect.py 01_cover.svg 02_toc.svg
-python3 scripts/svg_finalize/fix_image_aspect.py --dry-run path/to/slide.svg
+python3 scripts/svg_finalize/align_embed_images.py path/to/slide.svg
+python3 scripts/svg_finalize/align_embed_images.py --dry-run path/to/slide.svg
 ```
 
-Use when embedded images stretch after PowerPoint shape conversion.
+Use for rare single-file diagnostics when image `slice` / `meet` alignment and
+Base64 embedding must be inspected outside `finalize_svg.py`. In normal project
+runs, use `python3 scripts/finalize_svg.py <project_path>`; the old
+`crop-images`, `fix-aspect`, and `embed-images` names remain accepted only as
+`finalize_svg.py --only` aliases for the merged `align-images` step.
 
 ### `embed_icons.py`
 
@@ -210,7 +227,7 @@ Use PowerPoint-safe transparency syntax:
 | `<g opacity=\"...\">` | Set opacity on each child |
 | `<image opacity=\"...\">` | Overlay with a mask layer |
 
-PowerPoint also has trouble with:
-- marker-based arrows
-- unsupported filters
-- direct SVG features not mapped to DrawingML
+PowerPoint also has trouble with unsupported filters and direct SVG features
+not mapped to DrawingML. Connector arrows may use qualified
+`marker-start` / `marker-end`; chunky or exotic arrows should be standalone
+`<path>` / `<polygon>` shapes.

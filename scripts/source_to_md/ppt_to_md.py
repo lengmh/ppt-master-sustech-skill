@@ -34,10 +34,20 @@ from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote
 
+_SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from console_encoding import configure_utf8_stdio  # noqa: E402
+from _batch import run_path_batch  # noqa: E402
+from _conversion_profile import write_conversion_profile_best_effort  # noqa: E402
+
 from pptx import Presentation
 from pptx.enum.action import PP_ACTION
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.oxml.ns import qn
+
+configure_utf8_stdio()
 
 
 EMU_PER_INCH = 914400
@@ -356,6 +366,76 @@ def table_to_markdown(table: object) -> str:
     ]
     for row in body:
         lines.append("| " + " | ".join(row) + " |")
+    return "\n".join(lines)
+
+
+def _format_chart_value(value: object) -> str:
+    """Render a chart data point, trimming whole-number floats."""
+    if value is None:
+        return ""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+def chart_to_markdown(chart: object, name: str) -> str:
+    """Render a chart's data as a Markdown table so the numbers survive conversion.
+
+    A native PowerPoint chart stores its data in embedded XML, not in any text
+    frame — emitting only a `[Chart]` placeholder drops every value. The markdown
+    is the content contract for downstream generation, so transcribe categories ×
+    series here. `scripts/pptx_intake.py` writes the same data in structured JSON
+    form for tooling; this is the human- and content-readable mirror.
+    """
+    try:
+        chart_type = str(chart.chart_type)
+    except (ValueError, AttributeError):
+        chart_type = ""
+
+    categories: list[str] = []
+    try:
+        plots = list(chart.plots)
+        if plots:
+            categories = [
+                escape_table_cell(str(cat)) if cat is not None else ""
+                for cat in plots[0].categories
+            ]
+    except (ValueError, IndexError, AttributeError):
+        categories = []
+
+    series_data: list[tuple[str, list[object]]] = []
+    try:
+        for index, series in enumerate(chart.series, start=1):
+            try:
+                values = list(series.values)
+            except (ValueError, TypeError, AttributeError):
+                values = []
+            label = str(series.name) if getattr(series, "name", None) else f"Series {index}"
+            series_data.append((escape_table_cell(label), values))
+    except (ValueError, AttributeError):
+        series_data = []
+
+    header = f"> [Chart] {name}" + (f" — {chart_type}" if chart_type else "")
+    row_count = len(categories) if categories else max((len(v) for _, v in series_data), default=0)
+    if not series_data or row_count == 0:
+        return header
+
+    table_header = (["Category"] if categories else ["#"]) + [sname for sname, _ in series_data]
+    lines = [
+        header,
+        "",
+        "| " + " | ".join(table_header) + " |",
+        "| " + " | ".join(["---"] * len(table_header)) + " |",
+    ]
+    for row_index in range(row_count):
+        if categories:
+            label = categories[row_index] if row_index < len(categories) else ""
+        else:
+            label = str(row_index + 1)
+        cells = [label]
+        for _, values in series_data:
+            cells.append(_format_chart_value(values[row_index]) if row_index < len(values) else "")
+        lines.append("| " + " | ".join(cells) + " |")
     return "\n".join(lines)
 
 
@@ -710,7 +790,10 @@ def convert_presentation_to_markdown(
                     continue
 
             if getattr(shape, "has_chart", False):
-                blocks.append(f"> [Chart] {getattr(shape, 'name', 'Chart')}")
+                try:
+                    blocks.append(chart_to_markdown(shape.chart, getattr(shape, "name", "Chart")))
+                except (ValueError, AttributeError, KeyError):
+                    blocks.append(f"> [Chart] {getattr(shape, 'name', 'Chart')}")
 
         if blocks:
             lines.append("\n\n".join(blocks))
@@ -733,8 +816,17 @@ def convert_presentation_to_markdown(
             json.dumps(image_manifest, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
+    profile_path = write_conversion_profile_best_effort(
+        input_path=str(input_file),
+        markdown_path=out_file,
+        converter="ppt_to_md.py",
+        conversion_type=suffix.lstrip("."),
+        asset_dir=asset_dir,
+    )
 
     print(f"[OK] Saved Markdown to: {out_file}")
+    if profile_path:
+        print(f"   Wrote conversion profile -> {profile_path}")
     if asset_dir_used:
         media_files = [
             path for path in asset_dir.iterdir()
@@ -751,31 +843,7 @@ def convert_presentation_to_markdown(
     return markdown_content
 
 
-def process_directory(input_dir: str, output_dir: str | None = None) -> None:
-    """Convert all supported PowerPoint files in a directory to Markdown."""
-    input_path = Path(input_dir)
-
-    if output_dir:
-        output_path = Path(output_dir)
-    else:
-        output_path = input_path
-
-    presentation_files = sorted(
-        path for path in input_path.iterdir()
-        if path.is_file() and path.suffix.lower() in SUPPORTED_FORMATS
-    )
-
-    print(f"Found {len(presentation_files)} PowerPoint files")
-
-    for presentation_file in presentation_files:
-        output_file = output_path / f"{presentation_file.stem}.md"
-        print(f"Processing: {presentation_file.name}")
-        result = convert_presentation_to_markdown(str(presentation_file), str(output_file))
-        if not result:
-            print(f"[WARN] Skipped failed file: {presentation_file.name}")
-
-
-def main() -> None:
+def main() -> int:
     """Run the CLI entry point."""
     parser = argparse.ArgumentParser(
         description="Convert PowerPoint files to Markdown",
@@ -783,9 +851,9 @@ def main() -> None:
         epilog="""
 Examples:
   python ppt_to_md.py slides.pptx
-  python ppt_to_md.py slides.pptx -o output.md
-  python ppt_to_md.py ./decks
+  python ppt_to_md.py slides.pptx appendix.pptx
   python ppt_to_md.py ./decks -o ./markdown
+  python ppt_to_md.py slides.pptx -o output.md
   python ppt_to_md.py deck.ppsx -o notes/deck.md
 
 Supported formats:
@@ -794,23 +862,22 @@ Supported formats:
 Legacy .ppt is not parsed directly. Resave it as .pptx or export it to PDF first.
         """,
     )
-    parser.add_argument("input", help="Input PowerPoint file or directory")
-    parser.add_argument("-o", "--output", help="Output Markdown file or directory path")
+    parser.add_argument("inputs", nargs="+", help="Input PowerPoint file(s) or directories")
+    parser.add_argument(
+        "-o",
+        "--output",
+        help="Output Markdown file for one input, or output directory for multiple inputs/directories",
+    )
 
     args = parser.parse_args()
-    input_path = Path(args.input)
 
-    if input_path.is_file():
-        output = args.output or str(input_path.with_suffix(".md"))
-        result = convert_presentation_to_markdown(str(input_path), output)
-        sys.exit(0 if result else 1)
-    if input_path.is_dir():
-        process_directory(str(input_path), args.output)
-        sys.exit(0)
-
-    print(f"Error: File or directory not found: {args.input}")
-    sys.exit(1)
+    return run_path_batch(
+        args.inputs,
+        set(SUPPORTED_FORMATS),
+        args.output,
+        lambda source, output: bool(convert_presentation_to_markdown(str(source), str(output))),
+    )
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

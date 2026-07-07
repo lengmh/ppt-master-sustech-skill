@@ -129,6 +129,31 @@ def _extract_roster_entries(body: str) -> list[str]:
     return sorted(set(entries))
 
 
+def _check_design_spec_skeleton(
+    spec_text: str,
+    frontmatter: dict[str, Any],
+    errors: list[str],
+    warnings: list[str],
+) -> None:
+    has_personality = all(heading in spec_text for heading in REQUIRED_PERSONALITY_SPEC_SECTIONS)
+    has_legacy = all(heading in spec_text for heading in LEGACY_SPEC_SECTIONS)
+    has_upstream_roster = "## V. SVG Page Roster" in spec_text
+    if has_personality:
+        return
+    if has_legacy:
+        warnings.append("design_spec.md uses the legacy verbose template skeleton; new templates should migrate to the personality-only skeleton")
+        return
+    if has_upstream_roster and "## I. Template Overview" in spec_text:
+        warnings.append("design_spec.md uses an upstream/compatibility template skeleton; strict SUSTech create-template checks require brief_lock.json")
+        return
+
+    missing = [heading for heading in REQUIRED_PERSONALITY_SPEC_SECTIONS if heading not in spec_text]
+    if frontmatter:
+        warnings.append(f"design_spec missing current/legacy skeleton sections; relying on frontmatter and registrar checks: {missing}")
+    else:
+        errors.append(f"design_spec missing required sections for either current or legacy skeleton: {missing}")
+
+
 def _check_design_spec_against_lock(
     spec_text: str,
     frontmatter: dict[str, Any],
@@ -137,21 +162,7 @@ def _check_design_spec_against_lock(
     errors: list[str],
     warnings: list[str],
 ) -> None:
-    has_personality = all(heading in spec_text for heading in REQUIRED_PERSONALITY_SPEC_SECTIONS)
-    has_legacy = all(heading in spec_text for heading in LEGACY_SPEC_SECTIONS)
-    has_upstream_roster = "## V. SVG Page Roster" in spec_text
-    if has_personality:
-        pass
-    elif has_legacy:
-        warnings.append("design_spec.md uses the legacy verbose template skeleton; new templates should migrate to the personality-only skeleton")
-    elif has_upstream_roster and "## I. Template Overview" in spec_text:
-        warnings.append("design_spec.md uses an upstream/compatibility template skeleton; strict SUSTech create-template checks require brief_lock.json")
-    else:
-        missing = [heading for heading in REQUIRED_PERSONALITY_SPEC_SECTIONS if heading not in spec_text]
-        if frontmatter:
-            warnings.append(f"design_spec missing current/legacy skeleton sections; relying on frontmatter and registrar checks: {missing}")
-        else:
-            errors.append(f"design_spec missing required sections for either current or legacy skeleton: {missing}")
+    _check_design_spec_skeleton(spec_text, frontmatter, errors, warnings)
 
     if frontmatter:
         missing = REQUIRED_FRONTMATTER_KEYS - set(frontmatter)
@@ -201,21 +212,7 @@ def _check_design_spec_without_lock(
     errors: list[str],
     warnings: list[str],
 ) -> None:
-    has_personality = all(heading in spec_text for heading in REQUIRED_PERSONALITY_SPEC_SECTIONS)
-    has_legacy = all(heading in spec_text for heading in LEGACY_SPEC_SECTIONS)
-    has_upstream_roster = "## V. SVG Page Roster" in spec_text
-    if has_personality:
-        pass
-    elif has_legacy:
-        warnings.append("design_spec.md uses the legacy verbose template skeleton; new templates should migrate to the personality-only skeleton")
-    elif has_upstream_roster and "## I. Template Overview" in spec_text:
-        warnings.append("design_spec.md uses an upstream/compatibility template skeleton; strict SUSTech create-template checks require brief_lock.json")
-    else:
-        missing = [heading for heading in REQUIRED_PERSONALITY_SPEC_SECTIONS if heading not in spec_text]
-        if frontmatter:
-            warnings.append(f"design_spec missing current/legacy skeleton sections; relying on frontmatter and registrar checks: {missing}")
-        else:
-            errors.append(f"design_spec missing required sections for either current or legacy skeleton: {missing}")
+    _check_design_spec_skeleton(spec_text, frontmatter, errors, warnings)
 
     if not frontmatter:
         warnings.append("design_spec.md has no YAML frontmatter; register_template.py will rely on prose fallback")

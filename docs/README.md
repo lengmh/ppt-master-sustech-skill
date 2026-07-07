@@ -6,9 +6,9 @@
 
 | 项目 | 值 |
 |---|---|
-| Release Version | `r2.10.0-v0.3.0` |
-| Upstream Baseline | `hugohe3/ppt-master@v2.10.0` |
-| Tracked Range | `v2.10.0..137e0e5ebc385620e9cc95fcc56d8f67e3d8c3a9` |
+| Release Version | `r3.1.0-v0.4.0` |
+| Upstream Baseline | `hugohe3/ppt-master@v3.1.0` |
+| Tracked Range | `v3.1.0..c2cb78ad997b41d16cefe083831d62571ab9f741` |
 | Root Directory | `ppt-master/` |
 
 ## 文档列表
@@ -26,5 +26,5 @@
 - `SKILL.md` 是 agent 主入口。
 - `VERSION` 和 `RELEASE_META.json` 记录版本、上游基线和追踪范围。
 - `docs/Roadmap.md` 记录 SUSTech 特有增强和上游兼容关注项。
-- `scripts/docs/ppt-text-normalize.md` 记录当前内置 `ppt_text_normalize` Safe MVP 与正式支持、运行时可选的 visual review gate 命令面和安全边界。
-- `ppt_text_normalize` 的 Safe MVP 内核仍是 `scan` / visual review / `apply`；visual review gate 是介于 scan 与 apply 之间的正式人工审核层。
+- `scripts/docs/ppt-text-normalize.md` 记录当前内置 `ppt_text_normalize` Safe MVP；本发布线公开支持 `scan` / `apply`。
+- review gate / browser panel / reviewed-rules flow 保留为源码资产，需单独复核后再作为公开能力宣布。

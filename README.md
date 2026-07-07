@@ -12,11 +12,11 @@
 </p>
 
 <p align="center">
-  <a href="VERSION"><img alt="version" src="https://img.shields.io/badge/version-r2.10.0--v0.3.0-0ea5e9?style=flat-square"></a>
+  <a href="VERSION"><img alt="version" src="https://img.shields.io/badge/version-r3.1.0--v0.4.0-0ea5e9?style=flat-square"></a>
   <a href="https://github.com/lengmh/ppt-master-sustech-skill/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/lengmh/ppt-master-sustech-skill?style=flat-square&label=stars&logo=github"></a>
   <a href="https://github.com/lengmh/ppt-master-sustech-skill/commits"><img alt="last commit" src="https://img.shields.io/github/last-commit/lengmh/ppt-master-sustech-skill?style=flat-square&label=last%20commit"></a>
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/lengmh/ppt-master-sustech-skill?style=flat-square&label=license"></a>
-  <a href="RELEASE_META.json"><img alt="upstream" src="https://img.shields.io/badge/upstream-ppt--master%20v2.10.0-f59e0b?style=flat-square"></a>
+  <a href="RELEASE_META.json"><img alt="upstream" src="https://img.shields.io/badge/upstream-ppt--master%20v3.1.0-f59e0b?style=flat-square"></a>
 </p>
 
 <p align="center">
@@ -37,10 +37,10 @@
 
 | 项目 | 值 |
 |---|---|
-| Release Version | `r2.10.0-v0.3.0` |
-| Upstream Baseline | `hugohe3/ppt-master@v2.10.0` |
-| Upstream Commit | `34d1f0057d51ff2cc15bcbbec071ef35f6fc1ae1` |
-| Tracked Range | `v2.10.0..137e0e5ebc385620e9cc95fcc56d8f67e3d8c3a9` |
+| Release Version | `r3.1.0-v0.4.0` |
+| Upstream Baseline | `hugohe3/ppt-master@v3.1.0` |
+| Upstream Commit | `b8808a3a17377ea4e7fd79bdad096bab613f86b9` |
+| Tracked Range | `v3.1.0..c2cb78ad997b41d16cefe083831d62571ab9f741` |
 | Root Directory | `ppt-master/` |
 
 Release page:
@@ -53,37 +53,36 @@ Release page:
 - 通过 `design_spec.md` 和 `spec_lock.md` 驱动设计意图与执行约束。
 - 采用 SVG-first 页面构建流程，并导出可编辑 PPTX。
 - 支持浏览器 live preview，用于查看页面、direct edit 和提交标注。
-- 支持 Confirm UI 与 native PPTX template-fill 上游工作流。
+- 支持 staged Confirm UI、日文 UI 文案、native PPTX template-fill 与 existing-PPTX 增强工作流。
+- 支持 opt-in native PPTX tables/charts，并包含图表工作簿生成与负值点颜色修复。
 - 支持 `brand / layout / deck` 三分模板体系。
 - 支持 AI image manifest 工作流和图像 prompt catalog。
 - 内置 chart templates、图表校验指引、speaker notes、动画与导出辅助能力。
-- 内置 `ppt_text_normalize` Safe MVP：提供 `scan` / visual review gate / `apply` PPTX 文字样式归一化。
+- 内置 `ppt_text_normalize` Safe MVP：公开支持 `scan` / `apply` PPTX 文字样式归一化。
 - 支持 opt-in `visual-review`，用于渲染后页面检查。
 - 支持 LaTeX 公式渲染：通过 `scripts/latex_render.py` 和 `images/formula_manifest.json` 生成公式 PNG 资产。
 
 ## SUSTech 增强内容
 
-本版本保留上游 v2.10.0 能力，并叠加以下 SUSTech 增强：
+本版本融合上游 v3.1.0 与 `main@c2cb78a` 跟踪更新，并叠加以下 SUSTech 增强：
 
-- live-preview 融合 upstream staged direct edit：drag / resize / arrow nudge 等确定性编辑写入 staged edit；annotation 保留给需要 AI 判断的修改；继续保留 text-layout issue 检测。
+- live-preview 以 upstream v3.1.0 direct-edit 行为为准；本地保留轻量 layout-quality 静态诊断，不覆盖上游交互模型。
 - 模板创建审计流：`brief_lock.json`、strict validation mode、template preview feedback。
 - SUSTech 与组织模板统一整理为 `templates/decks/` 条目。
 - 已清理旧品牌类 `templates/layouts/`；该目录现在只保留结构型 layout presets。
-- 正式纳入 `ppt_text_normalize` Safe MVP：以保守 `scan` / `apply` 流程处理 PPTX 文字样式漂移，并提供正式支持、运行时可选的 visual review gate 作为人工审核层。
-- visual review gate 支持按文本块显式开放非常规字段，用于人工指定颜色等安全字段对齐；字号仍保持禁用。
+- 正式纳入 `ppt_text_normalize` Safe MVP：本发布线只公开承诺 `scan` / `apply`，review gate / browser panel 需单独复核后再宣布。
 - 通过 `VERSION` 和 `RELEASE_META.json` 记录版本、上游基线和追踪范围。
 - 通过 [`docs/Roadmap.md`](docs/Roadmap.md) 记录 SUSTech 增强清单和上游兼容关注项。
 
-## `ppt_text_normalize` 当前源码命令面
+## `ppt_text_normalize` 当前公开支持命令面
 
-当前源码命令面包含：
+当前公开支持命令面包含：
 
 - `scripts/ppt_text_normalize/scan.py`
-- `scripts/ppt_text_normalize/build_review_workspace.py`
-- `scripts/ppt_text_normalize/compile_review_decisions.py`
 - `scripts/ppt_text_normalize/apply.py`
 - Safe MVP 保守归一化语义与配套报告输出
-- 正式支持的 opt-in visual review gate：浏览器只保存 `review_decisions.json`，`compile_review_decisions` 生成 `rules_reviewed.json`，最终仍由 `apply.py` 执行 PPTX 修改
+
+源码中保留的 review workspace / reviewed-rules 相关脚本不作为 `r3.1.0-v0.4.0` 的公开发布承诺；需要先完成单独复核。
 
 ## 目录结构
 

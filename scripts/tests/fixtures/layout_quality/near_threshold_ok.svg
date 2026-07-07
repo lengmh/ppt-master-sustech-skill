@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-page="P01">
+  <rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <rect id="wide-panel" x="100" y="120" width="360" height="120" rx="12" fill="#F8FAFC"/>
+  <text id="near-threshold-copy" x="120" y="180" font-size="20" font-family="Arial">Short readable text</text>
+</svg>

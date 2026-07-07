@@ -25,9 +25,12 @@ import logging
 import os
 import re
 import signal
+import subprocess
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 import webbrowser
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -37,9 +40,10 @@ from flask import Flask, jsonify, request, send_from_directory
 
 logger = logging.getLogger('svg_editor')
 
-# Per-project lock file. Lives at <project_path>/.live_preview.lock and
-# matches the *.lock entry already in the repo .gitignore.
-LOCK_FILE_NAME = '.live_preview.lock'
+# Per-project runtime files live under <project_path>/live_preview/.
+LIVE_PREVIEW_DIR_NAME = 'live_preview'
+LOCK_FILE_NAME = 'lock.json'
+LEGACY_LOCK_FILE_NAME = '.live_preview.lock'
 
 # Local — sys.path injection for sibling module (code-style.md §3)
 _SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -55,6 +59,7 @@ _ROOT_SCRIPTS_DIR = _SCRIPTS_DIR.parent
 if str(_ROOT_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_ROOT_SCRIPTS_DIR))
 
+from console_encoding import configure_utf8_stdio  # noqa: E402
 from server_common import (  # noqa: E402
     claim_lock as _claim_lock,
     find_free_port as _find_free_port,
@@ -62,6 +67,8 @@ from server_common import (  # noqa: E402
     read_lock as _read_lock,
     release_lock as _release_lock,
 )
+
+configure_utf8_stdio()
 
 from annotations import (  # noqa: E402
     assign_temp_ids,
@@ -217,20 +224,29 @@ def _validate_edit_attrs(attrs: dict, existing_attrs: set[str]) -> Optional[str]
     return None
 
 
-_EDIT_LOG_NAME = '.live_edits.jsonl'
+EDIT_LOG_NAME = 'edits.jsonl'
+ANNOTATION_LOG_NAME = 'annotations.jsonl'
+
+
+def _append_live_preview_log(project_path: Path, filename: str, record: dict) -> None:
+    """Append one live-preview history record under ``live_preview/``."""
+    try:
+        log_dir = _runtime_dir(project_path)
+        log_dir.mkdir(parents=True, exist_ok=True)
+        with open(log_dir / filename, 'a', encoding='utf-8') as fh:
+            fh.write(json.dumps(record, ensure_ascii=False) + '\n')
+    except OSError as exc:
+        logger.warning('live preview log append failed: %s', exc)
 
 
 def _append_edit_log(project_path: Path, record: dict) -> None:
-    """Append one applied edit record (old→new) to the project's history.
+    """Append one applied direct-edit record to the preview history."""
+    _append_live_preview_log(project_path, EDIT_LOG_NAME, record)
 
-    The on-disk JSONL is the durable trail the user can review to see exactly
-    what changed. Un-applied staged edits stay in memory only.
-    """
-    try:
-        with open(project_path / _EDIT_LOG_NAME, 'a', encoding='utf-8') as fh:
-            fh.write(json.dumps(record, ensure_ascii=False) + '\n')
-    except OSError as exc:
-        logger.warning('edit log append failed: %s', exc)
+
+def _append_annotation_log(project_path: Path, record: dict) -> None:
+    """Append one annotation lifecycle record to the preview history."""
+    _append_live_preview_log(project_path, ANNOTATION_LOG_NAME, record)
 
 
 def _find_by_id(root: ET.Element, element_id: str) -> Optional[ET.Element]:
@@ -335,14 +351,10 @@ def create_app(
 
     # In-memory annotation store: {filename: {element_id: annotation_text}}
     app.config['ANNOTATIONS'] = {}
-    # Explicit annotation deletes staged before /api/save-all. Omitted ids mean
-    # "unchanged on disk", not "delete", so deletes need their own channel.
-    app.config['ANNOTATION_DELETIONS'] = {}
 
     # Per-file staged direct edits. They affect the browser preview immediately,
     # but are written to svg_output/ only by /api/save-all.
     app.config['PENDING_EDITS'] = {}
-    app.config['NORMALIZATION_REVIEW_MODE'] = (project_path / 'review_model.json').exists()
 
     # Idle timeout: auto-shutdown if no one connects within idle_timeout seconds
     app.config['LAST_REQUEST_TIME'] = time.time()
@@ -395,61 +407,7 @@ def create_app(
     def get_config():
         return jsonify({
             'live': app.config['LIVE_MODE'],
-            'normalization_review': {
-                'enabled': app.config['NORMALIZATION_REVIEW_MODE'],
-                'model_path': 'review_model.json',
-                'decisions_path': 'review_decisions.json',
-            },
         })
-
-    def _reject_review_write():
-        if not app.config['NORMALIZATION_REVIEW_MODE']:
-            return None
-        return jsonify({
-            'error': (
-                'Normalization review workspace is read-only; '
-                'only review_decisions.json may be written.'
-            ),
-        }), 409
-
-    @app.route('/api/normalization-review/model')
-    def get_normalization_review_model():
-        path = project_path / 'review_model.json'
-        if not path.exists() or not path.is_file():
-            return jsonify({'error': 'review_model.json not found'}), 404
-        try:
-            return jsonify(json.loads(path.read_text(encoding='utf-8')))
-        except json.JSONDecodeError as exc:
-            return jsonify({'error': f'invalid review_model.json: {exc}'}), 500
-
-    @app.route('/api/normalization-review/decisions')
-    def get_normalization_review_decisions():
-        path = project_path / 'review_decisions.json'
-        if not path.exists():
-            return jsonify({
-                'artifact_type': 'ppt_text_normalize_review_decisions',
-                'schema_version': '0.1',
-                'review_model': 'review_model.json',
-                'decisions': [],
-            })
-        try:
-            return jsonify(json.loads(path.read_text(encoding='utf-8')))
-        except json.JSONDecodeError as exc:
-            return jsonify({'error': f'invalid review_decisions.json: {exc}'}), 500
-
-    @app.route('/api/normalization-review/decisions', methods=['POST'])
-    def post_normalization_review_decisions():
-        model_path = project_path / 'review_model.json'
-        if not model_path.exists() or not model_path.is_file():
-            return jsonify({'error': 'review_model.json not found'}), 404
-        data = request.get_json(silent=True) or {}
-        if data.get('artifact_type') != 'ppt_text_normalize_review_decisions':
-            return jsonify({'error': 'invalid artifact_type'}), 400
-        if not isinstance(data.get('decisions'), list):
-            return jsonify({'error': 'decisions must be a list'}), 400
-        path = project_path / 'review_decisions.json'
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + '\n', encoding='utf-8')
-        return jsonify({'status': 'ok', 'path': 'review_decisions.json'})
 
     @app.route('/images/<path:filename>')
     def serve_image(filename: str):
@@ -639,10 +597,6 @@ def create_app(
 
     @app.route('/api/slide/<name>/annotate', methods=['POST'])
     def post_annotate(name: str):
-        rejected = _reject_review_write()
-        if rejected is not None:
-            return rejected
-
         data = request.get_json()
         if not data or 'element_id' not in data or 'annotation' not in data:
             return jsonify({'error': 'Missing element_id or annotation'}), 400
@@ -663,9 +617,6 @@ def create_app(
             app.config['ANNOTATIONS'][name] = {}
 
         app.config['ANNOTATIONS'][name][element_id] = annotation
-        deletions = app.config['ANNOTATION_DELETIONS'].get(name)
-        if deletions is not None:
-            deletions.discard(element_id)
 
         return jsonify({
             'status': 'ok',
@@ -674,10 +625,6 @@ def create_app(
 
     @app.route('/api/slide/<name>/annotate/<element_id>', methods=['DELETE'])
     def delete_annotate(name: str, element_id: str):
-        rejected = _reject_review_write()
-        if rejected is not None:
-            return rejected
-
         annotations = app.config['ANNOTATIONS']
         # Ensure the file key exists so save-all knows to rewrite this file
         # even if no new annotations were added (pure delete path).
@@ -685,7 +632,6 @@ def create_app(
             annotations[name] = {}
         if element_id in annotations[name]:
             del annotations[name][element_id]
-        app.config['ANNOTATION_DELETIONS'].setdefault(name, set()).add(element_id)
 
         return jsonify({
             'status': 'ok',
@@ -700,10 +646,6 @@ def create_app(
         The edit is visible in preview, but disk writes happen only in
         /api/save-all alongside annotation persistence.
         """
-        rejected = _reject_review_write()
-        if rejected is not None:
-            return rejected
-
         svg_file = _safe_svg_path(name)
         if svg_file is None:
             return jsonify({'error': 'Invalid slide name'}), 400
@@ -813,10 +755,6 @@ def create_app(
     @app.route('/api/slide/<name>/undo', methods=['POST'])
     def post_undo(name: str):
         """Drop the most recent staged direct edit on this slide (LIFO)."""
-        rejected = _reject_review_write()
-        if rejected is not None:
-            return rejected
-
         svg_file = _safe_svg_path(name)
         if svg_file is None:
             return jsonify({'error': 'Invalid slide name'}), 400
@@ -831,22 +769,16 @@ def create_app(
 
     @app.route('/api/save-all', methods=['POST'])
     def save_all():
-        rejected = _reject_review_write()
-        if rejected is not None:
-            return rejected
-
         annotations = app.config['ANNOTATIONS']
-        annotation_deletions = app.config['ANNOTATION_DELETIONS']
         pending_edits = app.config['PENDING_EDITS']
         modified = []
 
-        annotation_dirty = set(annotations.keys()) | set(annotation_deletions.keys())
-        filenames = sorted(annotation_dirty | set(pending_edits.keys()))
+        filenames = sorted(set(annotations.keys()) | set(pending_edits.keys()))
         for filename in filenames:
             anns = annotations.get(filename, {})
-            deleted_ids = annotation_deletions.get(filename, set())
             edits = pending_edits.get(filename, [])
-            has_annotation_change = filename in annotation_dirty
+            # anns may be empty when the user deleted all annotations — still
+            # need to write so the on-disk data-edit-* attributes are cleared.
 
             svg_file = _safe_svg_path(filename)
             if svg_file is None or not svg_file.exists():
@@ -864,36 +796,42 @@ def create_app(
             if not ok:
                 return jsonify({'error': f'Failed to apply edits in {filename}: {reason}'}), 400
 
-            disk_annotations = {
+            old_annotations = {
                 item['element_id']: item['annotation']
                 for item in parse_annotations(root)
-                if item.get('element_id')
             }
-            if has_annotation_change:
-                next_annotations = dict(disk_annotations)
-                for element_id in deleted_ids:
-                    next_annotations.pop(element_id, None)
-                next_annotations.update(anns)
 
-                # Clear existing annotations, then write the merged staged state.
-                # Omitted ids are preserved from disk; explicit deletes remove.
-                for elem in root.iter():
-                    elem.attrib.pop('data-edit-target', None)
-                    elem.attrib.pop('data-edit-annotation', None)
+            # Clear all existing annotations from the file before writing current state
+            for elem in root.iter():
+                elem.attrib.pop('data-edit-target', None)
+                elem.attrib.pop('data-edit-annotation', None)
 
-                for element_id, annotation_text in next_annotations.items():
-                    set_annotation(root, element_id, annotation_text)
-                annotated_ids = set(next_annotations.keys())
-            else:
-                annotated_ids = set(disk_annotations.keys())
+            for element_id, annotation_text in anns.items():
+                set_annotation(root, element_id, annotation_text)
 
             # Strip transient _edit_N ids from elements that are NOT user-annotated.
             # Only annotated elements need to keep their id so the AI can locate them
             # via check_annotations.py; the rest are pollution.
+            annotated_ids = set(anns.keys())
             strip_unused_temp_ids(root, annotated_ids)
 
             tree.write(str(svg_file), encoding='UTF-8', xml_declaration=True)
             ts = time.time()
+            for element_id, annotation_text in anns.items():
+                old_text = old_annotations.get(element_id)
+                action = 'annotation_saved' if old_text is None else 'annotation_updated'
+                if old_text == annotation_text:
+                    action = 'annotation_saved'
+                _append_annotation_log(project_path, {
+                    'ts': ts, 'file': filename, 'element_id': element_id,
+                    'action': action, 'old': old_text, 'new': annotation_text,
+                })
+            for element_id, old_text in old_annotations.items():
+                if element_id not in anns:
+                    _append_annotation_log(project_path, {
+                        'ts': ts, 'file': filename, 'element_id': element_id,
+                        'action': 'annotation_removed', 'old': old_text, 'new': None,
+                    })
             for edit in edits:
                 for chg in edit.get('changes', []):
                     _append_edit_log(project_path, {
@@ -904,12 +842,103 @@ def create_app(
             modified.append(filename)
 
         app.config['ANNOTATIONS'] = {}
-        app.config['ANNOTATION_DELETIONS'] = {}
         app.config['PENDING_EDITS'] = {}
 
         return jsonify({'status': 'ok', 'files_modified': modified})
 
     return app
+
+
+def _runtime_dir(project_path: Path) -> Path:
+    return project_path / LIVE_PREVIEW_DIR_NAME
+
+
+def _lock_file(project_path: Path) -> Path:
+    return _runtime_dir(project_path) / LOCK_FILE_NAME
+
+
+def _legacy_live_lock(project_path: Path) -> Optional[dict]:
+    """Return a live legacy root lock, if one exists."""
+    legacy_lock = project_path / LEGACY_LOCK_FILE_NAME
+    existing = _read_lock(legacy_lock)
+    if existing and _process_alive(int(existing.get('pid', 0))):
+        return existing
+    return None
+
+
+def _shutdown_existing(project_path: Path) -> int:
+    """Stop a live-preview server for this project (idempotent)."""
+    lock_file = _lock_file(project_path)
+    existing = _read_lock(lock_file)
+    legacy_lock_file = project_path / LEGACY_LOCK_FILE_NAME
+    if not existing:
+        existing = _read_lock(legacy_lock_file)
+        lock_file = legacy_lock_file
+    if not existing:
+        logger.info('no live preview server running — nothing to stop')
+        return 0
+
+    pid = int(existing.get('pid', 0) or 0)
+    port = existing.get('port')
+    if not _process_alive(pid):
+        _release_lock(lock_file)
+        logger.info('live preview already stopped; cleared stale lock')
+        return 0
+
+    if port:
+        try:
+            req = urllib.request.Request(
+                f'http://127.0.0.1:{port}/api/shutdown',
+                data=b'{"reason": "cli-shutdown"}',
+                headers={'Content-Type': 'application/json'},
+                method='POST',
+            )
+            urllib.request.urlopen(req, timeout=3)
+        except OSError:
+            pass
+
+    for _ in range(20):
+        if not _process_alive(pid):
+            break
+        time.sleep(0.1)
+    if _process_alive(pid):
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
+    _release_lock(lock_file)
+    logger.info('live preview server stopped (pid=%s)', pid)
+    return 0
+
+
+def _wait_for_ready(url: str, proc: subprocess.Popen, timeout: int = 15) -> bool:
+    """Wait until the server responds or the child exits."""
+    deadline = time.time() + timeout
+    health_url = f'{url}/api/config'
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            return False
+        try:
+            with urllib.request.urlopen(health_url, timeout=1) as response:
+                if response.status == 200:
+                    return True
+        except (urllib.error.URLError, TimeoutError, OSError):
+            time.sleep(0.25)
+    return False
+
+
+def _open_browser(url: str) -> bool:
+    """Best-effort browser launch after the local server is reachable."""
+    try:
+        if os.name == 'nt':
+            os.startfile(url)  # type: ignore[attr-defined]
+            return True
+        return bool(webbrowser.open(url))
+    except OSError as exc:
+        logger.warning('browser auto-open failed: %s', exc)
+    except webbrowser.Error as exc:
+        logger.warning('browser auto-open failed: %s', exc)
+    return False
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -921,6 +950,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--port', type=int, default=5050, help='Port to listen on (default: 5050)')
     parser.add_argument('--no-browser', action='store_true', help='Do not auto-open browser')
     parser.add_argument(
+        '--daemon',
+        action='store_true',
+        help='Start the server in the background and return after it is reachable',
+    )
+    parser.add_argument(
         '--live',
         action='store_true',
         help='Run as Executor live preview: allow empty svg_output/ and keep serving after annotation submit',
@@ -930,6 +964,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help='Idle timeout in seconds (default: 900; live mode default: 7200; 0 = disabled)',
+    )
+    parser.add_argument(
+        '--shutdown',
+        action='store_true',
+        help='Stop a live-preview server left running for this project, then exit (idempotent).',
     )
     return parser
 
@@ -945,6 +984,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
 
     project_path = Path(args.project_dir).resolve()
+    if args.shutdown:
+        return _shutdown_existing(project_path)
+
     svg_output = project_path / 'svg_output'
     if not svg_output.exists():
         if args.live:
@@ -956,6 +998,84 @@ def main(argv: Optional[list[str]] = None) -> int:
         logger.error('%s is not a directory', svg_output)
         return 1
 
+    legacy_existing = _legacy_live_lock(project_path)
+    if legacy_existing:
+        existing_pid = legacy_existing.get('pid', '?')
+        existing_port = legacy_existing.get('port', '?')
+        logger.error(
+            'live preview is already running for this project via legacy lock '
+            '(pid=%s, port=%s). Open http://localhost:%s, click '
+            'Exit preview in the browser, or stop pid %s',
+            existing_pid, existing_port, existing_port, existing_pid,
+        )
+        return 1
+
+    runtime_dir = _runtime_dir(project_path)
+    lock_file = _lock_file(project_path)
+
+    if args.daemon:
+        existing = _read_lock(lock_file)
+        if existing and _process_alive(int(existing.get('pid', 0))):
+            existing_pid = existing.get('pid', '?')
+            existing_port = existing.get('port', '?')
+            logger.error(
+                'live preview is already running for this project '
+                '(pid=%s, port=%s). Open http://localhost:%s',
+                existing_pid, existing_port, existing_port,
+            )
+            return 1
+
+        try:
+            runtime_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            logger.error('cannot create live preview runtime directory: %s (%s)', runtime_dir, exc)
+            return 1
+        log_path = runtime_dir / 'server.log'
+        port = _find_free_port(args.port)
+        idle_timeout = args.timeout
+        if idle_timeout is None:
+            idle_timeout = 7200 if args.live else 900
+        cmd = [
+            sys.executable,
+            str(Path(__file__).resolve()),
+            str(project_path),
+            '--port',
+            str(port),
+            '--timeout',
+            str(idle_timeout),
+            '--no-browser',
+        ]
+        if args.live:
+            cmd.append('--live')
+        creationflags = 0
+        popen_kwargs = {}
+        if os.name == 'nt':
+            creationflags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+        else:
+            popen_kwargs['start_new_session'] = True
+        try:
+            with log_path.open('a', encoding='utf-8') as log:
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    stdin=subprocess.DEVNULL,
+                    creationflags=creationflags,
+                    **popen_kwargs,
+                )
+        except OSError as exc:
+            logger.error('cannot write live preview log: %s (%s)', log_path, exc)
+            return 1
+        url = f'http://localhost:{port}'
+        if not _wait_for_ready(url, proc):
+            logger.error('live preview failed to become reachable: %s (log: %s)', url, log_path)
+            return 1
+        logger.info('started live preview in background: %s (pid=%s)', url, proc.pid)
+        logger.info('log: %s', log_path)
+        if not args.no_browser and not _open_browser(url):
+            logger.info('browser did not auto-open; open %s manually', url)
+        return 0
+
     # Pick a free port: another project's preview/confirm server may already
     # hold the default, so bind the next free one instead of crashing — each
     # project then serves its own data on its own port (no cross-project mix-up).
@@ -965,7 +1085,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     # --live mode (which used to disable idle timeout entirely) combined with
     # silent restarts; refusing duplicate launches catches the accumulation
     # at its source. Stale locks (dead pid) are overwritten by _claim_lock.
-    lock_file = project_path / LOCK_FILE_NAME
+    try:
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        logger.error('cannot create live preview runtime directory: %s (%s)', runtime_dir, exc)
+        return 1
     existing = _claim_lock(lock_file, port)
     if existing:
         existing_pid = existing.get('pid', '?')
@@ -1010,7 +1134,7 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     url = f'http://localhost:{port}'
     if not args.no_browser:
-        webbrowser.open(url)
+        _open_browser(url)
 
     mode = "live preview (auto-startup)" if args.live else "live preview"
     svg_count = len(list(svg_output.glob('*.svg')))

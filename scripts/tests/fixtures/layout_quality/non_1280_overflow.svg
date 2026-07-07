@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" data-page="P01">
+  <rect x="0" y="0" width="1000" height="600" fill="#FFFFFF"/>
+  <rect id="narrow-panel" x="60" y="90" width="180" height="100" rx="10" fill="#F8FAFC"/>
+  <text id="nonstandard-canvas-copy" x="80" y="145" font-size="20" font-family="Arial">This text is too long for this nonstandard canvas card.</text>
+</svg>

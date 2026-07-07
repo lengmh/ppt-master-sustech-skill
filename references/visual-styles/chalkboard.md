@@ -6,7 +6,7 @@ Classroom chalkboard — a dark slate field, soft chalk-stroke line work, powder
 
 ## 1. Shape & decoration
 
-- Shape language: chalk-stroke line work with slightly diffused, dry-medium edges; sketched boxes, brackets, arrows in chalk. Confident but never mechanical.
+- Shape language: chalk-stroke line work with slightly diffused, dry-medium edges; sketched boxes, brackets, arrows in chalk. Confident but never mechanical — the sketched boxes and arrows are `<path>` with non-aligned points; a primitive `<rect>` / `<line>` snaps the chalk back to mechanical.
 - Decoration: underlines and emphasis marks; a few sprinkled chalk stars / dots. Blackboard pedagogy — organized sections, a clear central focus.
 - Whitespace: the dark board reads as room; let chalk marks breathe rather than crowd.
 
@@ -30,3 +30,7 @@ Classroom chalkboard — a dark slate field, soft chalk-stroke line work, powder
 ## 5. Paired image-rendering
 
 `chalkboard` — chalk-on-slate imagery with the same classroom feel.
+
+## 6. Illustration propensity
+
+**core** — chalk-drawn marks and doodles are the classroom aesthetic; with no user steer, default to recommending a coherent spot-illustration family. Default *lean* only — heaviness and placement stay Strategist judgment, an explicit user request wins either way, and `image_usage: none` writes no illustration rows.

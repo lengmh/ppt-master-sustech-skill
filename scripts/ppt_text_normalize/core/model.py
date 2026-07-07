@@ -58,7 +58,6 @@ class StyleFingerprint:
     font_size_pt: float | None = None
     bold: bool | None = None
     italic: bool | None = None
-    source_level: str | None = None
 
 
 @dataclass(frozen=True)
@@ -83,10 +82,8 @@ class TextBlock:
     top: int = 0
     width: int = 0
     height: int = 0
-    paragraphs: int = 0
     paragraph_count: int = 0
     run_count: int = 0
-    source_level: str | None = None
     style: StyleFingerprint = field(default_factory=StyleFingerprint)
     runs: tuple[TextRunStyle, ...] = ()
     unsupported_reason: str | None = None
@@ -163,22 +160,3 @@ class CanonicalStyle:
 class LayoutRiskAssessment:
     level: RiskLevel
     reasons: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class RoleMatch:
-    role: str
-    confidence: float
-    margin: float
-    ambiguous: bool
-    signals: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class SlideClassification:
-    page_type: str
-    confidence: float
-    margin: float
-    ambiguous: bool
-    signals: tuple[str, ...]
-    block_roles: dict[str, RoleMatch]

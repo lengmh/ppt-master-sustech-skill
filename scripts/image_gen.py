@@ -53,7 +53,10 @@ import threading
 import time
 from pathlib import Path
 
+from console_encoding import configure_utf8_stdio
 from config import load_prefixed_env_file, resolve_env_path
+
+configure_utf8_stdio()
 
 ENV_PATH = resolve_env_path()
 IMAGE_ENV_PREFIXES = (
@@ -340,6 +343,50 @@ def _resolve_backend() -> tuple[object, str]:
     sys.exit(1)
 
 
+def _confirmed_image_ai_path_for_manifest(manifest_path: str) -> str | None:
+    """Return confirmed image_ai_path for a project manifest, if present."""
+    path = Path(manifest_path).resolve()
+    if path.parent.name != "images":
+        return None
+    result_file = path.parent.parent / "confirm_ui" / "result.json"
+    if not result_file.exists():
+        return None
+    try:
+        data = json.loads(result_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    value = data.get("image_ai_path")
+    if not isinstance(value, str):
+        return None
+    return value.strip().lower().replace("_", "-")
+
+
+def _guard_confirmed_non_api_path(manifest_path: str) -> None:
+    """Prevent accidental Path A execution after host-native/manual was confirmed."""
+    image_ai_path = _confirmed_image_ai_path_for_manifest(manifest_path)
+    if image_ai_path not in {"host-native", "manual"}:
+        return
+    if image_ai_path == "host-native":
+        print(
+            "Error: confirmed image_ai_path is 'host-native'.\n"
+            "\n"
+            "Do NOT run image_gen.py --manifest for this project. That command is Path A\n"
+            "and may use the configured API/proxy backend. Use the host's native image\n"
+            "generation tool with prompts from images/image_prompts.json, save outputs to\n"
+            "images/<filename>, update each item status to Generated, then run:\n"
+            "  python3 scripts/image_gen.py --render-md images/image_prompts.json\n"
+        )
+    else:
+        print(
+            "Error: confirmed image_ai_path is 'manual'.\n"
+            "\n"
+            "Do NOT run image_gen.py --manifest for this project. Render the Markdown\n"
+            "sidecar and hand images/image_prompts.md to the user for external generation:\n"
+            "  python3 scripts/image_gen.py --render-md images/image_prompts.json\n"
+        )
+    sys.exit(1)
+
+
 DEFAULT_MANIFEST_CONCURRENCY = 3
 
 STATUS_PENDING = "Pending"
@@ -437,7 +484,9 @@ def _run_manifest(manifest: dict, manifest_path: str, backend_module, *,
       - On any rate-limit error in a batch, halve concurrency (min 1) and
         requeue the rate-limited items.
       - Per-item failures are recorded as `status: Failed` + `last_error`
-        and not retried within this run.
+        and not retried within this run. `Failed` remains retryable and
+        non-terminal; the Step 5 gate must resolve it by rerunning this
+        manifest or marking the item `Needs-Manual`.
       - Status is written back to the manifest file after each completion;
         a Ctrl-C in the middle still preserves done items.
       - `Needs-Manual` items are skipped (user processes them externally).
@@ -516,7 +565,10 @@ def _run_manifest(manifest: dict, manifest_path: str, backend_module, *,
                         item["status"] = STATUS_FAILED
                         item["last_error"] = str(exc)[:500]
                         fail_count += 1
-                        print(f"  [FAIL] {item['filename']}: {exc}")
+                        print(
+                            f"  [FAIL] {item['filename']}: {exc} "
+                            "(status=Failed; retry or mark Needs-Manual before Executor)"
+                        )
                     save_manifest(manifest_path, manifest)
 
         if rate_limited and current > 1:
@@ -534,6 +586,12 @@ def _run_manifest(manifest: dict, manifest_path: str, backend_module, *,
         f"\n[Manifest] Done: {ok_count} ok / {fail_count} failed "
         f"({skipped} pre-skipped). Manifest written to {manifest_path}"
     )
+    if fail_count:
+        print(
+            "[Manifest] Failed is retryable and non-terminal. "
+            "Resolve failed item(s) by rerunning this manifest or marking them "
+            "Needs-Manual before entering Executor."
+        )
     return ok_count, fail_count, skipped
 
 
@@ -704,6 +762,9 @@ def main() -> None:
         md_path = render_manifest_md_to_file(args.render_md, manifest)
         print(f"Rendered Markdown sidecar: {md_path}")
         return
+
+    if args.manifest:
+        _guard_confirmed_non_api_path(args.manifest)
 
     try:
         _load_image_env_file()

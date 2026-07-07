@@ -1,9 +1,9 @@
 # PPT Master SUSTech Enhancement Roadmap
 
-> Last updated: 2026-06-19
-> Current release line: `r2.10.0-v0.3.0`
-> Upstream baseline: `hugohe3/ppt-master@v2.10.0`
-> Tracked upstream range: `v2.10.0..137e0e5ebc385620e9cc95fcc56d8f67e3d8c3a9`
+> Last updated: 2026-07-07
+> Current release line: `r3.1.0-v0.4.0`
+> Upstream baseline: `hugohe3/ppt-master@v3.1.0`
+> Tracked upstream range: `v3.1.0..c2cb78ad997b41d16cefe083831d62571ab9f741`
 
 ## Purpose
 
@@ -20,8 +20,8 @@ Whenever version metadata changes, observable behavior changes, or upstream code
 
 | Layer | Meaning | Current State |
 |---|---|---|
-| Baseline | Official upstream release tag used as the release base | `v2.10.0` / `34d1f0057d51ff2cc15bcbbec071ef35f6fc1ae1` |
-| Tracking | Upstream main commits after the baseline that have also been absorbed | `137e0e5ebc385620e9cc95fcc56d8f67e3d8c3a9` / `docs(roadmap): log Confirm UI + source-fidelity gains, add beautification as next direction` |
+| Baseline | Official upstream release tag used as the release base | `v3.1.0` / `b8808a3a17377ea4e7fd79bdad096bab613f86b9` |
+| Tracking | Upstream main commits after the baseline that have also been absorbed | `c2cb78ad997b41d16cefe083831d62571ab9f741` / fixed cutoff for this fusion |
 | Overlay | SUSTech local behavior, release identity, templates, and workflow extensions | Preserved on top of the baseline and tracking patchset |
 
 Rule of thumb:
@@ -46,7 +46,7 @@ Key files:
 Current rules:
 
 - Version format is `r<upstream-version>-v<local-version>`.
-- Current version is `r2.10.0-v0.3.0`.
+- Current version is `r3.1.0-v0.4.0`.
 
 Fusion guard:
 
@@ -70,34 +70,32 @@ Fusion guard:
 - Preserve the SUSTech headers and documented support-file basis.
 - If support-file behavior changes, update this roadmap.
 
-### 3. Live Preview Editing Enhancements
+### 3. Live Preview Editing Boundary
 
-SUSTech fuses its browser-side review aids with upstream v2.10 staged direct editing.
+SUSTech keeps compatible layout diagnostics while upstream v3.1 direct editing remains the source of truth.
 
 Key files:
 
 - `workflows/live-preview.md`
 - `scripts/svg_editor/server.py`
 - `scripts/svg_editor/static/app.js`
-- `scripts/svg_editor/static/editor_logic.js`
 - `scripts/svg_editor/static/index.html`
 - `scripts/svg_editor/static/style.css`
 
 Preserved local capabilities:
 
-- text layout issue detection
-- one-click layout suggestion annotation
-- `ppt_text_normalize` review-only browser panel
-- post-export annotation window
+- static `layout_quality` diagnostics through `scripts/svg_quality_checker.py`
+- optional browser geometry probe through `scripts/svg_layout_probe.py`
+- annotation remains available for changes requiring AI judgment
 
-Upstream v2.10 capabilities that must also stay present:
+Upstream v3.1 capabilities that must also stay present:
 
 - project-level `.live_preview.lock`
 - slide/cache mechanism
 - slide polling
 - reload banner
 - warning banner
-- bilingual UI
+- trilingual UI including Japanese strings
 - slide navigation toolbar
 - staged direct SVG edits (`/api/slide/<name>/edit`, undo, save-all)
 - drag-to-move and arrow-key nudge through staged direct edit
@@ -107,10 +105,10 @@ Upstream v2.10 capabilities that must also stay present:
 
 Fusion guard:
 
-- Do not regress the SUSTech review aids when accepting upstream `app.js`, `server.py`, HTML, or CSS changes.
-- Keep deterministic drag / resize / nudge on upstream staged direct-edit semantics; do not restore the old drag/scale-to-annotation path.
+- Do not let local aids override upstream direct-edit behavior.
+- Keep deterministic drag / resize / nudge on upstream staged direct-edit semantics.
 - Keep annotation available for changes that need AI judgment, rewriting, layout reasoning, or broad design context.
-- Keep `editor_logic.js` for text-layout helper logic.
+- Do not make the old `ppt_text_normalize` review workspace a release blocker.
 - Verify both API smoke and browser interaction when this area changes.
 
 ### 4. Template Creation Audit Lock and Validation
@@ -199,22 +197,24 @@ Fusion guard:
 - Do not overwrite SUSTech-specific decks or icon sets with upstream-only copies.
 - Keep JSON indexes valid.
 
-### 7. Post-v2.10.0 Tracked Additions
+### 7. Post-v3.1.0 Tracked Additions
 
-The SUSTech line currently includes selected upstream `main` changes after the `v2.10.0` tag.
+The SUSTech line currently includes selected upstream `main` changes after the `v3.1.0` tag.
 
 Tracked cutoff:
 
-- `137e0e5ebc385620e9cc95fcc56d8f67e3d8c3a9`
-- `docs(roadmap): log Confirm UI + source-fidelity gains, add beautification as next direction`
+- `c2cb78ad997b41d16cefe083831d62571ab9f741`
+- fixed cutoff for the `r3.1.0-v0.4.0` fusion
 
 Absorbed skill-root changes:
 
-- v2.10 prompt architecture (`references/modes/*` + `references/visual-styles/*`)
-- Confirm UI for the Eight Confirmations
-- direct SVG edit live preview, undo, overlap picker, and free-port handling
-- native PPTX `template_fill_pptx` workflow
-- source conversion and SVG/PPTX export fixes through the tracked cutoff
+- v3.1 prompt, workflow, source-intake, Confirm UI, and live-preview architecture
+- native PPTX object/export improvements including opt-in tables/charts
+- chart workbook generation dependency recorded through `XlsxWriter>=3.0.0`
+- native chart negative-value point-color fix
+- Confirm UI custom prompt notes for image strategy
+- URL-encoded visual-review slide fetch for non-ASCII names
+- update-path docs and `update_repo.py` hardening
 
 Fusion guard:
 
@@ -228,8 +228,6 @@ SUSTech now treats `scripts/ppt_text_normalize/` as a built-in repo capability w
 Key files:
 
 - `scripts/ppt_text_normalize/scan.py`
-- `scripts/ppt_text_normalize/build_review_workspace.py`
-- `scripts/ppt_text_normalize/compile_review_decisions.py`
 - `scripts/ppt_text_normalize/apply.py`
 - `scripts/docs/ppt-text-normalize.md`
 - `scripts/ppt_text_normalize/README.md`
@@ -238,17 +236,13 @@ Key files:
 
 Current rules:
 
-- The Safe MVP `scan` / `apply` capability release starts at `r2.8.0-v0.2.0`.
-- The runtime opt-in visual review gate enters the formal release line at `r2.8.0-v0.2.1`.
-- `r2.8.0-v0.2.2` adds per-block visual-review field gate override for explicit manual color/style alignment while preserving Safe MVP field boundaries.
-- `r2.8.0-v0.1.1` release assets had included related files, but that version did not define `ppt_text_normalize` as a formal supported repo capability.
-- The current built-in command surface includes `scan`, opt-in `build_review_workspace`, opt-in `compile_review_decisions`, and `apply`.
-- The current release scope is the Safe MVP conservative normalization flow plus the formally supported runtime opt-in visual review gate: `Object Slot` matching, hero freeze, weak-canonical restraint, safe field gating, per-block field gate override, review decisions, reviewed rules, report output, and OOXML namespace-preserving PPTX writes.
-- Browser review remains a review layer only: it writes `review_decisions.json` and does not mutate `rules.json`, SVG geometry, or PPTX files.
+- The public command surface for `r3.1.0-v0.4.0` is `scan` / `apply`.
+- Safe MVP semantics include Object Slot matching, hero freeze, weak-canonical restraint, safe field gating, report output, and OOXML namespace-preserving PPTX writes.
+- Review workspace / browser panel / reviewed-rules assets remain in source but are not advertised as active release capabilities until separately revalidated.
 
 Fusion guard:
 
-- Do not describe future review-gate expansion as shipped until the commands and browser flow actually exist in source and release docs.
+- Do not describe review-gate expansion as shipped until the commands and browser flow are reverified against the current upstream editor.
 - Keep `scan` / `apply` semantics aligned with `scripts/docs/ppt-text-normalize.md`, `scripts/ppt_text_normalize/README.md`, and release notes.
 - Preserve the OOXML namespace-preservation rule and regression coverage when this module changes.
 
@@ -279,23 +273,22 @@ Before accepting a future upstream update, verify:
 - [ ] The upstream skill subtree is mapped from `skills/ppt-master/`, not merged as a full repository root by accident.
 - [ ] `VERSION` and `RELEASE_META.json` preserve baseline vs tracked-cutoff semantics.
 - [ ] `.env.example` and `requirements.txt` stay aligned with `RELEASE_META.json.support_files`.
-- [ ] Live preview keeps both upstream lifecycle features and SUSTech editing assists.
+- [ ] Live preview keeps upstream lifecycle features and only compatible SUSTech layout diagnostics.
 - [ ] `/create-template` keeps `brief_lock.json` strict mode for new SUSTech templates.
 - [ ] Upstream templates do not fail only because they lack `brief_lock.json`.
 - [ ] `sustech_academic_official` remains a deck.
 - [ ] Cleaned legacy layouts are not reintroduced without explicit decision.
 - [ ] Local icon and deck assets remain present.
-- [ ] Formula rendering, PDF vector figure crop, and PPTX notes guard are preserved if the tracked cutoff still includes them.
+- [ ] Native object export, chart workbook generation, and source-intake changes remain present.
 
 ## Release Line Status
 
-As of 2026-06-19:
+As of 2026-07-07:
 
-- Current source release line: `r2.10.0-v0.3.0`
+- Current source release line: `r3.1.0-v0.4.0`
 - `ppt_text_normalize` Safe MVP first enters the formal capability release line at `r2.8.0-v0.2.0`
-- Runtime opt-in visual review gate first enters the formal capability release line at `r2.8.0-v0.2.1`
-- Per-block visual review field gate override enters the formal capability release line at `r2.8.0-v0.2.2`
-- `r2.10.0-v0.3.0` is the first SUSTech line on the upstream v2.10 architecture; it preserves the formal visual review gate from `r2.8.0-v0.2.x`.
+- `r3.1.0-v0.4.0` is the first SUSTech line on the upstream v3.1 architecture.
+- For this release, `ppt_text_normalize` public wording is conservative: `scan` / `apply` only.
 
 Release pages:
 

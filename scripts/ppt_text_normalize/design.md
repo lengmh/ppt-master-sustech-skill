@@ -777,7 +777,6 @@ Each `Text Block` is normalized into a **Style Fingerprint**:
 - `font_size_pt`
 - `bold`
 - `italic`
-- `source_level` (`run`, `paragraph`, `shape/default`)
 
 ### 9.2 Two-level clustering
 

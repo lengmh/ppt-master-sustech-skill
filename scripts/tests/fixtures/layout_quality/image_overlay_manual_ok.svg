@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-page="P04">
+  <rect x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <rect id="image-region" x="80" y="80" width="1120" height="560" fill="#DDE7F0" data-layout-role="image"/>
+  <text id="overlay-title" x="140" y="220" font-size="54" font-family="Arial">Overlay headline</text>
+</svg>

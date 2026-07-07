@@ -10,7 +10,7 @@ Main entry point for project setup and validation.
 
 ```bash
 python3 scripts/project_manager.py init <project_name> --format ppt169
-python3 scripts/project_manager.py import-sources <project_path> <source1> [<source2> ...]
+python3 scripts/project_manager.py import-sources <project_path> <source1_or_dir> [<source2_or_dir> ...]
 python3 scripts/project_manager.py validate <project_path>
 python3 scripts/project_manager.py info <project_path>
 ```
@@ -18,10 +18,19 @@ python3 scripts/project_manager.py info <project_path>
 Notes:
 - Files outside the repo are copied into `sources/` by default
 - With `--move`, files outside the repo are moved into `sources/`
+- Directory inputs are expanded non-recursively. After Step 1 conversion,
+  pass the source file/directory once when generated Markdown lives beside the
+  original source. If Step 1 used `-o` to write Markdown elsewhere, pass both
+  the original source path/directory and the Markdown output path/directory.
 - Files already inside the repo are moved into `sources/` by default (with a stderr
   note), to avoid leaving unintended artifacts that could be committed by mistake.
   Pass `--copy` to force a copy for in-repo sources instead.
 - `--move` and `--copy` are mutually exclusive.
+- PPTX-family inputs are enriched automatically under `analysis/` with
+  per-deck `<stem>.identity.json` / `<stem>.slide_library.json` plus the shared
+  multi-deck index `source_profile.json` (`decks[]`).
+  Multi-deck per project: several PPTX imports each get their own `<stem>.*`
+  artifacts and a `decks[]` entry; re-importing the same stem replaces its entry.
 
 Common formats:
 - `ppt169`

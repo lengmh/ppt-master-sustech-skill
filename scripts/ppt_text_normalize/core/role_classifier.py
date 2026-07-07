@@ -3,8 +3,6 @@ from __future__ import annotations
 from .model import (
     HeroDecision,
     ObjectSlotResolution,
-    RoleMatch,
-    SlideClassification,
     SlideSemanticResolution,
     TextBlock,
 )
@@ -186,7 +184,7 @@ def _content_intent(block: TextBlock) -> tuple[str, float]:
         return "content_caption", 0.66
     if size >= 22 and text_len <= 30:
         return "content_emphasis", 0.62
-    if text_len >= 18 or (block.paragraph_count or block.paragraphs) >= 2:
+    if text_len >= 18 or block.paragraph_count >= 2:
         return "content_body", 0.78
     return "content_body", 0.56
 
@@ -423,25 +421,3 @@ def _resolve_scores(scores: dict[str, float]) -> tuple[str, float, float, bool]:
     total = sum(v for _, v in ranked)
     confidence = best_score / total if total > 0 else 0.0
     return best_name, round(confidence, 4), round(margin, 4), margin < 0.15
-
-
-def classify_slide(slide_index: int, blocks: list[TextBlock], slide_count: int) -> SlideClassification:
-    semantic = classify_slide_semantics(slide_index, blocks, slide_count)
-    block_roles = {
-        block_id: RoleMatch(
-            role=slot.object_slot,
-            confidence=slot.slot_confidence,
-            margin=slot.slot_confidence,
-            ambiguous=slot.skip_reason in {"role_low_confidence", "page_type_low_confidence"},
-            signals=(slot.slot_variant,),
-        )
-        for block_id, slot in semantic.slot_resolutions.items()
-    }
-    return SlideClassification(
-        page_type=semantic.page_type,
-        confidence=semantic.page_type_confidence,
-        margin=semantic.page_type_confidence,
-        ambiguous=semantic.page_type_confidence < 0.45,
-        signals=semantic.signals,
-        block_roles=block_roles,
-    )
