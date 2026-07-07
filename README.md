@@ -1,3 +1,32 @@
+<p align="center">
+  <img src="assets/readme-hero.svg" alt="PPT Master" width="900">
+</p>
+
+<p align="center">
+  <strong>document in · editable PPTX out</strong>
+</p>
+
+<p align="center">
+  AI-assisted presentation generation for agent workflows.<br>
+  SVG-first pages, native editable PPTX export, SUSTech-enhanced templates.
+</p>
+
+<p align="center">
+  <a href="VERSION"><img alt="version" src="https://img.shields.io/badge/version-r2.10.0--v0.3.0-0ea5e9?style=flat-square"></a>
+  <a href="https://github.com/lengmh/ppt-master-sustech-skill/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/lengmh/ppt-master-sustech-skill?style=flat-square&label=stars&logo=github"></a>
+  <a href="https://github.com/lengmh/ppt-master-sustech-skill/commits"><img alt="last commit" src="https://img.shields.io/github/last-commit/lengmh/ppt-master-sustech-skill?style=flat-square&label=last%20commit"></a>
+  <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/lengmh/ppt-master-sustech-skill?style=flat-square&label=license"></a>
+  <a href="RELEASE_META.json"><img alt="upstream" src="https://img.shields.io/badge/upstream-ppt--master%20v2.10.0-f59e0b?style=flat-square"></a>
+</p>
+
+<p align="center">
+  <a href="#快速开始">Quick Start</a> ·
+  <a href="#功能亮点">Features</a> ·
+  <a href="#sustech-增强内容">SUSTech</a> ·
+  <a href="docs/README.md">Docs</a> ·
+  <a href="https://github.com/lengmh/ppt-master-sustech-skill/releases">Releases</a>
+</p>
+
 # PPT Master SUSTech 增强版 Skill
 
 `ppt-master` 是一个面向 agent 环境的演示文稿生成 skill，可将 PDF、DOCX、PPTX、网页、Markdown、Excel 等材料转换为高质量 SVG 页面，并导出为可编辑 PPTX。
