@@ -18,6 +18,7 @@ subtree shape while using local release metadata and support files by default:
 - ``ppt-master/SKILL.md``
 - ``ppt-master/VERSION``
 - ``ppt-master/RELEASE_META.json``
+- ``ppt-master/assets/``
 - ``ppt-master/.env.example``
 - ``ppt-master/requirements.txt``
 - ``ppt-master/docs/README.md``
@@ -68,6 +69,7 @@ LOCAL_RELEASE_ITEMS = (
     "SKILL.md",
     "VERSION",
     "RELEASE_META.json",
+    "assets",
     "docs/README.md",
     "docs/Roadmap.md",
     "docs/THIRD_PARTY_NOTICES.md",
@@ -471,6 +473,7 @@ def verify_release_zip(zip_path: Path, package_dirname: str) -> None:
         f"{package_dirname}/SKILL.md",
         f"{package_dirname}/VERSION",
         f"{package_dirname}/RELEASE_META.json",
+        f"{package_dirname}/assets/readme-hero.svg",
         f"{package_dirname}/.env.example",
         f"{package_dirname}/requirements.txt",
         f"{package_dirname}/docs/README.md",

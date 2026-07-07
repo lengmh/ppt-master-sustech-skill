@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">PPT Master</title>
+  <desc id="desc">Black title banner with a pixel slide icon and the text PPT Master.</desc>
+  <rect width="1200" height="360" fill="#000"/>
+  <g fill="#fff">
+    <rect x="248" y="102" width="14" height="14" rx="2"/>
+    <rect x="268" y="102" width="14" height="14" rx="2"/>
+    <rect x="288" y="102" width="14" height="14" rx="2"/>
+    <rect x="228" y="122" width="14" height="14" rx="2"/>
+    <rect x="248" y="122" width="14" height="14" rx="2"/>
+    <rect x="268" y="122" width="14" height="14" rx="2"/>
+    <rect x="288" y="122" width="14" height="14" rx="2"/>
+    <rect x="308" y="122" width="14" height="14" rx="2"/>
+    <rect x="208" y="142" width="14" height="14" rx="2"/>
+    <rect x="228" y="142" width="14" height="14" rx="2"/>
+    <rect x="248" y="142" width="14" height="14" rx="2"/>
+    <rect x="288" y="142" width="14" height="14" rx="2"/>
+    <rect x="308" y="142" width="14" height="14" rx="2"/>
+    <rect x="328" y="142" width="14" height="14" rx="2"/>
+    <rect x="188" y="162" width="14" height="14" rx="2"/>
+    <rect x="208" y="162" width="14" height="14" rx="2"/>
+    <rect x="228" y="162" width="14" height="14" rx="2"/>
+    <rect x="248" y="162" width="14" height="14" rx="2"/>
+    <rect x="288" y="162" width="14" height="14" rx="2"/>
+    <rect x="308" y="162" width="14" height="14" rx="2"/>
+    <rect x="328" y="162" width="14" height="14" rx="2"/>
+    <rect x="348" y="162" width="14" height="14" rx="2"/>
+    <rect x="168" y="182" width="14" height="14" rx="2"/>
+    <rect x="188" y="182" width="14" height="14" rx="2"/>
+    <rect x="208" y="182" width="14" height="14" rx="2"/>
+    <rect x="228" y="182" width="14" height="14" rx="2"/>
+    <rect x="248" y="182" width="14" height="14" rx="2"/>
+    <rect x="268" y="182" width="14" height="14" rx="2"/>
+    <rect x="288" y="182" width="14" height="14" rx="2"/>
+    <rect x="308" y="182" width="14" height="14" rx="2"/>
+    <rect x="328" y="182" width="14" height="14" rx="2"/>
+    <rect x="348" y="182" width="14" height="14" rx="2"/>
+    <rect x="368" y="182" width="14" height="14" rx="2"/>
+    <rect x="188" y="202" width="14" height="14" rx="2"/>
+    <rect x="208" y="202" width="14" height="14" rx="2"/>
+    <rect x="228" y="202" width="14" height="14" rx="2"/>
+    <rect x="248" y="202" width="14" height="14" rx="2"/>
+    <rect x="288" y="202" width="14" height="14" rx="2"/>
+    <rect x="308" y="202" width="14" height="14" rx="2"/>
+    <rect x="328" y="202" width="14" height="14" rx="2"/>
+    <rect x="348" y="202" width="14" height="14" rx="2"/>
+    <rect x="208" y="222" width="14" height="14" rx="2"/>
+    <rect x="228" y="222" width="14" height="14" rx="2"/>
+    <rect x="248" y="222" width="14" height="14" rx="2"/>
+    <rect x="288" y="222" width="14" height="14" rx="2"/>
+    <rect x="308" y="222" width="14" height="14" rx="2"/>
+    <rect x="328" y="222" width="14" height="14" rx="2"/>
+    <rect x="228" y="242" width="14" height="14" rx="2"/>
+    <rect x="248" y="242" width="14" height="14" rx="2"/>
+    <rect x="268" y="242" width="14" height="14" rx="2"/>
+    <rect x="288" y="242" width="14" height="14" rx="2"/>
+    <rect x="308" y="242" width="14" height="14" rx="2"/>
+    <rect x="248" y="262" width="14" height="14" rx="2"/>
+    <rect x="268" y="262" width="14" height="14" rx="2"/>
+    <rect x="288" y="262" width="14" height="14" rx="2"/>
+  </g>
+  <text x="440" y="195" fill="#fff" font-family="Inter, Arial, Helvetica, sans-serif" font-size="96" font-weight="800">PPT Master</text>
+  <text x="446" y="244" fill="#d4d4d8" font-family="Inter, Arial, Helvetica, sans-serif" font-size="28" font-weight="600">SUSTech enhanced skill</text>
+</svg>
