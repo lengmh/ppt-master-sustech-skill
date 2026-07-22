@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1280 720" width="1280" height="720"
+  data-pptx-master="sustech_academic_master" data-pptx-master-name="SUSTech Academic"
+  data-pptx-layout="evidence" data-pptx-layout-name="Evidence">
+  <rect id="sustech-master-background" x="0" y="0" width="1280" height="720" fill="#FFFFFF"
+    data-pptx-layer="master" data-pptx-editable="false"/>
+
+  <image id="evidence-school-motif" href="../images/top_left_motif_standard.png" x="0" y="13" width="70" height="62" preserveAspectRatio="xMidYMid meet" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <image id="evidence-school-logo" href="../images/full_top_right_school_logo.png" x="1060" y="13" width="220" height="66" preserveAspectRatio="xMidYMid meet" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <line id="evidence-title-accent" x1="92" y1="76" x2="280" y2="76" stroke="#E3660D" stroke-width="3" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <line id="evidence-title-rule" x1="280" y1="76" x2="1188" y2="76" stroke="#CECECE" stroke-width="1" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="evidence-main-background" x="72" y="156" width="760" height="510" rx="22" fill="#EAF1F0" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="evidence-main-border" x="72" y="156" width="760" height="510" rx="22" fill="none" stroke="#CECECE" stroke-width="1.2" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="evidence-main-label" x="452" y="380" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="24" data-pptx-layer="layout" data-pptx-editable="false">Evidence Main Area</text>
+  <text id="evidence-main-description" x="452" y="410" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" data-pptx-layer="layout" data-pptx-editable="false">Formula-led / chart-led / balanced reasoning</text>
+  <rect id="evidence-spine-card" x="856" y="156" width="352" height="124" rx="18" fill="#FFFFFF" stroke="#CECECE" stroke-width="1.5" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="evidence-spine-title" x="884" y="198" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22" font-weight="bold" data-pptx-layer="layout" data-pptx-editable="false">Reasoning Spine</text>
+  <rect id="evidence-input-chip" x="884" y="224" width="76" height="30" rx="10" fill="#F6EBDF" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="evidence-reason-chip" x="990" y="224" width="82" height="30" rx="10" fill="#EAF1F0" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="evidence-output-chip" x="1102" y="224" width="76" height="30" rx="10" fill="#F6EBDF" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="evidence-input-label" x="922" y="245" text-anchor="middle" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12" data-pptx-layer="layout" data-pptx-editable="false">Input</text>
+  <text id="evidence-reason-label" x="1031" y="245" text-anchor="middle" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12" data-pptx-layer="layout" data-pptx-editable="false">Reason</text>
+  <text id="evidence-output-label" x="1140" y="245" text-anchor="middle" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12" data-pptx-layer="layout" data-pptx-editable="false">Output</text>
+  <path id="evidence-arrow-1" d="M 960 238 H 984 L 984 234 L 990 238 L 984 242 L 984 238 H 960 Z" fill="#E3660D" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <path id="evidence-arrow-2" d="M 1072 238 H 1096 L 1096 234 L 1102 238 L 1096 242 L 1096 238 H 1072 Z" fill="#E3660D" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="evidence-object-background" x="856" y="298" width="352" height="368" rx="18" fill="#F6EBDF" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="evidence-object-description" x="1032" y="496" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" data-pptx-layer="layout" data-pptx-editable="false">Explanation / derivation / interpretation</text>
+  <line id="evidence-footer-rule" x1="92" y1="688" x2="1188" y2="688" stroke="#CECECE" stroke-width="1" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="evidence-footer-label" x="92" y="704" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" data-pptx-layer="layout" data-pptx-editable="false">Southern University of Science and Technology</text>
+
+  <g id="evidence-title-slot" data-pptx-placeholder="title" data-pptx-bounds="92 20 900 48">
+    <text id="evidence-title-carrier" data-pptx-carrier="true" x="92" y="60" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="32" font-weight="bold">{{PAGE_TITLE}}</text>
+  </g>
+  <g id="evidence-section-slot" data-pptx-placeholder="body" data-pptx-idx="1" data-pptx-bounds="92 80 900 36">
+    <text id="evidence-section-carrier" data-pptx-carrier="true" x="92" y="106" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="26.7">{{SECTION_NAME}}</text>
+  </g>
+  <g id="evidence-object-slot" data-pptx-placeholder="object" data-pptx-idx="2" data-pptx-bounds="856 298 352 368">
+    <text id="evidence-object-carrier" data-pptx-carrier="true" x="1032" y="466" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22">{{CONTENT_AREA}}</text>
+  </g>
+  <g id="evidence-slide-number-slot" data-pptx-placeholder="slide-number" data-pptx-idx="3" data-pptx-bounds="1108 680 80 28">
+    <text id="evidence-slide-number-carrier" data-pptx-carrier="true" x="1188" y="704" text-anchor="end" fill="#003F43" font-family="Arial, sans-serif" font-size="16" font-weight="bold">{{PAGE_NUM}}</text>
+  </g>
+</svg>

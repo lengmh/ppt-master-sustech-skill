@@ -332,6 +332,7 @@
 
     // ---- State ------------------------------------------------------
     var currentSlide      = null;   // filename, e.g. "slide_01.svg"
+    var waitingForSlide   = null;   // current slide is temporarily unreadable in live mode
     var slideNames        = [];     // ordered slide filenames for navigation
     var selectedElementIds = new Set(); // id attrs of selected SVG elements
     var slideAnnotations  = {};     // {element_id: annotation_text} for current slide
@@ -451,6 +452,28 @@
         return "";
     });
 
+    function readSlideFromLocation() {
+        try {
+            var params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+            return params.get("slide");
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function rememberSlideInLocation(name) {
+        if (!name) return;
+        var params;
+        try {
+            params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        } catch (err) {
+            params = new URLSearchParams();
+        }
+        params.set("slide", name);
+        var url = window.location.pathname + window.location.search + "#" + params.toString();
+        window.history.replaceState(null, "", url);
+    }
+
     function currentSlideIndex() {
         if (!currentSlide) return -1;
         return slideNames.indexOf(currentSlide);
@@ -518,10 +541,12 @@
                 }
 
                 var currentExists = false;
+                var currentReady = false;
                 var currentMtimeChanged = false;
                 slides.forEach(function (s) {
                     if (s.name === currentSlide) {
                         currentExists = true;
+                        currentReady = s.ok !== false;
                         // Compare against the mtime we recorded when we last rendered this slide.
                         var lastSeen = slideMtimes[s.name];
                         if (lastSeen !== undefined && s.mtime && s.mtime !== lastSeen) {
@@ -561,7 +586,15 @@
                 });
 
                 if (!currentSlide || !currentExists) {
-                    selectSlide(slides[0].name);
+                    var rememberedSlide = readSlideFromLocation();
+                    var targetSlide = rememberedSlide && slideNames.indexOf(rememberedSlide) !== -1
+                        ? rememberedSlide
+                        : slides[0].name;
+                    selectSlide(targetSlide);
+                } else if (waitingForSlide === currentSlide) {
+                    if (currentReady) {
+                        selectSlide(currentSlide);
+                    }
                 } else if (currentMtimeChanged) {
                     showReloadBanner(currentSlide);
                 }
@@ -577,7 +610,18 @@
     // ================================================================
     //  2.  selectSlide  -- GET /api/slide/{name}
     // ================================================================
+    function waitForSlideRewrite(name) {
+        if (!liveMode || name !== currentSlide) return;
+        waitingForSlide = name;
+        svgPlaceholder.style.display = "block";
+        svgPlaceholder.textContent = t("placeholder_slide_writing");
+        svgContent.style.display = "none";
+    }
+
     function selectSlide(name, el) {
+        if (!el) {
+            el = slideListEl.querySelector('.slide-item[data-name="' + cssAttr(name) + '"]');
+        }
         // Update active class in sidebar
         document.querySelectorAll(".slide-item").forEach(function (it) {
             it.classList.remove("active");
@@ -585,6 +629,8 @@
         if (el) el.classList.add("active");
 
         currentSlide = name;
+        waitingForSlide = null;
+        rememberSlideInLocation(name);
         selectedElementIds.clear();
         slideAnnotations = {};
         updateNavLabel();
@@ -599,15 +645,11 @@
         fetch("/api/slide/" + encodeURIComponent(name))
             .then(function (res) { return res.json(); })
             .then(function (data) {
+                if (name !== currentSlide) return;
                 if (data.error) {
                     console.error("selectSlide:", data.error);
                     showError(t("err_load_slide") + data.error);
-                    if (liveMode) {
-                        currentSlide = null;
-                        svgPlaceholder.style.display = "block";
-                        svgPlaceholder.textContent = t("placeholder_slide_writing");
-                        svgContent.style.display = "none";
-                    }
+                    waitForSlideRewrite(name);
                     return;
                 }
                 // Render SVG
@@ -686,8 +728,10 @@
                 updatePendingStatus();
             })
             .catch(function (err) {
+                if (name !== currentSlide) return;
                 console.error("selectSlide:", err);
                 showError(t("err_load_slide") + err.message);
+                waitForSlideRewrite(name);
             });
     }
 
@@ -901,7 +945,48 @@
         applyElementAttrs(el, sa);
     }
 
+    var INLINE_GEOMETRY_STYLE_PROPERTIES = {
+        rect: new Set(["x", "y", "width", "height", "rx", "ry"]),
+        circle: new Set(["cx", "cy", "r"]),
+        ellipse: new Set(["cx", "cy", "rx", "ry"]),
+        image: new Set(["x", "y", "width", "height"]),
+        svg: new Set(["x", "y", "width", "height"]),
+        use: new Set(["x", "y", "width", "height"])
+    };
+
+    function stripEditedInlineGeometry(el, attrs) {
+        var style = el.getAttribute("style");
+        var supported = INLINE_GEOMETRY_STYLE_PROPERTIES[localName(el)];
+        if (!style || !supported) return;
+        var edited = new Set(Object.keys(attrs || {}).map(function (key) {
+            return String(key).toLowerCase();
+        }).filter(function (key) { return supported.has(key); }));
+        if (edited.size === 0) return;
+
+        var retained = [];
+        var changed = false;
+        style.split(";").forEach(function (rawDeclaration) {
+            var declaration = rawDeclaration.trim();
+            if (!declaration) return;
+            var colon = declaration.indexOf(":");
+            if (colon < 0) {
+                retained.push(declaration);
+                return;
+            }
+            var name = declaration.slice(0, colon).trim().toLowerCase();
+            if (edited.has(name)) {
+                changed = true;
+                return;
+            }
+            retained.push(declaration);
+        });
+        if (!changed) return;
+        if (retained.length > 0) el.setAttribute("style", retained.join("; "));
+        else el.removeAttribute("style");
+    }
+
     function applyElementAttrs(el, attrs) {
+        stripEditedInlineGeometry(el, attrs);
         if (localName(el) === "g" && el.hasAttribute("data-icon") &&
                 attrs.x !== undefined && attrs.y !== undefined) {
             // The preview expands <use data-icon> into a <g>, but disk still owns
@@ -1689,10 +1774,10 @@
             Array.from(el.attributes).forEach(function (attr) {
                 if (attr.name.indexOf("on") === 0) el.removeAttribute(attr.name);
                 // Strip dangerous URI protocols from href/xlink:href
-                if ((attr.name === "href" || attr.name === "xlink:href") &&
+                if (attr.localName === "href" &&
                     (/^\s*javascript\s*:/i.test(attr.value) ||
                      /^\s*data\s*:/i.test(attr.value))) {
-                    el.removeAttribute(attr.name);
+                    el.removeAttributeNode(attr);
                 }
             });
         });
@@ -2620,7 +2705,7 @@
         var attrs = {};
         attrs[key] = value;
         stageEditRequest(eid, { attrs: attrs })
-            .then(function () { el.setAttribute(key, value); })
+            .then(function () { applyElementAttrs(el, attrs); })
             .catch(function (err) { showError(t("err_edit") + err.message); });
     }
 
@@ -2856,7 +2941,7 @@
             var attrs = {};
             attrs[key] = value;
             return stageEditRequest(el.id, { attrs: attrs }).then(function () {
-                el.setAttribute(key, value);
+                applyElementAttrs(el, attrs);
             });
         });
         Promise.all(jobs)

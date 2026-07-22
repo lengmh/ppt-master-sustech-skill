@@ -29,6 +29,7 @@ venv/
 /cache/
 /docs/plan/
 /docs/superpowers/
+/.planning/
 
 # New features projects
 .idea/

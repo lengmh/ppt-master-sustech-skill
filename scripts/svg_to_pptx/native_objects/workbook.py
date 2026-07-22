@@ -38,7 +38,11 @@ def _xlsx_cell(value: Any, row: int, col: int) -> str:
 def _minimal_workbook(rows: list[list[Any]]) -> bytes:
     if XlsxWriterWorkbook is not None:
         buffer = io.BytesIO()
-        workbook = XlsxWriterWorkbook(buffer, {"in_memory": True})
+        workbook = XlsxWriterWorkbook(buffer, {
+            "in_memory": True,
+            "strings_to_formulas": False,
+            "strings_to_urls": False,
+        })
         worksheet = workbook.add_worksheet("Sheet1")
         for row_index, row in enumerate(rows):
             for col_index, value in enumerate(row):
@@ -50,8 +54,11 @@ def _minimal_workbook(rows: list[list[Any]]) -> bytes:
         workbook = OpenpyxlWorkbook()
         worksheet = workbook.active
         worksheet.title = "Sheet1"
-        for row in rows:
-            worksheet.append(row)
+        for row_index, row in enumerate(rows, start=1):
+            for col_index, value in enumerate(row, start=1):
+                cell = worksheet.cell(row=row_index, column=col_index, value=value)
+                if isinstance(value, str):
+                    cell.data_type = "s"
         buffer = io.BytesIO()
         workbook.save(buffer)
         workbook.close()
@@ -120,6 +127,28 @@ def _minimal_workbook(rows: list[list[Any]]) -> bytes:
 
 
 def _minimal_category_chart_workbook(chart_data: dict[str, Any]) -> bytes:
+    if chart_data.get("kind") == "combo" and chart_data.get("independent_categories"):
+        plots = chart_data["plots"]
+        column_count = max(
+            int(plot["start_column"]) + len(plot["series"]) - 1
+            for plot in plots
+        )
+        rows: list[list[Any]] = [[None] * column_count]
+        for plot in plots:
+            category_column = int(plot["category_column"]) - 1
+            start_column = int(plot["start_column"]) - 1
+            for offset, series in enumerate(plot["series"]):
+                rows[0][start_column + offset] = series["name"]
+            for point_index, category in enumerate(plot["categories"], start=1):
+                while len(rows) <= point_index:
+                    rows.append([None] * column_count)
+                rows[point_index][category_column] = category
+                for offset, series in enumerate(plot["series"]):
+                    rows[point_index][start_column + offset] = (
+                        series["values"][point_index - 1]
+                    )
+        return _minimal_workbook(rows)
+
     categories = chart_data["categories"]
     series = chart_data["series"]
     rows: list[list[Any]] = [[None] + [item["name"] for item in series]]

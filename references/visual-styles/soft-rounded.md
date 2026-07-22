@@ -7,6 +7,7 @@ Approachable and modern. Rounded cards, gentle elevation, friendly rhythm. For p
 ## 1. Shape & decoration
 
 - Shape language: rounded rectangles (`rx` 12-16), pill tags, soft containers. Consistent radius deck-wide.
+- Composition geometry: a large soft disc or blob bleeding off one edge as the color field; a pill chain or arc path replacing the boxed step row; one hero panel overlapping a full-width tinted band; an oversized rounded numeral behind the point. Cards are the container language, not the composition — vary the stage they sit on.
 - Decoration: cards as the primary container; icon accents; numbered circles; gentle dividers. Moderate, in service of clarity.
 - Whitespace: comfortable padding inside cards; even gutters; balanced rather than austere.
 
@@ -20,13 +21,13 @@ Approachable and modern. Rounded cards, gentle elevation, friendly rhythm. For p
 ## 3. Using the deck's colors
 
 - Theme color used confidently on covers / chapter backgrounds; same-hue tints for card backings; accent for key figures.
-- Warmer, more generous color use than swiss / editorial — still disciplined (60-30-10), never rainbow.
+- Warmer, more generous color use than swiss / editorial. Assign hues by semantic role and visual hierarchy; intentional multi-hue compositions remain valid.
 
-> HEX values come from confirmation `e`; this style only governs the confident-but-disciplined (60-30-10) color use — it names no colors.
+> HEX values come from confirmation `e`; this style governs confident, friendly color use without naming colors or imposing a ratio.
 
 ## 4. Texture / elevation
 
-- Gentle elevation: soft shadows on floating cards (resting tier), subtle tints, optional same-hue gradients. Two-tier elevation max; keep peer-grid cards flat. (Full shadow rules: [`shared-standards.md §6`](../shared-standards.md).)
+- Gentle elevation: soft shadows on floating cards (resting tier), subtle tints, optional same-hue gradients. Two-tier elevation max; keep peer-grid cards flat.
 
 ## 5. Paired image-rendering
 

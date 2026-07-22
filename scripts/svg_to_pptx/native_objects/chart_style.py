@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 from xml.etree import ElementTree as ET
 
+from .marker_attributes import native_import_source
+
 from ..drawingml.context import ConvertContext
-from ..drawingml.utils import detect_text_lang, parse_font_family, px_to_emu, _xml_escape
+from ..drawingml.utils import (
+    _xml_escape,
+    detect_text_lang,
+    parse_font_family,
+    px_to_emu,
+    quantize_ooxml_alpha,
+)
 from .chart_data import _DEFAULT_CHART_COLORS
 from .marker_common import (
     _bool_attr,
@@ -26,6 +35,8 @@ from .marker_common import (
     _most_common_color,
     _number,
     _normalized_fallback_text,
+    _powerpoint_emu,
+    _powerpoint_emu_value,
     _relative_luminance,
     _style_attr,
     _visible_fallback_texts,
@@ -354,11 +365,13 @@ def _alpha_xml(value: Any, field_name: str = "fill_opacity") -> str:
         raise RuntimeError(f"Native PPTX chart {field_name} must be numeric")
     try:
         alpha = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         raise RuntimeError(f"Native PPTX chart {field_name} must be numeric") from None
+    if not math.isfinite(alpha):
+        raise RuntimeError(f"Native PPTX chart {field_name} must be finite")
     if alpha < 0 or alpha > 1:
         raise RuntimeError(f"Native PPTX chart {field_name} must be between 0 and 1")
-    return f'<a:alpha val="{int(round(alpha * 100000))}"/>'
+    return f'<a:alpha val="{quantize_ooxml_alpha(alpha)}"/>'
 
 
 def _axis_title_xml(
@@ -467,7 +480,8 @@ def _native_chart_chrome_errors(elem: ET.Element, payload: dict[str, Any]) -> li
     suffix = "" if len(missing) <= 5 else f", and {len(missing) - 5} more"
     return [
         "Native PPTX chart metadata contains title/axis text that is not visible "
-        f"inside the fallback marker and would appear only after --native-objects: {sample}{suffix}. "
+        "inside the fallback marker and would appear only after "
+        f"--native-charts-and-tables: {sample}{suffix}. "
         "Use `name` for object naming, or draw the same text in the chart fallback."
     ]
 
@@ -476,6 +490,8 @@ def _native_chart_export_payload(
     elem: ET.Element,
     payload: dict[str, Any],
 ) -> tuple[dict[str, Any], list[str]]:
+    if native_import_source(elem) == "pptx":
+        return payload, []
     fallback_texts = set(_visible_fallback_texts(elem))
     output = payload
     messages: list[str] = []
@@ -612,7 +628,8 @@ def _native_chart_chrome_warnings(elem: ET.Element, payload: dict[str, Any]) -> 
         suffix = "" if len(missing_companion) <= 5 else f", and {len(missing_companion) - 5} more"
         warnings.append(
             "Native PPTX chart companion text is not visible inside the fallback "
-            f"marker and may appear only after --native-objects: {sample}{suffix}. "
+            "marker and may appear only after --native-charts-and-tables: "
+            f"{sample}{suffix}. "
             "Keep companion metadata aligned with visible chart annotations."
         )
     return warnings
@@ -705,6 +722,52 @@ def _chart_companion_entries(
     return entries
 
 
+def _chart_companion_box(item: dict[str, Any]) -> tuple[int, int, int, int] | None:
+    """Validate and resolve an optional explicit companion text box."""
+    box_keys = ("x", "y", "width", "height")
+    provided_box_keys = [key for key in box_keys if key in item]
+    if provided_box_keys and len(provided_box_keys) != len(box_keys):
+        raise RuntimeError(
+            "Native PPTX chart companion text boxes require x/y/width/height together"
+        )
+    if not provided_box_keys:
+        return None
+    return (
+        _powerpoint_emu(item["x"], "companion text x"),
+        _powerpoint_emu(item["y"], "companion text y"),
+        _powerpoint_emu(item["width"], "companion text width", positive=True),
+        _powerpoint_emu(item["height"], "companion text height", positive=True),
+    )
+
+
+def _validate_chart_companion_boxes(
+    payload: dict[str, Any],
+    *,
+    chart_bounds: tuple[int, int, int, int],
+    include_title: bool,
+    include_subtitle_as_caption: bool,
+) -> None:
+    """Validate companion boxes without allocating shapes or relationships."""
+    _, chart_off_y, _, chart_ext_cy = chart_bounds
+    below_index = 0
+    for item in _chart_companion_entries(
+        payload,
+        include_title=include_title,
+        include_subtitle_as_caption=include_subtitle_as_caption,
+    ):
+        text = str(item.get("text") or "").strip()
+        if not text:
+            continue
+        if _chart_companion_box(item) is not None:
+            continue
+        if str(item.get("role") or "note") != "title":
+            _powerpoint_emu_value(
+                chart_off_y + chart_ext_cy + px_to_emu(4 + below_index * 18),
+                "companion text y",
+            )
+            below_index += 1
+
+
 def _chart_companion_text_xml(
     ctx: ConvertContext,
     payload: dict[str, Any],
@@ -742,12 +805,9 @@ def _chart_companion_text_xml(
         font_face = _chart_text_entry_font_face(item, chart_style.get("font_face"))
         align = str(item.get("align") or ("ctr" if role == "title" else "l"))
         bold = bool(item.get("bold", role == "title"))
-        has_box = all(_maybe_number(item.get(key)) is not None for key in ("x", "y", "width", "height"))
-        if has_box:
-            off_x = px_to_emu(_number(item["x"], "companion text x"))
-            off_y = px_to_emu(_number(item["y"], "companion text y"))
-            ext_cx = px_to_emu(_number(item["width"], "companion text width"))
-            ext_cy = px_to_emu(_number(item["height"], "companion text height"))
+        explicit_box = _chart_companion_box(item)
+        if explicit_box is not None:
+            off_x, off_y, ext_cx, ext_cy = explicit_box
         elif role == "title":
             off_x = chart_off_x
             off_y = chart_off_y
@@ -755,7 +815,10 @@ def _chart_companion_text_xml(
             ext_cy = px_to_emu(28)
         else:
             off_x = chart_off_x
-            off_y = chart_off_y + chart_ext_cy + px_to_emu(4 + below_index * 18)
+            off_y = _powerpoint_emu_value(
+                chart_off_y + chart_ext_cy + px_to_emu(4 + below_index * 18),
+                "companion text y",
+            )
             ext_cx = chart_ext_cx
             ext_cy = px_to_emu(16)
             below_index += 1

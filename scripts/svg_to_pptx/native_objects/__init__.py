@@ -18,6 +18,7 @@ from .chart_style import (
     _native_chart_chrome_errors,
     _native_chart_chrome_warnings,
     _native_chart_export_payload,
+    _validate_chart_companion_boxes,
 )
 from .chart_xml import _chart_rels_xml, _chart_xml
 from .chartex import (
@@ -25,6 +26,12 @@ from .chartex import (
     _chart_ex_rels_xml,
     _chart_ex_style_xml,
     _chart_ex_xml,
+)
+from .fallback_hash import (
+    native_fallback_contract_warnings,
+    require_fresh_native_fallback,
+    snapshot_native_fallback_freshness,
+    stamp_native_fallback_baseline,
 )
 from .marker_common import (
     CHART_CONTENT_TYPE,
@@ -39,8 +46,20 @@ from .marker_common import (
     _bounds,
     _load_payload,
     _local_tag,
+    _native_marker_validation_context,
     _validate_bounds_inputs,
+    native_marker_transform,
 )
+from .marker_attributes import (
+    NativeMarkerAttributeError,
+    native_fallback_kind,
+    native_import_source,
+    native_metadata_payload_matches,
+    native_marker_legacy_warnings,
+    native_replacement_kind,
+    native_replacement_status,
+)
+from .marker_status import native_marker_status_errors
 from .table import (
     _build_native_table,
     _native_table_warnings,
@@ -54,7 +73,17 @@ from .workbook import (
 
 __all__ = [
     "convert_native_object",
+    "NativeMarkerAttributeError",
+    "native_fallback_kind",
+    "native_import_source",
+    "native_metadata_payload_matches",
+    "native_marker_legacy_warnings",
     "native_object_marker_warnings",
+    "native_replacement_kind",
+    "native_replacement_status",
+    "native_marker_transform",
+    "snapshot_native_fallback_freshness",
+    "stamp_native_fallback_baseline",
     "validate_native_object_marker",
     "validate_native_object_marker_with_warnings",
 ]
@@ -97,7 +126,7 @@ def _build_native_chart(elem: ET.Element, ctx: ConvertContext, payload: dict[str
             colors_name,
         )
         ctx.package_files[style_part] = _chart_ex_style_xml()
-        ctx.package_files[colors_part] = _chart_ex_colors_xml()
+        ctx.package_files[colors_part] = _chart_ex_colors_xml(payload)
         ctx.package_files[workbook_part] = _minimal_chart_ex_workbook(chart_data)
         ctx.content_type_overrides[chart_part] = CHARTEX_CONTENT_TYPE
         ctx.content_type_overrides[style_part] = CHART_STYLE_CONTENT_TYPE
@@ -164,66 +193,133 @@ def _validate_native_object_marker_payload(
     elem: ET.Element,
     *,
     validate_chrome: bool = True,
+    ctx: ConvertContext | None = None,
+    ancestors: tuple[ET.Element, ...] = (),
+    require_fresh_fallback: bool = False,
 ) -> tuple[str, dict[str, Any], list[list[Any]] | None]:
-    kind = (elem.get("data-pptx-native") or "").strip().lower()
+    try:
+        kind = native_replacement_kind(elem)
+    except NativeMarkerAttributeError as exc:
+        raise RuntimeError(str(exc)) from exc
     if not kind:
         return "", {}, None
+    status_errors = native_marker_status_errors(elem)
+    if status_errors:
+        raise RuntimeError("; ".join(status_errors))
     if kind not in _NATIVE_KINDS:
-        raise RuntimeError(f"Unsupported data-pptx-native value: {kind}")
+        raise RuntimeError(f"Unsupported data-pptx-replace-with value: {kind}")
     if _local_tag(elem) != "g":
         raise RuntimeError("Native PPTX table/chart markers must be <g> elements")
-    transform = elem.get("transform", "")
-    if transform and any(token in transform for token in ("rotate", "matrix", "skew")):
-        raise RuntimeError("Native PPTX table/chart markers support translate/scale transforms only")
+    native_marker_transform(elem.get("transform"))
+    if require_fresh_fallback:
+        require_fresh_native_fallback(elem, use_runtime_snapshot=True)
 
-    payload = _load_payload(elem, kind)
-    _validate_bounds_inputs(elem, payload)
+    try:
+        payload = _load_payload(elem, kind)
+    except NativeMarkerAttributeError as exc:
+        raise RuntimeError(str(exc)) from exc
+    bounds_ctx = ctx or _native_marker_validation_context(elem, ancestors)
+    off_x, off_y, ext_cx, ext_cy, _ = _validate_bounds_inputs(elem, payload, bounds_ctx)
     table_rows = None
     if kind == "table":
-        table_rows, _ = _validate_table_payload(payload)
+        table_rows, col_count, _merge_layout = _validate_table_payload(payload)
+        if ext_cx < col_count or ext_cy < len(table_rows):
+            raise RuntimeError(
+                "Native PPTX table bounds must provide at least one EMU per row and column"
+            )
     else:
-        _chart_data(payload)
-        if validate_chrome:
+        chart_data = _chart_data(payload)
+        _validate_chart_companion_boxes(
+            payload,
+            chart_bounds=(off_x, off_y, ext_cx, ext_cy),
+            include_title=chart_data["kind"] == "chartex",
+            include_subtitle_as_caption=chart_data["kind"] == "chartex",
+        )
+        if validate_chrome and native_import_source(elem) != "pptx":
             chrome_errors = _native_chart_chrome_errors(elem, payload)
             if chrome_errors:
                 raise RuntimeError("; ".join(chrome_errors))
     return kind, payload, table_rows
 
 
-def validate_native_object_marker(elem: ET.Element) -> None:
-    """Validate a data-pptx-native marker without mutating the PPTX package."""
-    _validate_native_object_marker_payload(elem)
+def validate_native_object_marker(
+    elem: ET.Element,
+    *,
+    ancestors: tuple[ET.Element, ...] = (),
+) -> None:
+    """Validate a chart/table replacement marker without mutating the package."""
+    _validate_native_object_marker_payload(elem, ancestors=ancestors)
 
 
-def validate_native_object_marker_with_warnings(elem: ET.Element) -> list[str]:
-    """Validate a data-pptx-native marker and return non-fatal warnings."""
-    kind, payload, table_rows = _validate_native_object_marker_payload(elem)
+def validate_native_object_marker_with_warnings(
+    elem: ET.Element,
+    *,
+    ancestors: tuple[ET.Element, ...] = (),
+    document_root: ET.Element | None = None,
+) -> list[str]:
+    """Validate a chart/table replacement marker and return non-fatal warnings."""
+    kind, payload, table_rows = _validate_native_object_marker_payload(
+        elem,
+        ancestors=ancestors,
+    )
+    warnings = (
+        native_fallback_contract_warnings(
+            elem,
+            document_root=document_root,
+        )
+        if kind else []
+    )
     if kind == "table" and table_rows is not None:
-        return _native_table_warnings(elem, table_rows)
-    if kind == "chart":
-        return _native_chart_chrome_warnings(elem, payload)
-    return []
+        warnings.extend(_native_table_warnings(elem, table_rows))
+    elif kind == "chart":
+        warnings.extend(_native_chart_chrome_warnings(elem, payload))
+    return warnings
 
 
-def native_object_marker_warnings(elem: ET.Element) -> list[str]:
-    """Return non-fatal warnings for a data-pptx-native marker."""
-    return validate_native_object_marker_with_warnings(elem)
+def native_object_marker_warnings(
+    elem: ET.Element,
+    *,
+    ancestors: tuple[ET.Element, ...] = (),
+    document_root: ET.Element | None = None,
+) -> list[str]:
+    """Return non-fatal warnings for a chart/table replacement marker."""
+    return validate_native_object_marker_with_warnings(
+        elem,
+        ancestors=ancestors,
+        document_root=document_root,
+    )
 
 
 def convert_native_object(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     """Convert a marked SVG group to a native PowerPoint table or chart."""
-    kind = (elem.get("data-pptx-native") or "").strip().lower()
+    try:
+        kind = native_replacement_kind(elem)
+    except NativeMarkerAttributeError as exc:
+        raise RuntimeError(str(exc)) from exc
     if not kind:
         return None
 
-    kind, payload, _ = _validate_native_object_marker_payload(elem, validate_chrome=False)
+    kind, payload, _ = _validate_native_object_marker_payload(
+        elem,
+        validate_chrome=False,
+        ctx=ctx,
+        require_fresh_fallback=True,
+    )
+    marker_id = elem.get("id") or "<unnamed>"
+    for warning in native_fallback_contract_warnings(
+        elem,
+        use_runtime_snapshot=True,
+    ):
+        print(
+            f"  Warning: data-pptx-replace-with marker {marker_id}: {warning}",
+            file=sys.stderr,
+        )
     if kind == "table":
         return _build_native_table(elem, ctx, payload)
     payload, warnings = _native_chart_export_payload(elem, payload)
-    marker_id = elem.get("id") or "<unnamed>"
     for warning in warnings:
         print(
-            f"  Warning: data-pptx-native marker {marker_id}: {warning}",
+            f"  Warning: data-pptx-replace-with marker {marker_id}: {warning}",
             file=sys.stderr,
         )
     return _build_native_chart(elem, ctx, payload)

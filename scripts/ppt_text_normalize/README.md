@@ -39,8 +39,7 @@ Current built-in commands:
 - `scan.py`
 - `apply.py`
 
-Additional review-workspace scripts may exist in source, but they are not part
-of the public `r3.1.0-v0.4.0` command surface until separately revalidated.
+The public `r4.1.0-v0.4.0` command surface is limited to these two commands.
 
 `font_family` means both DrawingML Latin and East Asian font channels where
 canonical values exist: `font_family` and `east_asia_font_family`.

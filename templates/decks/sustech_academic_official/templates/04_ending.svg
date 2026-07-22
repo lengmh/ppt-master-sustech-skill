@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1280 720" width="1280" height="720"
+  data-pptx-master="sustech_academic_master" data-pptx-master-name="SUSTech Academic"
+  data-pptx-layout="closing" data-pptx-layout-name="Closing">
+  <rect id="sustech-master-background" x="0" y="0" width="1280" height="720" fill="#FFFFFF"
+    data-pptx-layer="master" data-pptx-editable="false"/>
+
+  <image id="closing-campus-background" href="../images/ending_campus_bg.jpg" x="0" y="0" width="1280" height="720"
+    preserveAspectRatio="xMidYMid slice" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <path id="closing-campus-overlay" d="M 0 0 H 1280 V 720 H 0 Z" fill="#FFFFFF" fill-opacity="0.18"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <image id="closing-school-logo" href="../images/full_top_right_school_logo.png" x="1060" y="13" width="220" height="66"
+    preserveAspectRatio="xMidYMid meet" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="closing-message-card" x="310" y="236" width="660" height="214" rx="28" fill="#FFFFFF" fill-opacity="0.84"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <line id="closing-message-accent" x1="508" y1="382" x2="772" y2="382" stroke="#E3660D" stroke-width="4"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="closing-footer-background" x="0" y="670" width="1280" height="50" fill="#003F43" fill-opacity="0.70"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="closing-footer-label" x="640" y="702" text-anchor="middle" fill="#FFFFFF" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14"
+    data-pptx-layer="layout" data-pptx-editable="false">Southern University of Science and Technology</text>
+
+  <g id="closing-title-slot" data-pptx-placeholder="title" data-pptx-bounds="310 236 660 214">
+    <text id="closing-title-carrier" data-pptx-carrier="true" x="640" y="346" text-anchor="middle" fill="#003F43"
+      font-family="Microsoft YaHei, Arial, sans-serif" font-size="60" font-weight="bold">{{THANK_YOU}}</text>
+  </g>
+</svg>

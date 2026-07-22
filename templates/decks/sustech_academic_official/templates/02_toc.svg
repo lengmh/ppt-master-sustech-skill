@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1280 720" width="1280" height="720"
+  data-pptx-master="sustech_academic_master" data-pptx-master-name="SUSTech Academic"
+  data-pptx-layout="agenda" data-pptx-layout-name="Agenda">
+  <rect id="sustech-master-background" x="0" y="0" width="1280" height="720" fill="#FFFFFF"
+    data-pptx-layer="master" data-pptx-editable="false"/>
+
+  <image id="agenda-school-motif" href="../images/top_left_motif_standard.png" x="0" y="13" width="70" height="62"
+    preserveAspectRatio="xMidYMid meet" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <image id="agenda-school-logo" href="../images/full_top_right_school_logo.png" x="1060" y="13" width="220" height="66"
+    preserveAspectRatio="xMidYMid meet" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <line id="agenda-header-rule" x1="92" y1="76" x2="1188" y2="76" stroke="#CECECE" stroke-width="1"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="agenda-heading" x="92" y="60" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="32" font-weight="bold"
+    data-pptx-layer="layout" data-pptx-editable="false">目录</text>
+  <text id="agenda-heading-en" x="166" y="60" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15"
+    data-pptx-layer="layout" data-pptx-editable="false">Contents</text>
+  <text id="agenda-number-1" x="100" y="166" fill="#003F43" fill-opacity="0.16" font-family="Arial, sans-serif" font-size="42" font-weight="bold"
+    data-pptx-layer="layout" data-pptx-editable="false">01</text>
+  <text id="agenda-number-2" x="100" y="252" fill="#003F43" fill-opacity="0.16" font-family="Arial, sans-serif" font-size="42" font-weight="bold"
+    data-pptx-layer="layout" data-pptx-editable="false">02</text>
+  <text id="agenda-number-3" x="100" y="338" fill="#003F43" fill-opacity="0.16" font-family="Arial, sans-serif" font-size="42" font-weight="bold"
+    data-pptx-layer="layout" data-pptx-editable="false">03</text>
+  <text id="agenda-number-4" x="100" y="424" fill="#003F43" fill-opacity="0.16" font-family="Arial, sans-serif" font-size="42" font-weight="bold"
+    data-pptx-layer="layout" data-pptx-editable="false">04</text>
+  <text id="agenda-number-5" x="100" y="510" fill="#003F43" fill-opacity="0.16" font-family="Arial, sans-serif" font-size="42" font-weight="bold"
+    data-pptx-layer="layout" data-pptx-editable="false">05</text>
+  <text id="agenda-number-6" x="100" y="596" fill="#003F43" fill-opacity="0.16" font-family="Arial, sans-serif" font-size="42" font-weight="bold"
+    data-pptx-layer="layout" data-pptx-editable="false">06</text>
+  <line id="agenda-footer-rule" x1="92" y1="688" x2="1188" y2="688" stroke="#CECECE" stroke-width="1"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="agenda-footer-label" x="92" y="704" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13"
+    data-pptx-layer="layout" data-pptx-editable="false">Southern University of Science and Technology</text>
+
+  <g id="agenda-item-1-title-slot" data-pptx-placeholder="body" data-pptx-idx="1" data-pptx-bounds="170 128 900 38">
+    <text id="agenda-item-1-title-carrier" data-pptx-carrier="true" x="170" y="162" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="27" font-weight="bold">{{TOC_ITEM_1_TITLE}}</text>
+  </g>
+  <g id="agenda-item-1-desc-slot" data-pptx-placeholder="body" data-pptx-idx="2" data-pptx-bounds="170 174 900 24">
+    <text id="agenda-item-1-desc-carrier" data-pptx-carrier="true" x="170" y="194" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">{{TOC_ITEM_1_DESC}}</text>
+  </g>
+  <g id="agenda-item-2-title-slot" data-pptx-placeholder="body" data-pptx-idx="3" data-pptx-bounds="170 214 900 38">
+    <text id="agenda-item-2-title-carrier" data-pptx-carrier="true" x="170" y="248" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="27" font-weight="bold">{{TOC_ITEM_2_TITLE}}</text>
+  </g>
+  <g id="agenda-item-2-desc-slot" data-pptx-placeholder="body" data-pptx-idx="4" data-pptx-bounds="170 260 900 24">
+    <text id="agenda-item-2-desc-carrier" data-pptx-carrier="true" x="170" y="280" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">{{TOC_ITEM_2_DESC}}</text>
+  </g>
+  <g id="agenda-item-3-title-slot" data-pptx-placeholder="body" data-pptx-idx="5" data-pptx-bounds="170 300 900 38">
+    <text id="agenda-item-3-title-carrier" data-pptx-carrier="true" x="170" y="334" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="27" font-weight="bold">{{TOC_ITEM_3_TITLE}}</text>
+  </g>
+  <g id="agenda-item-3-desc-slot" data-pptx-placeholder="body" data-pptx-idx="6" data-pptx-bounds="170 346 900 24">
+    <text id="agenda-item-3-desc-carrier" data-pptx-carrier="true" x="170" y="366" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">{{TOC_ITEM_3_DESC}}</text>
+  </g>
+  <g id="agenda-item-4-title-slot" data-pptx-placeholder="body" data-pptx-idx="7" data-pptx-bounds="170 386 900 38">
+    <text id="agenda-item-4-title-carrier" data-pptx-carrier="true" x="170" y="420" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="27" font-weight="bold">{{TOC_ITEM_4_TITLE}}</text>
+  </g>
+  <g id="agenda-item-4-desc-slot" data-pptx-placeholder="body" data-pptx-idx="8" data-pptx-bounds="170 432 900 24">
+    <text id="agenda-item-4-desc-carrier" data-pptx-carrier="true" x="170" y="452" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">{{TOC_ITEM_4_DESC}}</text>
+  </g>
+  <g id="agenda-item-5-title-slot" data-pptx-placeholder="body" data-pptx-idx="9" data-pptx-bounds="170 472 900 38">
+    <text id="agenda-item-5-title-carrier" data-pptx-carrier="true" x="170" y="506" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="27" font-weight="bold">{{TOC_ITEM_5_TITLE}}</text>
+  </g>
+  <g id="agenda-item-5-desc-slot" data-pptx-placeholder="body" data-pptx-idx="10" data-pptx-bounds="170 518 900 24">
+    <text id="agenda-item-5-desc-carrier" data-pptx-carrier="true" x="170" y="538" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">{{TOC_ITEM_5_DESC}}</text>
+  </g>
+  <g id="agenda-item-6-title-slot" data-pptx-placeholder="body" data-pptx-idx="11" data-pptx-bounds="170 558 900 38">
+    <text id="agenda-item-6-title-carrier" data-pptx-carrier="true" x="170" y="592" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="27" font-weight="bold">{{TOC_ITEM_6_TITLE}}</text>
+  </g>
+  <g id="agenda-item-6-desc-slot" data-pptx-placeholder="body" data-pptx-idx="12" data-pptx-bounds="170 604 900 24">
+    <text id="agenda-item-6-desc-carrier" data-pptx-carrier="true" x="170" y="624" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">{{TOC_ITEM_6_DESC}}</text>
+  </g>
+</svg>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1280 720" width="1280" height="720"
+  data-pptx-master="sustech_academic_master" data-pptx-master-name="SUSTech Academic"
+  data-pptx-layout="text_image" data-pptx-layout-name="Text and Image">
+  <rect id="sustech-master-background" x="0" y="0" width="1280" height="720" fill="#FFFFFF" data-pptx-layer="master" data-pptx-editable="false"/>
+
+  <image id="text-image-school-motif" href="../images/top_left_motif_standard.png" x="0" y="13" width="70" height="62" preserveAspectRatio="xMidYMid meet" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <image id="text-image-school-logo" href="../images/full_top_right_school_logo.png" x="1060" y="13" width="220" height="66" preserveAspectRatio="xMidYMid meet" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <line id="text-image-title-accent" x1="92" y1="76" x2="280" y2="76" stroke="#E3660D" stroke-width="3" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <line id="text-image-title-rule" x1="280" y1="76" x2="1188" y2="76" stroke="#CECECE" stroke-width="1" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="text-image-guidance-card" x="72" y="156" width="356" height="110" rx="18" fill="#FFFFFF" stroke="#CECECE" stroke-width="1.5" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="text-image-guidance-title" x="100" y="198" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22" font-weight="bold" data-pptx-layer="layout" data-pptx-editable="false">Image-led Layout</text>
+  <text id="text-image-guidance-line-1" x="100" y="228" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" data-pptx-layer="layout" data-pptx-editable="false">Large figure first</text>
+  <text id="text-image-guidance-line-2" x="100" y="250" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" data-pptx-layer="layout" data-pptx-editable="false">compact text guidance second</text>
+  <rect id="text-image-object-background" x="72" y="286" width="356" height="380" rx="18" fill="#F6EBDF" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="text-image-object-description" x="250" y="492" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" data-pptx-layer="layout" data-pptx-editable="false">Commentary / bullets / interpretation</text>
+  <rect id="text-image-figure-background" x="452" y="156" width="756" height="510" rx="22" fill="#EAF1F0" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="text-image-figure-border" x="452" y="156" width="756" height="510" rx="22" fill="none" stroke="#CECECE" stroke-width="1.2" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="text-image-figure-label" x="830" y="390" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="24" data-pptx-layer="layout" data-pptx-editable="false">Image / Figure Main Area</text>
+  <rect id="text-image-caption-background" x="484" y="622" width="692" height="28" rx="12" fill="#FFFFFF" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="text-image-caption" x="830" y="641" text-anchor="middle" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" data-pptx-layer="layout" data-pptx-editable="false">Primary visual holds the hierarchy; text supports guided reading</text>
+  <line id="text-image-footer-rule" x1="92" y1="688" x2="1188" y2="688" stroke="#CECECE" stroke-width="1" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="text-image-footer-label" x="92" y="704" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" data-pptx-layer="layout" data-pptx-editable="false">Southern University of Science and Technology</text>
+
+  <g id="text-image-title-slot" data-pptx-placeholder="title" data-pptx-bounds="92 20 900 48">
+    <text id="text-image-title-carrier" data-pptx-carrier="true" x="92" y="60" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="32" font-weight="bold">{{PAGE_TITLE}}</text>
+  </g>
+  <g id="text-image-section-slot" data-pptx-placeholder="body" data-pptx-idx="1" data-pptx-bounds="92 80 900 36">
+    <text id="text-image-section-carrier" data-pptx-carrier="true" x="92" y="106" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="26.7">{{SECTION_NAME}}</text>
+  </g>
+  <g id="text-image-object-slot" data-pptx-placeholder="object" data-pptx-idx="2" data-pptx-bounds="72 286 356 380">
+    <text id="text-image-object-carrier" data-pptx-carrier="true" x="250" y="462" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22">{{CONTENT_AREA}}</text>
+  </g>
+  <g id="text-image-slide-number-slot" data-pptx-placeholder="slide-number" data-pptx-idx="3" data-pptx-bounds="1108 680 80 28">
+    <text id="text-image-slide-number-carrier" data-pptx-carrier="true" x="1188" y="704" text-anchor="end" fill="#003F43" font-family="Arial, sans-serif" font-size="16" font-weight="bold">{{PAGE_NUM}}</text>
+  </g>
+</svg>

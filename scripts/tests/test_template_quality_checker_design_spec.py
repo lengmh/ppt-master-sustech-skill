@@ -55,6 +55,7 @@ class TestDesignSpecSkeletonCheck(unittest.TestCase):
             "## VI. Page Types",
         ])
         frontmatter = {
+            "kind": "layout",
             "layout_id": "demo_layout",
             "category": "education",
             "summary": "Demo",
@@ -62,6 +63,7 @@ class TestDesignSpecSkeletonCheck(unittest.TestCase):
             "primary_color": "#003F43",
             "canvas_format": "ppt169",
             "replication_mode": "standard",
+            "native_structure_mode": "structured",
         }
         lock = {
             "template_identity": {

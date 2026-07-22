@@ -1,15 +1,18 @@
 {
   "schema_version": 1,
   "skill_name": "ppt-master",
-  "release_version": "r3.1.0-v0.4.0",
+  "release_version": "r4.1.0-v0.4.0",
   "upstream": {
     "repo": "hugohe3/ppt-master",
-    "version": "3.1.0",
-    "tag": "v3.1.0",
-    "commit": "b8808a3a17377ea4e7fd79bdad096bab613f86b9",
-    "tracked_ref": "main",
-    "tracked_commit": "c2cb78ad997b41d16cefe083831d62571ab9f741",
-    "tracked_range": "v3.1.0..c2cb78ad997b41d16cefe083831d62571ab9f741"
+    "version": "4.1.0",
+    "tag": "v4.1.0",
+    "commit": "cad57e4a45d8664bf4830d85711d355dc2600455",
+    "baseline_kind": "tag",
+    "tracked_ref": "refs/tags/v4.1.0",
+    "tracked_commit": "cad57e4a45d8664bf4830d85711d355dc2600455",
+    "tracked_range": "v4.1.0..cad57e4a45d8664bf4830d85711d355dc2600455",
+    "absorbed_from_commit": "c2cb78ad997b41d16cefe083831d62571ab9f741",
+    "absorbed_range": "c2cb78ad997b41d16cefe083831d62571ab9f741..cad57e4a45d8664bf4830d85711d355dc2600455"
   },
   "local": {
     "version": "0.4.0"
@@ -17,12 +20,12 @@
   "support_files": {
     "requirements_source": "local",
     "env_example_source": "local",
-    "requirements_basis": "upstream skills/ppt-master/requirements.txt @ v3.1.0 plus tracked main cutoff c2cb78a and SUSTech local overlay",
-    "env_example_basis": "upstream .env.example @ v3.1.0 plus tracked main cutoff c2cb78a and SUSTech local overlay"
+    "requirements_basis": "upstream skills/ppt-master/requirements.txt @ v4.1.0 plus retained SUSTech renderer dependencies",
+    "env_example_basis": "upstream .env.example @ v4.1.0 plus SUSTech release support header"
   },
   "package": {
     "zip_name_pattern": "ppt-master-sustech-r<upstream>-v<local>-YYYY-MM-DD.zip",
     "root_dirname": "ppt-master"
   },
-  "notes": "SUSTech custom release line after upstream v3.1.0 fusion plus tracked main cutoff c2cb78a. v0.4.0 adopts upstream v3.1.0 architecture, staged Confirm UI, source intake, native editable PPTX object/export improvements, chart fidelity hardening, and post-tag native chart fixes while preserving SUSTech release identity, template audit flow, local templates/assets, and conservative ppt_text_normalize scan/apply support."
+  "notes": "SUSTech v0.4.0 continuity release on the formal upstream v4.1.0 tag. Adopts staged workflows, versioned specs and page context, normalized template workspaces, explicit PowerPoint structure, chart/native-data updates, and SVG hardening while preserving legacy brief-lock read and explicit strict-audit compatibility, layout-quality diagnostics, local assets, strict-local packaging, and conservative ppt_text_normalize scan/apply support."
 }

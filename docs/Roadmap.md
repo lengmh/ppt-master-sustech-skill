@@ -1,9 +1,10 @@
 # PPT Master SUSTech Enhancement Roadmap
 
-> Last updated: 2026-07-07
-> Current release line: `r3.1.0-v0.4.0`
-> Upstream baseline: `hugohe3/ppt-master@v3.1.0`
-> Tracked upstream range: `v3.1.0..c2cb78ad997b41d16cefe083831d62571ab9f741`
+> Last updated: 2026-07-22
+> Current release line: `r4.1.0-v0.4.0`
+> Upstream baseline: `hugohe3/ppt-master@v4.1.0` (`cad57e4a45d8664bf4830d85711d355dc2600455`)
+> Post-tag tracked range: `v4.1.0..cad57e4a45d8664bf4830d85711d355dc2600455` (zero commits)
+> Absorbed release range: `c2cb78ad997b41d16cefe083831d62571ab9f741..cad57e4a45d8664bf4830d85711d355dc2600455`
 
 ## Purpose
 
@@ -20,14 +21,16 @@ Whenever version metadata changes, observable behavior changes, or upstream code
 
 | Layer | Meaning | Current State |
 |---|---|---|
-| Baseline | Official upstream release tag used as the release base | `v3.1.0` / `b8808a3a17377ea4e7fd79bdad096bab613f86b9` |
-| Tracking | Upstream main commits after the baseline that have also been absorbed | `c2cb78ad997b41d16cefe083831d62571ab9f741` / fixed cutoff for this fusion |
-| Overlay | SUSTech local behavior, release identity, templates, and workflow extensions | Preserved on top of the baseline and tracking patchset |
+| Baseline | Official upstream release tag used as the release base | `v4.1.0` / `cad57e4a45d8664bf4830d85711d355dc2600455` |
+| Post-tag tracking | Extra upstream commits after the baseline | None; `tracked_commit` equals the tag commit |
+| Release disclosure | Full upstream range absorbed since the previous published cutoff | `c2cb78ad997b41d16cefe083831d62571ab9f741..cad57e4a45d8664bf4830d85711d355dc2600455` |
+| Overlay | SUSTech local behavior, release identity, templates, and workflow extensions | Preserved on top of the formal baseline |
 
 Rule of thumb:
 
 - `RELEASE_META.json.upstream.commit` records the baseline tag commit.
-- `RELEASE_META.json.upstream.tracked_commit` records the extra upstream main cutoff.
+- `RELEASE_META.json.upstream.tracked_commit` records the extra upstream cutoff; for this tag-only release it equals the baseline commit.
+- `RELEASE_META.json.upstream.absorbed_range` records the disclosure range since the previous published cutoff.
 - SUSTech-only capabilities are treated as overlay and must be checked explicitly during each upstream fusion.
 
 ## SUSTech Enhancement Inventory
@@ -46,12 +49,15 @@ Key files:
 Current rules:
 
 - Version format is `r<upstream-version>-v<local-version>`.
-- Current version is `r3.1.0-v0.4.0`.
+- Current version is `r4.1.0-v0.4.0`.
+- A Release Artifact always expands to the stable `ppt-master/` root; package verification rejects another root name or extra top-level entries.
+- `scripts/template_brief_lock.py` remains in the Release Artifact for existing-artifact read compatibility and does not create new locks.
 
 Fusion guard:
 
 - Keep `.env.example` and `requirements.txt` aligned with the recorded release identity.
 - Keep `VERSION`, `RELEASE_META.json`, README files, release notes, and this roadmap aligned.
+- Keep the legacy lock reader and the stable package-root contract without restoring legacy-lock writing to new template creation.
 
 ### 2. Support Files
 
@@ -72,11 +78,11 @@ Fusion guard:
 
 ### 3. Live Preview Editing Boundary
 
-SUSTech keeps compatible layout diagnostics while upstream v3.1 direct editing remains the source of truth.
+SUSTech keeps compatible layout diagnostics while upstream v4.1 staged direct editing remains the source of truth.
 
 Key files:
 
-- `workflows/live-preview.md`
+- `workflows/stages/live-preview.md`
 - `scripts/svg_editor/server.py`
 - `scripts/svg_editor/static/app.js`
 - `scripts/svg_editor/static/index.html`
@@ -88,7 +94,7 @@ Preserved local capabilities:
 - optional browser geometry probe through `scripts/svg_layout_probe.py`
 - annotation remains available for changes requiring AI judgment
 
-Upstream v3.1 capabilities that must also stay present:
+Upstream v4.1 capabilities that must also stay present:
 
 - project-level `.live_preview.lock`
 - slide/cache mechanism
@@ -108,12 +114,13 @@ Fusion guard:
 - Do not let local aids override upstream direct-edit behavior.
 - Keep deterministic drag / resize / nudge on upstream staged direct-edit semantics.
 - Keep annotation available for changes that need AI judgment, rewriting, layout reasoning, or broad design context.
-- Do not make the old `ppt_text_normalize` review workspace a release blocker.
+- Keep `ppt_text_normalize` limited to its supported `scan` / `apply` surface.
 - Verify both API smoke and browser interaction when this area changes.
 
-### 4. Template Creation Audit Lock and Validation
+### 4. Legacy Template Brief Lock Compatibility
 
-SUSTech adds a stricter `/create-template` audit flow.
+SUSTech keeps legacy template-lock inspection compatible while Create Template
+uses the upstream v4.1 `design_spec.md`-only contract.
 
 Key files:
 
@@ -129,16 +136,17 @@ Key files:
 
 Current rules:
 
-- `brief_lock.json` is a SUSTech create-template audit lock.
-- New `/create-template` outputs must write `brief_lock.json`.
-- `template_quality_checker.py --require-brief-lock` is the strict gate for new SUSTech-created templates.
-- Default template quality checking allows missing `brief_lock.json` for upstream or legacy templates.
-- `design_spec.md` YAML frontmatter is the primary metadata source for template discovery and registration.
+- New `/create-template` Brand, Layout, and Deck outputs use `design_spec.md` as their only semantic contract; library and project scope differ only in workspace location and index registration.
+- `brief_lock.json` is retained only for existing-artifact read compatibility and optional explicit strict audits.
+- Default template quality checking validates lock-free workspaces from `design_spec.md`, template assets, and registrar preflight; a present legacy lock remains validated.
+- Template preview stays lock-optional and may retain a copied legacy lock as historical preview evidence.
+- `design_spec.md` YAML frontmatter is the metadata source for template discovery and registration.
 
 Fusion guard:
 
-- Do not make `brief_lock.json` a universal hard dependency for all upstream templates.
-- Do not remove strict mode for new SUSTech templates.
+- Do not restore lock writing, lock preloading, or a default strict-lock gate to new Create Template routes.
+- Preserve legacy lock reading, validation, workspace-root resolution, and the explicit strict audit option.
+- Do not migrate, rewrite, or delete the existing `sustech_academic_official` lock without explicit approval.
 - Preserve template preview feedback before registration.
 
 ### 5. Brand / Layout / Deck Template Model
@@ -154,21 +162,14 @@ Key directories:
 
 Current state:
 
-- `templates/layouts/` keeps only upstream layout presets:
-  - `academic_defense`
-  - `ai_ops`
-  - `government_blue`
-  - `government_red`
-  - `medical_university`
-  - `pixel_retro`
-  - `psychology_attachment`
-- `sustech_academic_official` is maintained as a deck under `templates/decks/`.
-- Brand-like historical layouts have been cleaned up.
-- SUSTech and organization templates should use deck mode unless a real structural layout preset is intended.
+- `templates/layouts/presentation_core/` is the normalized structure-only workspace with 20 authored PowerPoint Layouts.
+- `sustech_academic_official` is a normalized Deck workspace with a retained historical root `brief_lock.json`, nested `templates/`, and root `images/`.
+- The Deck index is the v4.1 catalog plus the validated `sustech_academic_official` entry.
+- Brand and Deck workspaces use nested `templates/` plus root `images/` / `icons/` assets.
 
 Fusion guard:
 
-- Do not reintroduce cleaned legacy brand layouts into `templates/layouts/`.
+- Do not reintroduce retired flat layout catalogs into `templates/layouts/`.
 - Keep `sustech_academic_official` as a deck.
 - Rebuild and validate `templates/brands/brands_index.json`, `templates/layouts/layouts_index.json`, and `templates/decks/decks_index.json` after template changes.
 
@@ -181,7 +182,7 @@ Important preserved assets:
 - `templates/icons/chunk/`
 - `templates/icons/chunk-filled/`
 - SUSTech deck assets
-- organization deck assets
+- indexed organization Brand/Deck assets
 
 Upstream assets retained:
 
@@ -197,29 +198,23 @@ Fusion guard:
 - Do not overwrite SUSTech-specific decks or icon sets with upstream-only copies.
 - Keep JSON indexes valid.
 
-### 7. Post-v3.1.0 Tracked Additions
+### 7. v4.1.0 Baseline Adoption
 
-The SUSTech line currently includes selected upstream `main` changes after the `v3.1.0` tag.
+The current line adopts the formal `v4.1.0@cad57e4a` tag with no post-tag upstream commits. The disclosed absorbed range is `c2cb78a..cad57e4a`; the intermediate `eccdca20` fusion branch was never published as a separate release.
 
-Tracked cutoff:
+Absorbed skill-root changes include:
 
-- `c2cb78ad997b41d16cefe083831d62571ab9f741`
-- fixed cutoff for the `r3.1.0-v0.4.0` fusion
-
-Absorbed skill-root changes:
-
-- v3.1 prompt, workflow, source-intake, Confirm UI, and live-preview architecture
-- native PPTX object/export improvements including opt-in tables/charts
-- chart workbook generation dependency recorded through `XlsxWriter>=3.0.0`
-- native chart negative-value point-color fix
-- Confirm UI custom prompt notes for image strategy
-- URL-encoded visual-review slide fetch for non-ASCII names
-- update-path docs and `update_repo.py` hardening
+- staged workflow routing under `workflows/stages/`, `profiles/`, and `governance/`
+- versioned design/spec locks, bounded spec repair, and deterministic page context
+- normalized Brand/Layout/Deck workspaces and explicit Master/Layout/placeholder contracts
+- chart recall, native chart/data payloads, and template preview export
+- closed SVG/native PowerPoint geometry, paint, effect, image, text, and typography hardening
+- retirement of the strict text-contract modules, the old distillation workflow, and obsolete top-level workflow paths
 
 Fusion guard:
 
-- Treat tracked post-tag commits as upstream tracking, not as part of the formal baseline tag.
-- Keep `RELEASE_META.json.upstream.tracked_*` fields current when the tracked cutoff changes.
+- Keep `tracked_*` tag-only unless a separately approved post-tag cutoff is absorbed.
+- Keep `absorbed_*` fields as release disclosure metadata; do not present them as post-tag tracking.
 
 ### 8. Built-in PPT Text Normalize Safe MVP
 
@@ -236,13 +231,12 @@ Key files:
 
 Current rules:
 
-- The public command surface for `r3.1.0-v0.4.0` is `scan` / `apply`.
+- The public command surface for `r4.1.0-v0.4.0` is `scan` / `apply`.
 - Safe MVP semantics include Object Slot matching, hero freeze, weak-canonical restraint, safe field gating, report output, and OOXML namespace-preserving PPTX writes.
-- Review workspace / browser panel / reviewed-rules assets remain in source but are not advertised as active release capabilities until separately revalidated.
 
 Fusion guard:
 
-- Do not describe review-gate expansion as shipped until the commands and browser flow are reverified against the current upstream editor.
+- Do not expand the public surface beyond `scan` / `apply` without separate implementation and validation.
 - Keep `scan` / `apply` semantics aligned with `scripts/docs/ppt-text-normalize.md`, `scripts/ppt_text_normalize/README.md`, and release notes.
 - Preserve the OOXML namespace-preservation rule and regression coverage when this module changes.
 
@@ -251,7 +245,7 @@ Fusion guard:
 Update this roadmap when any of the following happens:
 
 1. A release version is bumped.
-2. `RELEASE_META.json` upstream baseline or tracked cutoff changes.
+2. `RELEASE_META.json` upstream baseline, tracked cutoff, or absorbed disclosure range changes.
 3. Distribution content rules change.
 4. `SKILL.md`, `workflows/`, `references/`, `scripts/`, or `templates/` behavior changes in a way users or agents can observe.
 5. Upstream code is fused, even if the visible SUSTech version is not bumped yet.
@@ -271,11 +265,11 @@ When version information changes, keep these files aligned:
 Before accepting a future upstream update, verify:
 
 - [ ] The upstream skill subtree is mapped from `skills/ppt-master/`, not merged as a full repository root by accident.
-- [ ] `VERSION` and `RELEASE_META.json` preserve baseline vs tracked-cutoff semantics.
+- [ ] `VERSION` and `RELEASE_META.json` preserve baseline, post-tag tracking, and absorbed-range semantics.
 - [ ] `.env.example` and `requirements.txt` stay aligned with `RELEASE_META.json.support_files`.
 - [ ] Live preview keeps upstream lifecycle features and only compatible SUSTech layout diagnostics.
-- [ ] `/create-template` keeps `brief_lock.json` strict mode for new SUSTech templates.
-- [ ] Upstream templates do not fail only because they lack `brief_lock.json`.
+- [ ] `/create-template` remains `design_spec.md`-only for new Brand, Layout, and Deck workspaces.
+- [ ] Existing locks remain readable through explicit strict audit, while lock-free workspaces pass default validation.
 - [ ] `sustech_academic_official` remains a deck.
 - [ ] Cleaned legacy layouts are not reintroduced without explicit decision.
 - [ ] Local icon and deck assets remain present.
@@ -283,11 +277,11 @@ Before accepting a future upstream update, verify:
 
 ## Release Line Status
 
-As of 2026-07-07:
+As of 2026-07-22:
 
-- Current source release line: `r3.1.0-v0.4.0`
+- Current source release line: `r4.1.0-v0.4.0`
 - `ppt_text_normalize` Safe MVP first enters the formal capability release line at `r2.8.0-v0.2.0`
-- `r3.1.0-v0.4.0` is the first SUSTech line on the upstream v3.1 architecture.
+- `r4.1.0-v0.4.0` is the first SUSTech line on the upstream v4.1 architecture and continues local version `v0.4.0`.
 - For this release, `ppt_text_normalize` public wording is conservative: `scan` / `apply` only.
 
 Release pages:
