@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1280 720" width="1280" height="720"
+  data-pptx-master="sustech_academic_master" data-pptx-master-name="SUSTech Academic"
+  data-pptx-layout="cover" data-pptx-layout-name="Cover">
+  <rect id="sustech-master-background" x="0" y="0" width="1280" height="720" fill="#FFFFFF"
+    data-pptx-layer="master" data-pptx-editable="false"/>
+
+  <path id="cover-lower-field" d="M 0 442 L 1280 442 L 1280 720 L 0 720 Z" fill="#F8F7F5"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <image id="cover-campus-background" href="../images/cover_campus_bg.jpg" x="1" y="442" width="1278" height="278"
+    preserveAspectRatio="xMidYMid slice" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="cover-campus-overlay" x="0" y="442" width="1280" height="278" fill="#FFFFFF" fill-opacity="0.08"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <image id="cover-school-logo" href="../images/full_top_right_school_logo.png" x="1060" y="13" width="220" height="66"
+    preserveAspectRatio="xMidYMid meet" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <line id="cover-title-accent" x1="88" y1="336" x2="458" y2="336" stroke="#E3660D" stroke-width="4"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <line id="cover-title-rule" x1="458" y1="336" x2="1192" y2="336" stroke="#CECECE" stroke-width="1"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="cover-presenter-label" x="88" y="392" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15"
+    data-pptx-layer="layout" data-pptx-editable="false">汇报人 / Presenter</text>
+  <text id="cover-date-label" x="88" y="474" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15"
+    data-pptx-layer="layout" data-pptx-editable="false">日期 / Date</text>
+  <rect id="cover-brand-card" x="882" y="368" width="310" height="82" fill="#FFFFFF" fill-opacity="0.72" rx="14"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="cover-brand-card-title" x="910" y="404" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="16" font-weight="bold"
+    data-pptx-layer="layout" data-pptx-editable="false">SUSTech Official Academic Template</text>
+  <text id="cover-brand-card-subtitle" x="910" y="430" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13"
+    data-pptx-layer="layout" data-pptx-editable="false">Official · Academic · Restrained · School-branded</text>
+
+  <g id="cover-title-slot" data-pptx-placeholder="title" data-pptx-bounds="88 176 900 82">
+    <text id="cover-title-carrier" data-pptx-carrier="true" x="88" y="242" fill="#B63742"
+      font-family="Microsoft YaHei, Arial, sans-serif" font-size="52" font-weight="bold">{{TITLE}}</text>
+  </g>
+  <g id="cover-subtitle-slot" data-pptx-placeholder="subtitle" data-pptx-idx="1" data-pptx-bounds="88 262 900 56">
+    <text id="cover-subtitle-carrier" data-pptx-carrier="true" x="88" y="312" fill="#003F43"
+      font-family="Microsoft YaHei, Arial, sans-serif" font-size="34" font-weight="bold">{{SUBTITLE}}</text>
+  </g>
+  <g id="cover-author-slot" data-pptx-placeholder="body" data-pptx-idx="2" data-pptx-bounds="88 398 500 42">
+    <text id="cover-author-carrier" data-pptx-carrier="true" x="88" y="426" fill="#1D1C1C"
+      font-family="Microsoft YaHei, Arial, sans-serif" font-size="26" font-weight="bold">{{AUTHOR}}</text>
+  </g>
+  <g id="cover-date-slot" data-pptx-placeholder="date" data-pptx-idx="3" data-pptx-bounds="88 480 360 36">
+    <text id="cover-date-carrier" data-pptx-carrier="true" x="88" y="506" fill="#003F43"
+      font-family="Microsoft YaHei, Arial, sans-serif" font-size="24" font-weight="bold">{{DATE}}</text>
+  </g>
+</svg>

@@ -102,6 +102,8 @@ EXCLUDED_DIR_NAMES = {
 EXCLUDED_FILE_NAMES = {
     ".DS_Store",
     ".synced_hash",
+    "AGENTS.md",
+    "CONTEXT.md",
     "Thumbs.db",
 }
 EXCLUDED_SUFFIXES = {
@@ -110,6 +112,84 @@ EXCLUDED_SUFFIXES = {
     ".temp",
     ".tmp",
 }
+
+REQUIRED_RELEASE_PATHS = (
+    ".gitignore",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "SKILL.md",
+    "VERSION",
+    "RELEASE_META.json",
+    "assets/readme-hero.svg",
+    ".env.example",
+    "requirements.txt",
+    "docs/README.md",
+    "docs/Roadmap.md",
+    "docs/THIRD_PARTY_NOTICES.md",
+    "docs/technical-design.md",
+    "docs/templates-architecture.md",
+    "docs/zh/technical-design.md",
+    "docs/zh/templates-architecture.md",
+    "references/",
+    "references/ai-image-comparison/",
+    "references/image-palettes/",
+    "references/image-renderings/",
+    "references/image-type-templates/",
+    "references/image-layout-patterns.md",
+    "references/visual-review.md",
+    "references/native-data-interface.md",
+    "references/pptx-structure-interface.md",
+    "scripts/",
+    "scripts/visual_review.py",
+    "scripts/latex_render.py",
+    "scripts/project_specs.py",
+    "scripts/page_context.py",
+    "scripts/chart_recall.py",
+    "scripts/svg_authoring_view.py",
+    "scripts/template_preview_pptx.py",
+    "scripts/template_brief_lock.py",
+    "scripts/pptx_shapes/data/NOTICE.md",
+    "scripts/pptx_shapes/data/LICENSE-OPEN-XML-SDK-MIT.txt",
+    "scripts/pptx_shapes/data/LICENSE-APACHE-2.0.txt",
+    "templates/",
+    "templates/brands/brands_index.json",
+    "templates/decks/decks_index.json",
+    "templates/icons/phosphor-duotone/",
+    "templates/icons/simple-icons/",
+    "templates/decks/sustech_academic_official/templates/design_spec.md",
+    "workflows/",
+    "workflows/generate-pptx.md",
+    "workflows/stages/live-preview.md",
+    "workflows/stages/refine-spec.md",
+    "workflows/stages/resume-execute.md",
+    "workflows/stages/topic-research.md",
+    "workflows/stages/apply-template-workspace.md",
+    "workflows/stages/visual-review.md",
+    "workflows/profiles/beautify-pptx.md",
+    "workflows/create-template/create-brand.md",
+    "workflows/create-template/create-deck.md",
+)
+
+FORBIDDEN_RELEASE_PATHS = (
+    ".synced_hash",
+    "AGENTS.md",
+    "CONTEXT.md",
+    "docs/adr/",
+    "docs/plan/",
+    "docs/release/",
+    "docs/superpowers/",
+    "plan/",
+    ".git/",
+    ".venv/",
+    ".venv-flask-check/",
+    ".venv-svg-editor/",
+    "scripts/ppt_text_normalize/CONTEXT.md",
+    "scripts/svg_to_pptx/text_contract.py",
+    "scripts/svg_to_pptx/pptx_package/text_validation.py",
+    "workflows/distill-layouts.md",
+    "workflows/live-preview.md",
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -131,7 +211,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--package-dirname",
         default=DEFAULT_PACKAGE_DIRNAME,
-        help=f"Top-level directory name inside the zip (default: {DEFAULT_PACKAGE_DIRNAME}).",
+        help=(
+            "Top-level directory name inside the zip; the release contract "
+            f"requires {DEFAULT_PACKAGE_DIRNAME}."
+        ),
     )
     parser.add_argument(
         "--temp-root",
@@ -464,59 +547,33 @@ def _entry_present(names: list[str], entry: str) -> bool:
     return entry in names or any(name.startswith(entry.rstrip("/") + "/") for name in names)
 
 
+def validate_package_dirname(package_dirname: str) -> None:
+    if package_dirname != DEFAULT_PACKAGE_DIRNAME:
+        raise RuntimeError(
+            f"Package root directory must be {DEFAULT_PACKAGE_DIRNAME!r}."
+        )
+
+
 def verify_release_zip(zip_path: Path, package_dirname: str) -> None:
-    required_entries = [
-        f"{package_dirname}/.gitignore",
-        f"{package_dirname}/README.md",
-        f"{package_dirname}/LICENSE",
-        f"{package_dirname}/THIRD_PARTY_NOTICES.md",
-        f"{package_dirname}/SKILL.md",
-        f"{package_dirname}/VERSION",
-        f"{package_dirname}/RELEASE_META.json",
-        f"{package_dirname}/assets/readme-hero.svg",
-        f"{package_dirname}/.env.example",
-        f"{package_dirname}/requirements.txt",
-        f"{package_dirname}/docs/README.md",
-        f"{package_dirname}/docs/Roadmap.md",
-        f"{package_dirname}/docs/THIRD_PARTY_NOTICES.md",
-        f"{package_dirname}/docs/technical-design.md",
-        f"{package_dirname}/docs/templates-architecture.md",
-        f"{package_dirname}/docs/zh/technical-design.md",
-        f"{package_dirname}/docs/zh/templates-architecture.md",
-        f"{package_dirname}/references/",
-        f"{package_dirname}/references/ai-image-comparison/",
-        f"{package_dirname}/references/image-palettes/",
-        f"{package_dirname}/references/image-renderings/",
-        f"{package_dirname}/references/image-type-templates/",
-        f"{package_dirname}/references/image-layout-patterns.md",
-        f"{package_dirname}/references/visual-review.md",
-        f"{package_dirname}/scripts/",
-        f"{package_dirname}/scripts/visual_review.py",
-        f"{package_dirname}/scripts/latex_render.py",
-        f"{package_dirname}/templates/",
-        f"{package_dirname}/templates/brands/brands_index.json",
-        f"{package_dirname}/templates/decks/decks_index.json",
-        f"{package_dirname}/templates/icons/phosphor-duotone/",
-        f"{package_dirname}/templates/icons/simple-icons/",
-        f"{package_dirname}/workflows/",
-        f"{package_dirname}/workflows/create-brand.md",
-        f"{package_dirname}/workflows/visual-review.md",
-    ]
-    forbidden_entries = [
-        f"{package_dirname}/.synced_hash",
-        f"{package_dirname}/docs/adr/",
-        f"{package_dirname}/docs/plan/",
-        f"{package_dirname}/docs/release/",
-        f"{package_dirname}/docs/superpowers/",
-        f"{package_dirname}/plan/",
-        f"{package_dirname}/.git/",
-        f"{package_dirname}/.venv/",
-        f"{package_dirname}/.venv-flask-check/",
-        f"{package_dirname}/.venv-svg-editor/",
-    ]
+    validate_package_dirname(package_dirname)
+    required_entries = [f"{package_dirname}/{path}" for path in REQUIRED_RELEASE_PATHS]
+    forbidden_entries = [f"{package_dirname}/{path}" for path in FORBIDDEN_RELEASE_PATHS]
 
     with zipfile.ZipFile(zip_path) as archive:
         names = archive.namelist()
+
+    unexpected_roots = sorted(
+        {
+            name.split("/", 1)[0]
+            for name in names
+            if name and name.split("/", 1)[0] != package_dirname
+        }
+    )
+    if unexpected_roots:
+        raise RuntimeError(
+            "Zip verification failed. Unexpected top-level entries: "
+            + ", ".join(unexpected_roots)
+        )
 
     missing: list[str] = []
     for entry in required_entries:
@@ -555,6 +612,11 @@ def format_size(path: Path) -> str:
 
 def main() -> int:
     args = parse_args()
+    try:
+        validate_package_dirname(args.package_dirname)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     version_text = load_version_file()
     meta = load_release_meta()
     upstream_version, local_version = validate_release_metadata(meta, version_text)

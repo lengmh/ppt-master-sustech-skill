@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Helpers for the create-template confirmed brief lock.
+"""Readers and validators for legacy create-template brief locks.
 
-This module owns the current-state `brief_lock.json` contract used by the
-/create-template workflow once the user has explicitly confirmed the bundled
-Template Brief.
+New Create Template workspaces use ``design_spec.md`` as their only semantic
+contract. This module remains available to inspect existing ``brief_lock.json``
+artifacts without creating or updating them.
 """
 from __future__ import annotations
 
@@ -35,8 +35,17 @@ REQUIRED_DESIGNER_CONSTRAINT_KEYS = {"placeholder_contract", "must_keep", "must_
 REQUIRED_REPLICATION_KEYS = {"mode", "fidelity_level"}
 
 
+def _workspace_root(template_dir: Path) -> Path:
+    path = Path(template_dir)
+    if (path / "templates" / "design_spec.md").is_file():
+        return path
+    if path.name == "templates" and (path / "design_spec.md").is_file():
+        return path.parent
+    return path
+
+
 def brief_lock_path(template_dir: Path) -> Path:
-    return Path(template_dir) / "brief_lock.json"
+    return _workspace_root(Path(template_dir)) / "brief_lock.json"
 
 
 def _require_mapping(name: str, value: Any) -> dict[str, Any]:
@@ -140,7 +149,11 @@ def validate_brief_lock(data: dict[str, Any]) -> None:
 
 
 def load_brief_lock(template_dir: Path) -> dict[str, Any]:
-    lock_path = brief_lock_path(Path(template_dir))
+    template_dir = Path(template_dir)
+    lock_path = brief_lock_path(template_dir)
+    legacy_path = template_dir / "brief_lock.json"
+    if not lock_path.exists() and legacy_path != lock_path and legacy_path.exists():
+        lock_path = legacy_path
     payload = json.loads(lock_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("brief_lock root must be an object")
@@ -148,17 +161,8 @@ def load_brief_lock(template_dir: Path) -> dict[str, Any]:
     return payload
 
 
-def write_brief_lock(template_dir: Path, data: dict[str, Any]) -> Path:
-    template_dir = Path(template_dir)
-    validate_brief_lock(data)
-    lock_path = brief_lock_path(template_dir)
-    lock_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return lock_path
-
-
 __all__ = [
     "brief_lock_path",
     "load_brief_lock",
     "validate_brief_lock",
-    "write_brief_lock",
 ]

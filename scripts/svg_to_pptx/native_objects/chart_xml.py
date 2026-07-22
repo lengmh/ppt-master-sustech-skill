@@ -5,8 +5,15 @@ from __future__ import annotations
 from typing import Any
 from xml.etree import ElementTree as ET
 
-from ..drawingml.utils import detect_text_lang, px_to_emu, _xml_escape
-from .chart_data import _DEFAULT_CHART_COLORS, _chart_list, _data_labels_config
+from ..drawingml.utils import detect_text_lang, _xml_escape
+from .chart_data import (
+    _DEFAULT_CHART_COLORS,
+    _category_axis_is_date,
+    _chart_list,
+    _data_label_position,
+    _data_label_point_items,
+    _data_labels_config,
+)
 from .chart_style import (
     _alpha_xml,
     _axis_title_xml,
@@ -33,7 +40,7 @@ from .marker_common import (
     _first_present,
     _font_size_hpt,
     _hex_or_none,
-    _number,
+    _powerpoint_line_width_emu,
 )
 
 
@@ -45,14 +52,39 @@ def _string_cache(values: list[str]) -> str:
     return f'<c:strCache><c:ptCount val="{len(values)}"/>{points}</c:strCache>'
 
 
-def _number_cache(values: list[int | float]) -> str:
+def _number_cache(
+    values: list[int | float],
+    number_format: str = "General",
+) -> str:
     points = "".join(
         f'<c:pt idx="{idx}"><c:v>{value}</c:v></c:pt>'
         for idx, value in enumerate(values)
     )
     return (
-        '<c:numCache><c:formatCode>General</c:formatCode>'
+        f'<c:numCache><c:formatCode>{_xml_escape(number_format)}</c:formatCode>'
         f'<c:ptCount val="{len(values)}"/>{points}</c:numCache>'
+    )
+
+
+def _category_reference_xml(
+    categories: list[Any],
+    *,
+    column_index: int = 1,
+    numeric: bool,
+    number_format: str | None = None,
+) -> str:
+    reference_tag = "numRef" if numeric else "strRef"
+    cache = (
+        _number_cache(categories, number_format or "General")
+        if numeric
+        else _string_cache([str(value) for value in categories])
+    )
+    return (
+        f"<c:cat><c:{reference_tag}>"
+        f"<c:f>Sheet1!${_excel_col(column_index)}$2:"
+        f"${_excel_col(column_index)}${len(categories) + 1}</c:f>"
+        f"{cache}"
+        f"</c:{reference_tag}></c:cat>"
     )
 
 
@@ -69,7 +101,9 @@ def _series_color_xml(
     alpha_xml = _alpha_xml(fill_opacity, "series fill_opacity")
     line_width_xml = ""
     if line_width is not None:
-        line_width_xml = f' w="{max(px_to_emu(_number(line_width, "series line_width")), 1)}"'
+        line_width_xml = (
+            f' w="{_powerpoint_line_width_emu(line_width, "series line_width")}"'
+        )
     line_xml = (
         f'<a:ln{line_width_xml}><a:solidFill><a:srgbClr val="{clean}"/></a:solidFill></a:ln>'
         if line else '<a:ln><a:noFill/></a:ln>'
@@ -80,49 +114,6 @@ def _series_color_xml(
         f'{line_xml}'
         "</c:spPr>"
     )
-
-
-def _data_label_position(value: Any, chart_type: str, grouping: str | None) -> str | None:
-    if chart_type == "area":
-        if value is not None:
-            raise RuntimeError("Native PPTX area data labels do not support label position")
-        return None
-    is_stacked = chart_type in {"bar", "column"} and grouping in {"percentStacked", "stacked"}
-    default = "ctr" if is_stacked else ("outEnd" if chart_type in {"bar", "column"} else "t")
-    if value is None:
-        return default
-    aliases = {
-        "above": "t",
-        "bestfit": "bestFit",
-        "center": "ctr",
-        "inbase": "inBase",
-        "insidebase": "inBase",
-        "insideend": "inEnd",
-        "inend": "inEnd",
-        "outend": "outEnd",
-        "outsideend": "outEnd",
-    }
-    position = aliases.get(_compact_key(value))
-    if not position:
-        raise RuntimeError(
-            "Native PPTX chart data label position must be one of: "
-            "above, best_fit, center, inside_base, inside_end, outside_end"
-        )
-    if chart_type in {"bar", "column"}:
-        if position not in {"ctr", "inBase", "inEnd", "outEnd"}:
-            raise RuntimeError(
-                "Native PPTX bar/column data label position must be one of: "
-                "center, inside_base, inside_end, outside_end"
-            )
-        if is_stacked and position == "outEnd":
-            raise RuntimeError(
-                "Native PPTX stacked bar/column data labels do not support outside_end"
-            )
-    elif chart_type == "line" and position not in {"bestFit", "ctr", "t"}:
-        raise RuntimeError(
-            "Native PPTX line data label position must be one of: above, best_fit, center"
-        )
-    return position
 
 
 def _data_label_flags_xml(config: dict[str, Any]) -> str:
@@ -152,35 +143,6 @@ def _data_label_flags_xml(config: dict[str, Any]) -> str:
     )
 
 
-def _data_label_point_items(config: dict[str, Any], point_count: int) -> list[dict[str, Any]]:
-    raw_points = config.get("points")
-    if raw_points is None:
-        return []
-    items: list[dict[str, Any]] = []
-    seen: set[int] = set()
-    for item in _chart_list(raw_points, "data_labels.points"):
-        if isinstance(item, dict):
-            raw_index = item.get("idx")
-            data = dict(item)
-        else:
-            raw_index = item
-            data = {}
-        if isinstance(raw_index, bool):
-            raise RuntimeError("Native PPTX chart data_labels.points idx must be an integer")
-        index_value = _number(raw_index, "data_labels.points idx")
-        if not index_value.is_integer():
-            raise RuntimeError("Native PPTX chart data_labels.points idx must be an integer")
-        index = int(index_value)
-        if index < 0 or index >= point_count:
-            raise RuntimeError("Native PPTX chart data_labels.points idx is outside point range")
-        if index in seen:
-            raise RuntimeError("Native PPTX chart data_labels.points idx values must be unique")
-        seen.add(index)
-        data["idx"] = index
-        items.append(data)
-    return items
-
-
 def _data_labels_xml(
     config: dict[str, Any] | None,
     *,
@@ -193,6 +155,14 @@ def _data_labels_xml(
 ) -> str:
     if config is None:
         return ""
+    show_leader_lines = _chart_bool(
+        _first_present(
+            config.get("show_leader_lines"),
+            config.get("showLeaderLines"),
+        ),
+        False,
+    )
+    leader_lines_xml = f'<c:showLeaderLines val="{_bool_attr(show_leader_lines)}"/>'
     position = _data_label_position(config.get("position"), chart_type, grouping)
     raw_font_size = _first_present(config.get("font_size"), config.get("fontSize"))
     label_font_size = _font_size_hpt(raw_font_size, 12) if raw_font_size is not None else font_size
@@ -210,7 +180,12 @@ def _data_labels_xml(
         if num_fmt else ""
     )
     flags_xml = _data_label_flags_xml(config)
-    point_items = _data_label_point_items(config, point_count)
+    point_items = _data_label_point_items(
+        config,
+        chart_type,
+        grouping,
+        point_count,
+    )
     if point_items:
         selected_items = {int(item["idx"]): item for item in point_items}
         point_label_xml = ""
@@ -251,7 +226,7 @@ def _data_labels_xml(
                 f"{_data_label_flags_xml({**config, **item})}"
                 "</c:dLbl>"
             )
-        return f"<c:dLbls>{point_label_xml}<c:showLeaderLines val=\"0\"/></c:dLbls>"
+        return f"<c:dLbls>{point_label_xml}{leader_lines_xml}</c:dLbls>"
 
     label_colors = [
         _clean_hex(item, "#404040")
@@ -280,8 +255,18 @@ def _data_labels_xml(
         f"{num_fmt_xml}{tx_pr_xml}"
         f"{position_xml}"
         f"{flags_xml}"
-        '<c:showLeaderLines val="0"/>'
+        f'{leader_lines_xml}'
         "</c:dLbls>"
+    )
+
+
+def _series_scoped_data_labels(config: dict[str, Any] | None) -> bool:
+    """Return whether point-level overrides require a series ``c:dLbls``."""
+    if config is None:
+        return False
+    return any(
+        bool(config.get(key))
+        for key in ("points", "colors", "label_colors", "labelColors")
     )
 
 
@@ -314,7 +299,7 @@ def _marker_xml(symbol: str | None) -> str:
 
 
 def _series_xml(
-    categories: list[str],
+    categories: list[Any],
     series: list[dict[str, Any]],
     *,
     chart_type: str,
@@ -323,21 +308,41 @@ def _series_xml(
     radar_marker_style: str | None = None,
     radar_style: str = "marker",
     colors: list[str],
+    category_is_numeric: bool = False,
+    category_number_format: str | None = None,
     data_labels: dict[str, Any] | None = None,
     data_label_font_size: int = 900,
     data_label_color: str | None = None,
     data_label_font_face: str | None = None,
+    category_column: int = 1,
+    color_start_index: int | None = None,
+    series_indices: list[int] | None = None,
     start_column: int = 2,
     start_index: int = 0,
 ) -> str:
     parts: list[str] = []
+    category_xml = _category_reference_xml(
+        categories,
+        column_index=category_column,
+        numeric=category_is_numeric,
+        number_format=category_number_format,
+    )
     for offset, item in enumerate(series):
-        index = start_index + offset
+        index = (
+            series_indices[offset]
+            if series_indices is not None
+            else start_index + offset
+        )
+        color_index = (
+            color_start_index
+            if color_start_index is not None
+            else start_index
+        ) + offset
         column_index = offset + start_column
         fill_opacity = item.get("fill_opacity") if chart_type == "area" else None
         line_width = item.get("line_width") if chart_type in {"area", "line"} else None
         color_xml = _series_color_xml(
-            _chart_color(colors, index),
+            _chart_color(colors, color_index),
             fill_opacity=fill_opacity,
             line_width=line_width,
         )
@@ -366,7 +371,10 @@ def _series_xml(
             smooth_xml = '<c:smooth val="0"/>'
         if chart_type == "radar":
             if radar_style == "filled":
-                color_xml = _series_color_xml(_chart_color(colors, index), line=False)
+                color_xml = _series_color_xml(
+                    _chart_color(colors, color_index),
+                    line=False,
+                )
             marker_xml = _marker_xml(radar_marker_style)
         invert_xml = '<c:invertIfNegative val="0"/>' if chart_type in {"bar", "column"} else ""
         data_labels_xml = (
@@ -379,7 +387,9 @@ def _series_xml(
                 default_color=data_label_color,
                 default_font_face=data_label_font_face,
             )
-            if chart_type in {"area", "bar", "column", "line"} else ""
+            if _series_scoped_data_labels(data_labels)
+            and chart_type in {"area", "bar", "column", "line"}
+            else ""
         )
         parts.append(
             "<c:ser>"
@@ -390,10 +400,7 @@ def _series_xml(
             "</c:strRef></c:tx>"
             f"{color_xml}{invert_xml}{marker_xml}{point_colors_xml}"
             f"{data_labels_xml}"
-            "<c:cat><c:strRef>"
-            f"<c:f>Sheet1!$A$2:$A${len(categories) + 1}</c:f>"
-            f"{_string_cache(categories)}"
-            "</c:strRef></c:cat>"
+            f"{category_xml}"
             "<c:val><c:numRef>"
             f"<c:f>Sheet1!${_excel_col(column_index)}$2:${_excel_col(column_index)}${len(categories) + 1}</c:f>"
             f"{_number_cache(item['values'])}"
@@ -569,6 +576,7 @@ def _bar_chart_group_xml(
     cat_ax_id: str,
     val_ax_id: str,
     vary_colors: bool = False,
+    data_labels_xml: str = "",
 ) -> str:
     bar_dir = "bar" if chart_type == "bar" else "col"
     vary_colors_xml = '<c:varyColors val="1"/>' if vary_colors else '<c:varyColors val="0"/>'
@@ -582,6 +590,7 @@ def _bar_chart_group_xml(
         f'<c:barDir val="{bar_dir}"/><c:grouping val="{grouping}"/>'
         f"{vary_colors_xml}"
         f"{ser_xml}"
+        f"{data_labels_xml}"
         '<c:gapWidth val="150"/>'
         f"{overlap_xml}"
         f'<c:axId val="{cat_ax_id}"/><c:axId val="{val_ax_id}"/>'
@@ -596,15 +605,176 @@ def _line_area_chart_group_xml(
     *,
     cat_ax_id: str,
     val_ax_id: str,
+    data_labels_xml: str = "",
 ) -> str:
     tag = "lineChart" if chart_type == "line" else "areaChart"
     line_tail_xml = '<c:marker val="1"/><c:smooth val="0"/>' if chart_type == "line" else ""
     return (
         f'<c:{tag}><c:grouping val="{grouping}"/><c:varyColors val="0"/>'
         f"{ser_xml}"
+        f"{data_labels_xml}"
         f"{line_tail_xml}"
         f'<c:axId val="{cat_ax_id}"/><c:axId val="{val_ax_id}"/>'
         f"</c:{tag}>"
+    )
+
+
+def _axis_scaling_xml(config: dict[str, Any]) -> str:
+    orientation = "maxMin" if config.get("reverse") else "minMax"
+    maximum = (
+        f'<c:max val="{config["maximum"]}"/>'
+        if config.get("maximum") is not None else ""
+    )
+    minimum = (
+        f'<c:min val="{config["minimum"]}"/>'
+        if config.get("minimum") is not None else ""
+    )
+    return f'<c:scaling><c:orientation val="{orientation}"/>{maximum}{minimum}</c:scaling>'
+
+
+def _axis_position(config: dict[str, Any], default: str) -> str:
+    return {
+        "bottom": "b",
+        "left": "l",
+        "right": "r",
+        "top": "t",
+    }.get(str(config.get("position") or ""), default)
+
+
+def _axis_label_position(config: dict[str, Any], default: str) -> str:
+    return {
+        "high": "high",
+        "low": "low",
+        "next_to": "nextTo",
+        "none": "none",
+    }.get(str(config.get("label_position") or ""), default)
+
+
+def _axis_number_format_xml(
+    config: dict[str, Any],
+    default: str | None = None,
+) -> str:
+    number_format = config.get("number_format", default)
+    if number_format is None:
+        return ""
+    return f'<c:numFmt formatCode="{_xml_escape(str(number_format))}" sourceLinked="0"/>'
+
+
+def _axis_major_gridlines_xml(
+    config: dict[str, Any],
+    *,
+    default: bool,
+    color: str | None,
+) -> str:
+    enabled = config.get("major_gridlines", default)
+    return _major_gridlines_xml(color) if enabled else ""
+
+
+def _axis_pair_xml(
+    cat_ax_id: str,
+    val_ax_id: str,
+    *,
+    axis_font_size: int,
+    axis_title_font_size: int,
+    axis_titles: dict[str, Any],
+    chart_style: dict[str, str | None],
+    chart_type: str,
+    grouping: str | None,
+    show_value_axis_labels: bool,
+    axes: dict[str, dict[str, Any]],
+    secondary: bool,
+) -> str:
+    category_role = "secondary_category" if secondary else "category"
+    value_role = "secondary_value" if secondary else "value"
+    category = axes.get(category_role, {})
+    value = axes.get(value_role, {})
+    category_kind = str(category.get("kind") or ("date" if chart_type == "stock" else "text"))
+    category_tag = "dateAx" if category_kind == "date" else "catAx"
+    default_cat_pos = "l" if chart_type == "bar" else "b"
+    default_val_pos = "r" if secondary else ("b" if chart_type == "bar" else "l")
+    cat_pos = _axis_position(category, default_cat_pos)
+    val_pos = _axis_position(value, default_val_pos)
+    cat_delete = _bool_attr(not category.get("visible", not secondary))
+    val_delete = _bool_attr(not value.get("visible", True))
+    cat_tick_label_pos = _axis_label_position(category, "nextTo")
+    default_val_tick = "nextTo" if show_value_axis_labels else "none"
+    val_tick_label_pos = _axis_label_position(value, default_val_tick)
+    default_value_format = "0%" if grouping == "percentStacked" else None
+    cat_number_format = _axis_number_format_xml(
+        category,
+        "m/d/yyyy" if category_kind == "date" else None,
+    )
+    val_number_format = _axis_number_format_xml(value, default_value_format)
+    axis_sp_pr = _chart_line_sp_pr_xml(chart_style.get("axis_color"))
+    axis_tx_pr = _chart_tx_pr_xml(
+        axis_font_size,
+        chart_style.get("text_color"),
+        font_face=chart_style.get("font_face"),
+    )
+    cat_title_xml = "" if secondary else _axis_title_xml(
+        _first_present(axis_titles.get("category"), axis_titles.get("x")),
+        font_size=axis_title_font_size,
+        color=chart_style.get("text_color"),
+        font_face=chart_style.get("font_face"),
+    )
+    value_title_key = "secondary_value" if secondary else "value"
+    value_title = axis_titles.get(value_title_key)
+    if not secondary:
+        value_title = _first_present(value_title, axis_titles.get("y"))
+    val_title_xml = _axis_title_xml(
+        value_title,
+        font_size=axis_title_font_size,
+        color=chart_style.get("text_color"),
+        font_face=chart_style.get("font_face"),
+    )
+    cat_gridlines = _axis_major_gridlines_xml(
+        category,
+        default=False,
+        color=chart_style.get("grid_color"),
+    )
+    val_gridlines = _axis_major_gridlines_xml(
+        value,
+        default=not secondary,
+        color=chart_style.get("grid_color"),
+    )
+    if category_kind == "date":
+        category_tail = '<c:auto val="1"/><c:lblOffset val="100"/><c:baseTimeUnit val="days"/>'
+    else:
+        category_tail = (
+            '<c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/>'
+            '<c:noMultiLvlLbl val="0"/>'
+        )
+    is_combo = chart_type == "combo"
+    cross_between = ""
+    if chart_type == "area" and category_kind == "date":
+        cross_between = '<c:crossBetween val="midCat"/>'
+    elif chart_type == "stock" or is_combo:
+        cross_between = '<c:crossBetween val="between"/>'
+    major_unit = (
+        f'<c:majorUnit val="{value["major_unit"]}"/>'
+        if value.get("major_unit") is not None else ""
+    )
+    value_crosses = "max" if secondary else "autoZero"
+    return (
+        f"<c:{category_tag}>"
+        f'<c:axId val="{cat_ax_id}"/>{_axis_scaling_xml(category)}'
+        f'<c:delete val="{cat_delete}"/><c:axPos val="{cat_pos}"/>'
+        f"{cat_gridlines}{cat_title_xml}{cat_number_format}"
+        '<c:majorTickMark val="out"/><c:minorTickMark val="none"/>'
+        f'<c:tickLblPos val="{cat_tick_label_pos}"/>'
+        f"{axis_sp_pr}{axis_tx_pr}"
+        f'<c:crossAx val="{val_ax_id}"/><c:crosses val="autoZero"/>{category_tail}'
+        f"</c:{category_tag}>"
+        "<c:valAx>"
+        f'<c:axId val="{val_ax_id}"/>{_axis_scaling_xml(value)}'
+        f'<c:delete val="{val_delete}"/><c:axPos val="{val_pos}"/>'
+        f"{val_gridlines}{val_title_xml}{val_number_format}"
+        '<c:majorTickMark val="out"/><c:minorTickMark val="none"/>'
+        f'<c:tickLblPos val="{val_tick_label_pos}"/>'
+        f"{axis_sp_pr}{axis_tx_pr}"
+        f'<c:crossAx val="{cat_ax_id}"/><c:crosses val="{value_crosses}"/>'
+        f"{cross_between}{major_unit}"
+        "</c:valAx>"
     )
 
 
@@ -617,42 +787,20 @@ def _secondary_axis_xml(
     axis_titles: dict[str, Any],
     chart_style: dict[str, str | None],
     grouping: str | None = None,
+    axes: dict[str, dict[str, Any]] | None = None,
 ) -> str:
-    val_num_fmt = (
-        '<c:numFmt formatCode="0%" sourceLinked="0"/>'
-        if grouping == "percentStacked"
-        else ""
-    )
-    axis_sp_pr = _chart_line_sp_pr_xml(chart_style.get("axis_color"))
-    axis_tx_pr = _chart_tx_pr_xml(
-        axis_font_size,
-        chart_style.get("text_color"),
-        font_face=chart_style.get("font_face"),
-    )
-    val_title_xml = _axis_title_xml(
-        axis_titles.get("secondary_value"),
-        font_size=axis_title_font_size,
-        color=chart_style.get("text_color"),
-        font_face=chart_style.get("font_face"),
-    )
-    # Hidden secondary category axis controls secondary area fill baseline.
-    return (
-        "<c:catAx>"
-        f'<c:axId val="{cat_ax_id}"/><c:scaling><c:orientation val="minMax"/></c:scaling>'
-        '<c:delete val="1"/><c:axPos val="b"/><c:majorTickMark val="none"/>'
-        '<c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>'
-        f"{axis_sp_pr}{axis_tx_pr}"
-        f'<c:crossAx val="{val_ax_id}"/><c:crosses val="autoZero"/><c:auto val="1"/>'
-        '<c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/>'
-        "</c:catAx>"
-        "<c:valAx>"
-        f'<c:axId val="{val_ax_id}"/><c:scaling><c:orientation val="minMax"/></c:scaling>'
-        f'<c:delete val="0"/><c:axPos val="r"/>{val_title_xml}{val_num_fmt}'
-        '<c:majorTickMark val="out"/><c:minorTickMark val="none"/>'
-        '<c:tickLblPos val="nextTo"/>'
-        f"{axis_sp_pr}{axis_tx_pr}"
-        f'<c:crossAx val="{cat_ax_id}"/><c:crosses val="max"/>'
-        "</c:valAx>"
+    return _axis_pair_xml(
+        cat_ax_id,
+        val_ax_id,
+        axis_font_size=axis_font_size,
+        axis_title_font_size=axis_title_font_size,
+        axis_titles=axis_titles,
+        chart_style=chart_style,
+        chart_type="combo",
+        grouping=grouping,
+        show_value_axis_labels=True,
+        axes=axes or {},
+        secondary=True,
     )
 
 
@@ -680,7 +828,7 @@ def _combo_plot_xml(
     axis_titles: dict[str, Any],
     chart_style: dict[str, str | None],
 ) -> str:
-    categories = chart_data["categories"]
+    axes = chart_data.get("axes") or {}
     primary_cat_ax_id = "2068027336"
     primary_val_ax_id = "2113994440"
     secondary_cat_ax_id = "2080229232"
@@ -688,10 +836,14 @@ def _combo_plot_xml(
     parts: list[str] = []
 
     for plot in sorted(chart_data["plots"], key=_combo_plot_layer):
+        categories = plot["categories"]
+        category_is_numeric = bool(plot.get("category_is_numeric"))
         chart_type = plot["type"]
         axis = plot.get("axis", "primary")
         cat_ax_id = secondary_cat_ax_id if axis == "secondary" else primary_cat_ax_id
         val_ax_id = secondary_val_ax_id if axis == "secondary" else primary_val_ax_id
+        category_role = "secondary_category" if axis == "secondary" else "category"
+        category_number_format = axes.get(category_role, {}).get("number_format")
         start_index = int(plot.get("start_index", 0))
         grouping = plot.get("grouping") or ("clustered" if chart_type == "column" else "standard")
         ser_xml = _series_xml(
@@ -700,13 +852,32 @@ def _combo_plot_xml(
             chart_type=chart_type,
             grouping=grouping,
             colors=colors,
+            category_is_numeric=category_is_numeric,
+            category_number_format=category_number_format,
             data_labels=_data_labels_config(plot),
             data_label_font_size=axis_font_size,
             data_label_color=chart_style.get("text_color"),
             data_label_font_face=chart_style.get("font_face"),
             line_style=plot.get("line_style", "line"),
-            start_column=2 + start_index,
+            category_column=int(plot.get("category_column", 1)),
+            color_start_index=start_index,
+            series_indices=plot.get("series_indices"),
+            start_column=int(plot.get("start_column", 2 + start_index)),
             start_index=start_index,
+        )
+        data_labels = _data_labels_config(plot)
+        data_labels_xml = (
+            _data_labels_xml(
+                data_labels,
+                chart_type=chart_type,
+                grouping=grouping,
+                point_count=len(plot["series"][0]["values"]),
+                font_size=axis_font_size,
+                default_color=chart_style.get("text_color"),
+                default_font_face=chart_style.get("font_face"),
+            )
+            if not _series_scoped_data_labels(data_labels)
+            else ""
         )
         if chart_type == "column":
             parts.append(_bar_chart_group_xml(
@@ -716,6 +887,7 @@ def _combo_plot_xml(
                 cat_ax_id=cat_ax_id,
                 val_ax_id=val_ax_id,
                 vary_colors=any(item.get("point_colors") for item in plot["series"]),
+                data_labels_xml=data_labels_xml,
             ))
         elif chart_type in {"area", "line"}:
             parts.append(_line_area_chart_group_xml(
@@ -724,6 +896,7 @@ def _combo_plot_xml(
                 ser_xml,
                 cat_ax_id=cat_ax_id,
                 val_ax_id=val_ax_id,
+                data_labels_xml=data_labels_xml,
             ))
         else:
             raise RuntimeError("Native PPTX combo plots support column, line, and area only")
@@ -736,8 +909,9 @@ def _combo_plot_xml(
         axis_title_font_size=axis_title_font_size,
         axis_titles=axis_titles,
         chart_style=chart_style,
-        chart_type="column",
+        chart_type="combo",
         grouping=_combo_axis_grouping(chart_data["plots"], "primary"),
+        axes=axes,
     )
     if has_secondary_axis:
         axes_xml += _secondary_axis_xml(
@@ -748,6 +922,7 @@ def _combo_plot_xml(
             axis_titles=axis_titles,
             chart_style=chart_style,
             grouping=_combo_axis_grouping(chart_data["plots"], "secondary"),
+            axes=axes,
         )
     return "".join(parts) + axes_xml
 
@@ -791,6 +966,7 @@ def _chart_plot_xml(
                 axis_title_font_size=axis_title_font_size,
                 axis_titles=axis_titles,
                 chart_style=chart_style,
+                axes=chart_data.get("axes") or {},
             )
             return (
                 f'<c:scatterChart><c:scatterStyle val="{scatter_style}"/>'
@@ -807,6 +983,7 @@ def _chart_plot_xml(
             axis_title_font_size=axis_title_font_size,
             axis_titles=axis_titles,
             chart_style=chart_style,
+            axes=chart_data.get("axes") or {},
         )
         return (
             '<c:bubbleChart><c:varyColors val="0"/>'
@@ -822,6 +999,19 @@ def _chart_plot_xml(
     if chart_type == "stock":
         stock_cat_ax_id = "2068027336"
         stock_val_ax_id = "2113994440"
+        stock_axes = chart_data.get("axes") or {}
+        stock_category_format = None
+        if stock_axes:
+            stock_category_format = (
+                stock_axes.get("category", {}).get("number_format")
+                or "m/d/yyyy"
+            )
+        stock_series_xml = _stock_series_xml(
+            categories,
+            series,
+            colors=colors,
+            category_number_format=stock_category_format,
+        )
         axes_xml = _stock_axis_xml(
             stock_cat_ax_id,
             stock_val_ax_id,
@@ -829,10 +1019,11 @@ def _chart_plot_xml(
             axis_title_font_size=axis_title_font_size,
             axis_titles=axis_titles,
             chart_style=chart_style,
+            axes=stock_axes,
         )
         return (
             "<c:stockChart>"
-            f"{_stock_series_xml(categories, series, colors=colors)}"
+            f"{stock_series_xml}"
             '<c:hiLowLines/>'
             '<c:upDownBars><c:gapWidth val="150"/><c:upBars/><c:downBars/></c:upDownBars>'
             f'<c:axId val="{stock_cat_ax_id}"/><c:axId val="{stock_val_ax_id}"/>'
@@ -851,10 +1042,35 @@ def _chart_plot_xml(
         radar_marker_style=chart_data.get("radar_marker_style"),
         radar_style=chart_data.get("radar_style", "marker"),
         colors=colors,
+        category_is_numeric=_category_axis_is_date(chart_data.get("axes") or {}),
+        category_number_format=(
+            (chart_data.get("axes") or {})
+            .get("category", {})
+            .get(
+                "number_format",
+                "m/d/yyyy"
+                if _category_axis_is_date(chart_data.get("axes") or {})
+                else None,
+            )
+        ),
         data_labels=chart_data.get("data_labels"),
         data_label_font_size=axis_font_size,
         data_label_color=chart_style.get("text_color"),
         data_label_font_face=chart_style.get("font_face"),
+    )
+    data_labels_xml = (
+        _data_labels_xml(
+            chart_data.get("data_labels"),
+            chart_type=chart_type,
+            grouping=series_grouping,
+            point_count=len(series[0]["values"]),
+            font_size=axis_font_size,
+            default_color=chart_style.get("text_color"),
+            default_font_face=chart_style.get("font_face"),
+        )
+        if chart_type in {"area", "bar", "column", "line"}
+        and not _series_scoped_data_labels(chart_data.get("data_labels"))
+        else ""
     )
 
     if chart_type in {"bar", "column"}:
@@ -870,6 +1086,7 @@ def _chart_plot_xml(
             chart_type=chart_type,
             grouping=grouping,
             show_value_axis_labels=chart_data.get("show_value_axis_labels", True),
+            axes=chart_data.get("axes") or {},
         )
         overlap_xml = (
             '<c:overlap val="100"/>'
@@ -886,6 +1103,7 @@ def _chart_plot_xml(
             f'<c:barDir val="{bar_dir}"/><c:grouping val="{grouping}"/>'
             f"{vary_colors_xml}"
             f"{ser_xml}"
+            f"{data_labels_xml}"
             '<c:gapWidth val="150"/>'
             f"{overlap_xml}"
             f'<c:axId val="{cat_ax_id}"/><c:axId val="{val_ax_id}"/>'
@@ -905,11 +1123,13 @@ def _chart_plot_xml(
             chart_type=chart_type,
             grouping=grouping,
             show_value_axis_labels=chart_data.get("show_value_axis_labels", True),
+            axes=chart_data.get("axes") or {},
         )
         line_tail_xml = '<c:marker val="1"/><c:smooth val="0"/>' if chart_type == "line" else ""
         return (
             f'<c:{tag}><c:grouping val="{grouping}"/><c:varyColors val="0"/>'
             f"{ser_xml}"
+            f"{data_labels_xml}"
             f"{line_tail_xml}"
             f'<c:axId val="{cat_ax_id}"/><c:axId val="{val_ax_id}"/>'
             f"</c:{tag}>"
@@ -942,6 +1162,7 @@ def _chart_plot_xml(
             chart_style=chart_style,
             chart_type=chart_type,
             show_value_axis_labels=chart_data.get("show_value_axis_labels", True),
+            axes=chart_data.get("axes") or {},
         )
         return (
             f'<c:radarChart><c:radarStyle val="{radar_style}"/>'
@@ -965,51 +1186,20 @@ def _axis_xml(
     chart_type: str,
     grouping: str | None = None,
     show_value_axis_labels: bool = True,
+    axes: dict[str, dict[str, Any]] | None = None,
 ) -> str:
-    cat_pos = "l" if chart_type == "bar" else "b"
-    val_pos = "b" if chart_type == "bar" else "l"
-    val_num_fmt = (
-        '<c:numFmt formatCode="0%" sourceLinked="0"/>'
-        if grouping == "percentStacked"
-        else ""
-    )
-    val_tick_label_pos = "nextTo" if show_value_axis_labels else "none"
-    axis_sp_pr = _chart_line_sp_pr_xml(chart_style.get("axis_color"))
-    axis_tx_pr = _chart_tx_pr_xml(
-        axis_font_size,
-        chart_style.get("text_color"),
-        font_face=chart_style.get("font_face"),
-    )
-    cat_title_xml = _axis_title_xml(
-        _first_present(axis_titles.get("category"), axis_titles.get("x")),
-        font_size=axis_title_font_size,
-        color=chart_style.get("text_color"),
-        font_face=chart_style.get("font_face"),
-    )
-    val_title_xml = _axis_title_xml(
-        _first_present(axis_titles.get("value"), axis_titles.get("y")),
-        font_size=axis_title_font_size,
-        color=chart_style.get("text_color"),
-        font_face=chart_style.get("font_face"),
-    )
-    return (
-        "<c:catAx>"
-        f'<c:axId val="{cat_ax_id}"/><c:scaling><c:orientation val="minMax"/></c:scaling>'
-        f'<c:delete val="0"/><c:axPos val="{cat_pos}"/>{cat_title_xml}<c:majorTickMark val="out"/>'
-        '<c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>'
-        f"{axis_sp_pr}{axis_tx_pr}"
-        f'<c:crossAx val="{val_ax_id}"/><c:crosses val="autoZero"/><c:auto val="1"/>'
-        '<c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/>'
-        "</c:catAx>"
-        "<c:valAx>"
-        f'<c:axId val="{val_ax_id}"/><c:scaling><c:orientation val="minMax"/></c:scaling>'
-        f'<c:delete val="0"/><c:axPos val="{val_pos}"/>{_major_gridlines_xml(chart_style.get("grid_color"))}'
-        f"{val_title_xml}{val_num_fmt}"
-        '<c:majorTickMark val="out"/><c:minorTickMark val="none"/>'
-        f'<c:tickLblPos val="{val_tick_label_pos}"/>'
-        f"{axis_sp_pr}{axis_tx_pr}"
-        f'<c:crossAx val="{cat_ax_id}"/><c:crosses val="autoZero"/>'
-        "</c:valAx>"
+    return _axis_pair_xml(
+        cat_ax_id,
+        val_ax_id,
+        axis_font_size=axis_font_size,
+        axis_title_font_size=axis_title_font_size,
+        axis_titles=axis_titles,
+        chart_style=chart_style,
+        chart_type=chart_type,
+        grouping=grouping,
+        show_value_axis_labels=show_value_axis_labels,
+        axes=axes or {},
+        secondary=False,
     )
 
 
@@ -1021,7 +1211,11 @@ def _xy_axis_xml(
     axis_title_font_size: int,
     axis_titles: dict[str, Any],
     chart_style: dict[str, str | None],
+    axes: dict[str, dict[str, Any]] | None = None,
 ) -> str:
+    normalized_axes = axes or {}
+    x_axis = normalized_axes.get("x", {})
+    y_axis = normalized_axes.get("y", {})
     axis_sp_pr = _chart_line_sp_pr_xml(chart_style.get("axis_color"))
     axis_tx_pr = _chart_tx_pr_xml(
         axis_font_size,
@@ -1040,24 +1234,56 @@ def _xy_axis_xml(
         color=chart_style.get("text_color"),
         font_face=chart_style.get("font_face"),
     )
-    return (
-        "<c:valAx>"
-        f'<c:axId val="{x_ax_id}"/><c:scaling><c:orientation val="minMax"/></c:scaling>'
-        f'<c:delete val="0"/><c:axPos val="b"/>{x_title_xml}<c:majorTickMark val="out"/>'
-        '<c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>'
-        f"{axis_sp_pr}{axis_tx_pr}"
-        f'<c:crossAx val="{y_ax_id}"/><c:crosses val="autoZero"/>'
-        '<c:crossBetween val="midCat"/>'
-        "</c:valAx>"
-        "<c:valAx>"
-        f'<c:axId val="{y_ax_id}"/><c:scaling><c:orientation val="minMax"/></c:scaling>'
-        f'<c:delete val="0"/><c:axPos val="l"/>{_major_gridlines_xml(chart_style.get("grid_color"))}'
-        f'{y_title_xml}<c:majorTickMark val="out"/><c:minorTickMark val="none"/>'
-        '<c:tickLblPos val="nextTo"/>'
-        f"{axis_sp_pr}{axis_tx_pr}"
-        f'<c:crossAx val="{x_ax_id}"/><c:crosses val="autoZero"/>'
-        '<c:crossBetween val="midCat"/>'
-        "</c:valAx>"
+
+    def value_axis_xml(
+        axis_id: str,
+        cross_axis_id: str,
+        config: dict[str, Any],
+        *,
+        default_position: str,
+        default_gridlines: bool,
+        title_xml: str,
+    ) -> str:
+        delete = _bool_attr(not config.get("visible", True))
+        position = _axis_position(config, default_position)
+        gridlines = _axis_major_gridlines_xml(
+            config,
+            default=default_gridlines,
+            color=chart_style.get("grid_color"),
+        )
+        number_format = _axis_number_format_xml(config)
+        tick_label_position = _axis_label_position(config, "nextTo")
+        major_unit = (
+            f'<c:majorUnit val="{config["major_unit"]}"/>'
+            if config.get("major_unit") is not None else ""
+        )
+        return (
+            "<c:valAx>"
+            f'<c:axId val="{axis_id}"/>{_axis_scaling_xml(config)}'
+            f'<c:delete val="{delete}"/><c:axPos val="{position}"/>'
+            f"{gridlines}{title_xml}{number_format}"
+            '<c:majorTickMark val="out"/><c:minorTickMark val="none"/>'
+            f'<c:tickLblPos val="{tick_label_position}"/>'
+            f"{axis_sp_pr}{axis_tx_pr}"
+            f'<c:crossAx val="{cross_axis_id}"/><c:crosses val="autoZero"/>'
+            f'<c:crossBetween val="midCat"/>{major_unit}'
+            "</c:valAx>"
+        )
+
+    return value_axis_xml(
+        x_ax_id,
+        y_ax_id,
+        x_axis,
+        default_position="b",
+        default_gridlines=False,
+        title_xml=x_title_xml,
+    ) + value_axis_xml(
+        y_ax_id,
+        x_ax_id,
+        y_axis,
+        default_position="l",
+        default_gridlines=True,
+        title_xml=y_title_xml,
     )
 
 
@@ -1066,6 +1292,7 @@ def _stock_series_xml(
     series: list[dict[str, Any]],
     *,
     colors: list[str],
+    category_number_format: str | None = None,
 ) -> str:
     parts: list[str] = []
     for index, item in enumerate(series):
@@ -1081,7 +1308,7 @@ def _stock_series_xml(
             '<c:marker><c:symbol val="none"/></c:marker>'
             "<c:cat><c:numRef>"
             f"<c:f>Sheet1!$A$2:$A${len(categories) + 1}</c:f>"
-            f"{_number_cache(categories)}"
+            f"{_number_cache(categories, category_number_format or 'General')}"
             "</c:numRef></c:cat>"
             "<c:val><c:numRef>"
             f"<c:f>Sheet1!${_excel_col(column_index)}$2:${_excel_col(column_index)}${len(categories) + 1}</c:f>"
@@ -1101,44 +1328,22 @@ def _stock_axis_xml(
     axis_title_font_size: int,
     axis_titles: dict[str, Any],
     chart_style: dict[str, str | None],
+    axes: dict[str, dict[str, Any]] | None = None,
 ) -> str:
-    axis_sp_pr = _chart_line_sp_pr_xml(chart_style.get("axis_color"))
-    axis_tx_pr = _chart_tx_pr_xml(
-        axis_font_size,
-        chart_style.get("text_color"),
-        font_face=chart_style.get("font_face"),
-    )
-    cat_title_xml = _axis_title_xml(
-        _first_present(axis_titles.get("category"), axis_titles.get("x")),
-        font_size=axis_title_font_size,
-        color=chart_style.get("text_color"),
-        font_face=chart_style.get("font_face"),
-    )
-    val_title_xml = _axis_title_xml(
-        _first_present(axis_titles.get("value"), axis_titles.get("y")),
-        font_size=axis_title_font_size,
-        color=chart_style.get("text_color"),
-        font_face=chart_style.get("font_face"),
-    )
-    return (
-        "<c:dateAx>"
-        f'<c:axId val="{cat_ax_id}"/><c:scaling><c:orientation val="minMax"/></c:scaling>'
-        '<c:delete val="0"/><c:axPos val="b"/>'
-        f'{cat_title_xml}<c:numFmt formatCode="m/d/yyyy" sourceLinked="1"/>'
-        '<c:majorTickMark val="out"/><c:minorTickMark val="none"/>'
-        '<c:tickLblPos val="nextTo"/>'
-        f"{axis_sp_pr}{axis_tx_pr}"
-        f'<c:crossAx val="{val_ax_id}"/><c:crosses val="autoZero"/>'
-        '<c:auto val="1"/><c:lblOffset val="100"/><c:baseTimeUnit val="days"/>'
-        "</c:dateAx>"
-        "<c:valAx>"
-        f'<c:axId val="{val_ax_id}"/><c:scaling><c:orientation val="minMax"/></c:scaling>'
-        f'<c:delete val="0"/><c:axPos val="l"/>{_major_gridlines_xml(chart_style.get("grid_color"))}'
-        f'{val_title_xml}<c:majorTickMark val="out"/><c:minorTickMark val="none"/>'
-        '<c:tickLblPos val="nextTo"/>'
-        f"{axis_sp_pr}{axis_tx_pr}"
-        f'<c:crossAx val="{cat_ax_id}"/><c:crosses val="autoZero"/>'
-        "</c:valAx>"
+    normalized_axes = dict(axes or {})
+    normalized_axes.setdefault("category", {"kind": "date", "position": "bottom"})
+    return _axis_pair_xml(
+        cat_ax_id,
+        val_ax_id,
+        axis_font_size=axis_font_size,
+        axis_title_font_size=axis_title_font_size,
+        axis_titles=axis_titles,
+        chart_style=chart_style,
+        chart_type="stock",
+        grouping=None,
+        show_value_axis_labels=True,
+        axes=normalized_axes,
+        secondary=False,
     )
 
 

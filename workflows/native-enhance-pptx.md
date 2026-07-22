@@ -2,11 +2,11 @@
 description: Native enhancement platform for existing PPTX files, starting with notes/audio/timings/transitions without SVG conversion
 ---
 
-# Native Enhance PPTX Workflow
+# Enhance Native PPTX Route
 
-> Standalone workflow for enhancing an existing PowerPoint deck without regenerating it. V1 implements the `narration` module: speaker notes, narration audio, slide auto-advance timings, and page transitions.
+> Top-level route for enhancing an existing PowerPoint deck without regenerating it. V1 implements the `narration` module: speaker notes, narration audio, slide auto-advance timings, and page transitions.
 
-This workflow treats a `.pptx` as the artifact to preserve. It archives the source file into a lightweight project, uses `ppt_to_md.py` only to understand slide content, then patches the archived PPTX package directly through OOXML zip operations.
+This route treats a `.pptx` as the artifact to preserve. It archives the source file into a lightweight project, uses `ppt_to_md.py` only to understand slide content, then patches the archived PPTX package directly through OOXML zip operations.
 
 ---
 
@@ -27,6 +27,11 @@ This workflow treats a `.pptx` as the artifact to preserve. It archives the sour
 - Do not create `svg_output/`
 - Do not run `finalize_svg.py`
 - Do not run `svg_to_pptx.py`
+
+**Hard rule — public entrypoint**: Route and document all new work through
+`native_enhance_pptx.py`. The legacy `native_narration_pptx.py` command remains
+only as a thin CLI compatibility shim; it is not a separate route. The core
+continues to accept the legacy `native_narration_pptx_project.v1` project schema.
 
 **OOXML execution model**:
 
@@ -53,7 +58,7 @@ source.pptx
 | `animation` | Planned | Explicit object-level animation only |
 | `visible-stamp` | Planned | Watermark/footer/logo; requires explicit confirmation |
 
-**Default — V1 only**: Do not implement planned modules inside this workflow yet. Keep V1 focused on the narration module.
+**Default — V1 only**: Do not implement planned modules inside this route yet. Keep V1 focused on the narration module.
 
 **Object animation boundary**: Object-level animation is not part of V1. If the user asks for it, treat it as a future module or a separate explicitly confirmed task.
 
@@ -63,11 +68,11 @@ source.pptx
 
 | Condition | Action |
 |---|---|
-| Existing `.pptx` + wants notes / narration / voiceover / auto-play / page transitions while keeping format stable | Run this workflow |
-| Existing `.pptx` + asks to optimize it but says not to change existing content or layout | Run this workflow only for V1 narration enhancements; clarify any visible-slide request |
-| Existing `.pptx` + asks to beautify or re-layout | Use [`beautify-pptx`](./beautify-pptx.md) |
+| Existing `.pptx` + wants notes / narration / voiceover / auto-play / page transitions while keeping format stable | Run this route |
+| Existing `.pptx` + asks to optimize it but says not to change existing content or layout | Run this route only for V1 narration enhancements; clarify any visible-slide request |
+| Existing `.pptx` + asks to beautify or re-layout | Enter Generate PPTX with the [`beautify-pptx`](./profiles/beautify-pptx.md) profile |
 | Existing `.pptx` + asks to fill new content into the design | Use [`template-fill-pptx`](./template-fill-pptx.md) |
-| PPT Master generated project with `svg_output/` | Use [`generate-audio`](./generate-audio.md) for narration |
+| PPT Master generated project with `svg_output/` | Stay in Generate PPTX and run the shared [`generate-audio`](./stages/generate-audio.md) stage |
 
 ---
 
@@ -129,6 +134,18 @@ Present the plan to the user before generating notes or audio:
 
 **⛔ BLOCKING**: Stop here and wait for explicit user confirmation. Do not generate notes, generate audio, or patch the PPTX until the user confirms the module plan.
 
+**Transition/timing ownership**:
+
+| Confirmed state | Enter transition | Slide advance |
+|---|---|---|
+| Transitions enabled with an effect | Replace with that exact effect and duration | Preserve unless timings is enabled |
+| Transitions disabled with a non-`none` configured effect | Preserve the source effect, including unknown `AlternateContent` | Preserve unless timings is enabled |
+| Explicit `none` | Remove the visual effect | Preserve, or write timing-only advance when timings is enabled |
+| Timings enabled with audio | Keep the resolved enter policy | Use audio duration plus narration padding; click disabled |
+| Timings disabled | Apply the confirmed enter policy only | Do not run `ffprobe`; do not add/change `advTm` or `useTimings` |
+
+**Hard rule — no silent downgrade**: a requested supported effect must be written with its established direction/variant attributes. Unknown requested effects fail; unknown source effects are preserved when the transition module is disabled.
+
 After confirmation, update `<project>/analysis/enhancement_plan.json`:
 
 ```json
@@ -181,26 +198,13 @@ python3 skills/ppt-master/scripts/native_enhance_pptx.py validate "<project>"
 
 ---
 
-## 7. Audio Voice Confirmation
+## 7. Shared Audio Configuration
 
 🚧 **GATE**: Step 6 complete; `audio.enabled` is true.
 
-Follow the same one-shot interaction standard as [`generate-audio`](./generate-audio.md):
+Run [`generate-audio`](./stages/generate-audio.md) Steps 1–3. That shared stage exclusively owns language selection, provider/voice catalog lookup, recommendation rules, and the one-shot confirmation. Do not repeat or fork those rules here.
 
-1. Determine the notes' primary language.
-2. List available voices for the selected backend.
-3. Recommend backend, voice, rate/settings, and whether to embed audio back into the PPTX.
-4. Ask the user to accept all recommendations or override any field.
-
-For edge voices:
-
-```bash
-python3 skills/ppt-master/scripts/notes_to_audio.py --list-voices --locale <locale>
-```
-
-**⛔ BLOCKING**: Stop here and wait for explicit user confirmation of audio backend, voice, rate/settings, and embedding. Do not run `notes_to_audio.py` before this confirmation.
-
-Record the confirmed audio config into `project.json`:
+Record the confirmed config into `project.json`:
 
 ```json
 {
@@ -214,18 +218,11 @@ Record the confirmed audio config into `project.json`:
 
 ---
 
-## 8. Generate Audio
+## 8. Run the Shared Audio Stage
 
 🚧 **GATE**: Step 7 confirmed; notes files exist under `<project>/notes/`.
 
-Run with the confirmed values:
-
-```bash
-python3 skills/ppt-master/scripts/notes_to_audio.py "<project>" \
-  --voice <chosen-ShortName> --rate <chosen-rate>
-```
-
-**Default — edge (may override)**: Use `edge` unless the user requests a cloud provider or supplies a cloned voice ID.
+Run [`generate-audio`](./stages/generate-audio.md) Step 4 with `<project>` and the confirmed values. Stop after audio generation; do not run its Generate-PPTX-only `svg_to_pptx.py --recorded-narration` integration. This route integrates audio through Step 9 instead.
 
 **Naming contract**: Audio stems match note stems: `001.md` → `001.mp3`.
 
@@ -254,8 +251,13 @@ python3 skills/ppt-master/scripts/native_enhance_pptx.py apply "<project>" \
   --transition fade \
   --transition-duration 0.5 \
   --narration-padding 0.4 \
+  --apply-transition-without-audio \
   --overwrite
 ```
+
+Without `--apply-transition-without-audio` (or the matching confirmed-plan
+field), the resolved enter policy is applied while processing slides with
+audio; slides without audio keep their source transition.
 
 Patch scope:
 
@@ -266,6 +268,7 @@ Patch scope:
 | `ppt/slides/_rels/slideN.xml.rels` | Relationships for notes/audio/media/poster |
 | `ppt/media/` | Narration audio and transparent poster |
 | `ppt/slides/slideN.xml` | Hidden autoplay audio shape and page timing |
+| `ppt/presProps.xml` | `showPr useTimings=1` only when this run writes automatic slide advance |
 | `[Content_Types].xml` | Required content types |
 
 **Hard rule**: Do not modify existing slide shapes, text bodies, images, chart data, master/layout parts, or existing non-target relationships.
@@ -291,6 +294,8 @@ Check:
 | Notes | Present on intended slides |
 | Audio media | Present under `ppt/media/` when generated |
 | Auto-play | Narrated slides advance by audio duration |
+| Transition | Requested effect remains exact; preserved `AlternateContent` keeps its primary and fallback branches |
+| Timings disabled | Source `advTm` and package `useTimings` are not changed |
 
 ```markdown
 ## ✅ Native PPTX Enhancement V1 Complete

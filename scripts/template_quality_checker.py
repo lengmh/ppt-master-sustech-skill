@@ -2,10 +2,10 @@
 """Template-level validator for template outputs.
 
 Checks the structural consistency between `design_spec.md`, SVG template files,
-and referenced asset files. When `brief_lock.json` exists (or
-`--require-brief-lock` is passed), it also verifies the SUSTech create-template
-audit lock against the generated template package. Delegates low-level template
-SVG safety checks to `svg_quality_checker.py --template-mode`, while keeping
+and referenced asset files. When a legacy `brief_lock.json` exists (or
+`--require-brief-lock` is passed for an explicit audit), it also verifies that
+legacy artifact against the template package. Delegates low-level template SVG
+safety checks to `svg_quality_checker.py --template-mode`, while keeping
 local brief-level contract validation and registrar preflight checks.
 """
 from __future__ import annotations
@@ -35,21 +35,17 @@ LEGACY_SPEC_SECTIONS = [
     "## VI. Page Types",
 ]
 
-REQUIRED_FRONTMATTER_KEYS = {
-    "category",
-    "summary",
-    "keywords",
-    "primary_color",
-    "canvas_format",
-    "replication_mode",
+REQUIRED_FRONTMATTER_KEYS_BY_KIND = {
+    "brand": {"kind", "category", "summary", "keywords", "primary_color"},
+    "layout": {
+        "kind", "category", "summary", "keywords", "canvas_format",
+        "replication_mode", "native_structure_mode",
+    },
+    "deck": {
+        "kind", "category", "summary", "keywords", "primary_color",
+        "canvas_format", "replication_mode", "native_structure_mode",
+    },
 }
-
-CORE_TEMPLATE_FILES = [
-    "01_cover.svg",
-    "02_chapter.svg",
-    "03_content.svg",
-    "04_ending.svg",
-]
 
 PLACEHOLDER_REQUIREMENTS = {
     "01_cover.svg": ["{{TITLE}}"],
@@ -71,6 +67,17 @@ def _frontmatter_id(frontmatter: dict[str, Any], kind: str | None = None) -> Any
         if value is not None:
             return value
     return None
+
+
+def _resolve_workspace(path: Path) -> tuple[Path, Path]:
+    """Return ``(workspace_root, template_content_root)``."""
+    path = Path(path)
+    nested = path / "templates"
+    if (nested / "design_spec.md").is_file():
+        return path, nested
+    if path.name == "templates" and (path / "design_spec.md").is_file():
+        return path.parent, path
+    return path, path
 
 
 def _read_spec(spec_path: Path) -> tuple[str | None, str]:
@@ -162,10 +169,11 @@ def _check_design_spec_against_lock(
     errors: list[str],
     warnings: list[str],
 ) -> None:
-    _check_design_spec_skeleton(spec_text, frontmatter, errors, warnings)
+    if kind != "brand":
+        _check_design_spec_skeleton(spec_text, frontmatter, errors, warnings)
 
     if frontmatter:
-        missing = REQUIRED_FRONTMATTER_KEYS - set(frontmatter)
+        missing = REQUIRED_FRONTMATTER_KEYS_BY_KIND[kind] - set(frontmatter)
         if missing:
             errors.append(f"design_spec frontmatter missing keys: {sorted(missing)}")
         declared_id = _frontmatter_id(frontmatter, kind)
@@ -179,13 +187,13 @@ def _check_design_spec_against_lock(
                 "design_spec frontmatter category mismatch: "
                 f"expected {lock['template_identity']['category']!r}, got {frontmatter.get('category')!r}"
             )
-        if frontmatter.get("canvas_format") != lock["canvas"]["format"]:
+        if kind != "brand" and frontmatter.get("canvas_format") != lock["canvas"]["format"]:
             errors.append(
                 "design_spec frontmatter canvas_format mismatch: "
                 f"expected {lock['canvas']['format']!r}, got {frontmatter.get('canvas_format')!r}"
             )
         replication = lock.get("replication", {})
-        if replication:
+        if kind != "brand" and replication:
             expected_mode = replication.get("mode")
             if expected_mode and frontmatter.get("replication_mode") != expected_mode:
                 errors.append(
@@ -207,12 +215,13 @@ def _check_design_spec_against_lock(
 def _check_design_spec_without_lock(
     spec_text: str,
     frontmatter: dict[str, Any],
-    template_dir: Path,
+    workspace_root: Path,
     kind: str,
     errors: list[str],
     warnings: list[str],
 ) -> None:
-    _check_design_spec_skeleton(spec_text, frontmatter, errors, warnings)
+    if kind != "brand":
+        _check_design_spec_skeleton(spec_text, frontmatter, errors, warnings)
 
     if not frontmatter:
         warnings.append("design_spec.md has no YAML frontmatter; register_template.py will rely on prose fallback")
@@ -222,11 +231,10 @@ def _check_design_spec_without_lock(
     if declared_kind and declared_kind != kind:
         errors.append(f"design_spec frontmatter kind mismatch: expected {kind!r}, got {declared_kind!r}")
 
-    id_key = {"brand": "brand_id", "layout": "layout_id", "deck": "deck_id"}[kind]
     declared_id = _frontmatter_id(frontmatter, kind)
-    if declared_id is not None and str(declared_id) != template_dir.name:
+    if declared_id is not None and str(declared_id) != workspace_root.name:
         errors.append(
-            f"design_spec frontmatter id mismatch: expected {template_dir.name!r}, got {declared_id!r}"
+            f"design_spec frontmatter id mismatch: expected {workspace_root.name!r}, got {declared_id!r}"
         )
 
     if not str(frontmatter.get("summary") or "").strip():
@@ -248,13 +256,13 @@ def _check_svg_files(
     svg_files = _list_svg_files(template_dir)
     svg_names = [p.name for p in svg_files]
 
+    if kind == "brand":
+        if svg_files:
+            errors.append("brand workspace must not contain an SVG page roster")
+        return
+
     replication = lock.get("replication", {}) if lock else {}
     replication_mode = replication.get("mode") or frontmatter.get("replication_mode") or "standard"
-
-    if kind != "brand" and replication_mode == "standard":
-        for svg_name in CORE_TEMPLATE_FILES:
-            if svg_name not in svg_names:
-                errors.append(f"missing core template file: {svg_name}")
 
     roster_entries = _extract_roster_entries(body)
     if roster_entries:
@@ -294,9 +302,14 @@ def _check_svg_files(
                 errors.append(f"mirror-mode SVG must not contain placeholders: {svg_path.name}")
 
 
-def _run_svg_quality_checker(template_dir: Path, expected_format: str, errors: list[str], warnings: list[str]) -> None:
+def _run_svg_quality_checker(
+    target: Path,
+    expected_format: str | None,
+    errors: list[str],
+    warnings: list[str],
+) -> None:
     checker = SVGQualityChecker(template_mode=True)
-    checker.check_directory(str(template_dir), expected_format=expected_format)
+    checker.check_directory(str(target), expected_format=expected_format)
     if checker.summary["errors"] > 0:
         errors.append("SVG quality checker reported template SVG errors")
     if checker.summary["warnings"] > 0:
@@ -326,16 +339,20 @@ def _run_register_preflight(template_dir: Path, kind: str, errors: list[str], wa
         warnings.append(f"register preflight emitted stderr: {completed.stderr.strip()}")
 
 
-def check_template_dir(template_dir: Path, expected_format: str, require_brief_lock: bool = False) -> dict[str, Any]:
-    template_dir = Path(template_dir)
+def check_template_dir(
+    template_dir: Path,
+    expected_format: str | None = None,
+    require_brief_lock: bool = False,
+) -> dict[str, Any]:
+    workspace_root, content_root = _resolve_workspace(Path(template_dir))
     errors: list[str] = []
     warnings: list[str] = []
 
-    lock_path = template_dir / "brief_lock.json"
+    lock_path = workspace_root / "brief_lock.json"
     lock: dict[str, Any] | None = None
     if lock_path.exists():
         try:
-            lock = load_brief_lock(template_dir)
+            lock = load_brief_lock(workspace_root)
         except Exception as exc:
             errors.append(f"Invalid brief_lock.json: {exc}")
             return {"passed": False, "errors": errors, "warnings": warnings}
@@ -345,7 +362,7 @@ def check_template_dir(template_dir: Path, expected_format: str, require_brief_l
     else:
         warnings.append("Missing brief_lock.json; running frontmatter/prose compatibility checks")
 
-    design_spec = template_dir / "design_spec.md"
+    design_spec = content_root / "design_spec.md"
     if not design_spec.exists():
         errors.append("Missing design_spec.md")
         return {"passed": False, "errors": errors, "warnings": warnings}
@@ -354,33 +371,52 @@ def check_template_dir(template_dir: Path, expected_format: str, require_brief_l
     frontmatter = _parse_frontmatter_block(frontmatter_block)
     spec_text = design_spec.read_text(encoding="utf-8")
 
-    kind = _expected_kind(template_dir, frontmatter)
+    kind = _expected_kind(workspace_root, frontmatter)
+    if kind != "brand" and expected_format is None:
+        value = frontmatter.get("canvas_format")
+        expected_format = str(value) if value else None
+    if kind != "brand" and expected_format is None:
+        errors.append("Missing canvas format; pass --format or declare canvas_format")
     if lock is not None:
         _check_design_spec_against_lock(spec_text, frontmatter, lock, kind, errors, warnings)
     else:
-        _check_design_spec_without_lock(spec_text, frontmatter, template_dir, kind, errors, warnings)
-    _check_svg_files(template_dir, lock, frontmatter, body, kind, errors, warnings)
-    _run_svg_quality_checker(template_dir, expected_format=expected_format, errors=errors, warnings=warnings)
-    _run_register_preflight(template_dir, kind, errors=errors, warnings=warnings)
+        _check_design_spec_without_lock(
+            spec_text,
+            frontmatter,
+            workspace_root,
+            kind,
+            errors,
+            warnings,
+        )
+    _check_svg_files(content_root, lock, frontmatter, body, kind, errors, warnings)
+    checker_target = workspace_root if kind == "brand" else content_root
+    _run_svg_quality_checker(
+        checker_target,
+        expected_format=expected_format,
+        errors=errors,
+        warnings=warnings,
+    )
+    _run_register_preflight(workspace_root, kind, errors=errors, warnings=warnings)
 
     return {
         "passed": len(errors) == 0,
         "errors": errors,
         "warnings": warnings,
         "lock_revision": lock["revision"] if lock else "N/A",
-        "template_dir": str(template_dir),
+        "workspace_root": str(workspace_root),
+        "template_dir": str(content_root),
         "kind": kind,
     }
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Validate a create-template output directory")
-    parser.add_argument("template_dir", type=Path, help="Template directory under templates/layouts/ or templates/decks/")
-    parser.add_argument("--format", dest="expected_format", required=True, help="Expected canvas format, e.g. ppt169")
+    parser = argparse.ArgumentParser(description="Validate a create-template workspace")
+    parser.add_argument("template_dir", type=Path, help="Template workspace root or legacy flat template directory")
+    parser.add_argument("--format", dest="expected_format", help="Expected canvas format, e.g. ppt169; inferred for Layout/Deck and unused for Brand")
     parser.add_argument(
         "--require-brief-lock",
         action="store_true",
-        help="Require brief_lock.json. Use this for newly generated /create-template outputs.",
+        help="Require an existing brief_lock.json for an explicit legacy audit.",
     )
     args = parser.parse_args()
 

@@ -12,17 +12,17 @@
 </p>
 
 <p align="center">
-  <a href="VERSION"><img alt="version" src="https://img.shields.io/badge/version-r3.1.0--v0.4.0-0ea5e9?style=flat-square"></a>
+  <a href="VERSION"><img alt="version" src="https://img.shields.io/badge/version-r4.1.0--v0.4.0-0ea5e9?style=flat-square"></a>
   <a href="https://github.com/lengmh/ppt-master-sustech-skill/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/lengmh/ppt-master-sustech-skill?style=flat-square&label=stars&logo=github"></a>
   <a href="https://github.com/lengmh/ppt-master-sustech-skill/commits"><img alt="last commit" src="https://img.shields.io/github/last-commit/lengmh/ppt-master-sustech-skill?style=flat-square&label=last%20commit"></a>
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/lengmh/ppt-master-sustech-skill?style=flat-square&label=license"></a>
-  <a href="RELEASE_META.json"><img alt="upstream" src="https://img.shields.io/badge/upstream-ppt--master%20v3.1.0-f59e0b?style=flat-square"></a>
+  <a href="RELEASE_META.json"><img alt="upstream" src="https://img.shields.io/badge/upstream-ppt--master%20v4.1.0-f59e0b?style=flat-square"></a>
 </p>
 
 <p align="center">
   <a href="#快速开始">Quick Start</a> ·
   <a href="#功能亮点">Features</a> ·
-  <a href="#sustech-增强内容">SUSTech</a> ·
+  <a href="#sustech-增强">SUSTech</a> ·
   <a href="docs/README.md">Docs</a> ·
   <a href="https://github.com/lengmh/ppt-master-sustech-skill/releases">Releases</a>
 </p>
@@ -31,72 +31,62 @@
 
 `ppt-master` 是一个面向 agent 环境的演示文稿生成 skill，可将 PDF、DOCX、PPTX、网页、Markdown、Excel 等材料转换为高质量 SVG 页面，并导出为可编辑 PPTX。
 
-本仓库提供 SUSTech 增强版本线源码，适合在 Claude Code、Codex、Cursor 等具备 agent 能力的环境中使用。
+本仓库在上游能力基础上加入 SUSTech 模板与质量增强，可在 Claude Code、Codex、Cursor 等具备 agent 能力的环境中使用。
 
 ## 版本信息
 
-| 项目 | 值 |
+| 项目 | 信息 |
 |---|---|
-| Release Version | `r3.1.0-v0.4.0` |
-| Upstream Baseline | `hugohe3/ppt-master@v3.1.0` |
-| Upstream Commit | `b8808a3a17377ea4e7fd79bdad096bab613f86b9` |
-| Tracked Range | `v3.1.0..c2cb78ad997b41d16cefe083831d62571ab9f741` |
-| Root Directory | `ppt-master/` |
-
-Release page:
-
-- <https://github.com/lengmh/ppt-master-sustech-skill/releases>
+| 当前版本 | `r4.1.0-v0.4.0` |
+| 对应上游 | `hugohe3/ppt-master@v4.1.0` |
+| 下载 | [GitHub Releases](https://github.com/lengmh/ppt-master-sustech-skill/releases) |
 
 ## 功能亮点
 
-- 支持 PDF、DOCX、PPTX、网页、Markdown、Excel 等多种输入源，并通过 `source_to_md.py` 统一调度来源转换、Markdown 输出与 conversion sidecar。
-- 通过 `design_spec.md` 和 `spec_lock.md` 驱动设计意图与执行约束。
-- 采用 SVG-first 页面构建流程，并导出可编辑 PPTX。
-- 支持浏览器 live preview、direct edit 和页面标注，跟随 upstream v3.1.0 交互模型。
-- 支持 staged Confirm UI，分阶段确认方向锚点、设计系统、图像策略和执行选项，并包含日文 UI 文案。
-- 支持 PPTX 路由细分：raw PPTX template-fill、现有 PPTX 1:1 beautify、native enhance notes/audio/timing/transitions。
-- 支持 opt-in native PPTX tables/charts、chart workbook 生成、图表 chrome 可见性校验和负值点颜色修复。
-- 支持 `brand / layout / deck` 三分模板体系。
-- 支持 AI image manifest、image backend/provider、图像策略候选、style previews、icon sync 与 image slicing。
-- 内置 chart templates、图表校验指引、speaker notes、动画与导出辅助能力。
-- 内置 `ppt_text_normalize` Safe MVP：公开支持 `scan` / `apply` PPTX 文字样式归一化。
-- 支持 opt-in `visual-review`，用于渲染后页面检查。
-- 支持 LaTeX 公式渲染：通过 `scripts/latex_render.py` 和 `images/formula_manifest.json` 生成公式 PNG 资产。
+- 支持 PDF、DOCX、PPTX、网页、Markdown、Excel 等多种输入源，并自动整理为统一的 Markdown 与转换结果。
+- 通过 `design_spec.md` 和 `spec_lock.md` 固化设计方向与执行约束，减少多轮生成中的样式漂移。
+- 采用 SVG-first 页面构建流程，在保持视觉质量的同时导出可编辑 PPTX。
+- 可在浏览器中预览、直接编辑和标注页面，并分阶段确认设计方向、设计系统、图像策略与执行选项；确认界面包含日文文案。
+- 可分别处理 PPTX 模板填充、现有演示稿等比例美化，以及备注、音频、计时和转场增强。
+- 可按需生成原生可编辑表格与图表，同时生成配套工作簿，并检查图表显示和负值配色等细节。
+- 提供 `brand / layout / deck` 三类模板工作区，便于复用和管理模板页、图片及图标资产。
+- 提供 AI 图像生成与检索、风格预览、图标同步和切图工具，方便统一视觉素材。
+- 内置图表模板、演讲者备注、动画、LaTeX 公式渲染和导出辅助能力。
+- 内置 `ppt_text_normalize` Safe MVP，可使用 `scan` / `apply` 检查并规范 PPTX 文字样式。
+- 可按需启用 `visual-review`，检查渲染后的页面效果。
 
-## SUSTech 增强内容
+## SUSTech 增强
 
-本版本融合上游 v3.1.0 与 `main@c2cb78a` 跟踪更新，并叠加以下 SUSTech 增强：
+在上游 v4.1.0 基础上，本版本进一步提供：
 
-- live-preview 以 upstream v3.1.0 direct-edit 行为为准；本地保留轻量 layout-quality 静态诊断，不覆盖上游交互模型。
-- 模板创建审计流：`brief_lock.json`、strict validation mode、template preview feedback。
-- SUSTech 与组织模板统一整理为 `templates/decks/` 条目。
-- 已清理旧品牌类 `templates/layouts/`；该目录现在只保留结构型 layout presets。
-- 正式纳入 `ppt_text_normalize` Safe MVP：本发布线只公开承诺 `scan` / `apply`，review gate / browser panel 需单独复核后再宣布。
-- 通过 `VERSION` 和 `RELEASE_META.json` 记录版本、上游基线和追踪范围。
-- 通过 [`docs/Roadmap.md`](docs/Roadmap.md) 记录 SUSTech 增强清单和上游兼容关注项。
+- 轻量 layout-quality 静态诊断，帮助发现页面溢出、对齐和间距问题。
+- 新建 Brand、Layout、Deck 模板以 `design_spec.md` 为唯一语义合同，保留旧 `brief_lock.json` 的读取与按需严格审计兼容。
+- 内置 `sustech_academic_official` Deck，模板页与图片资产分层存放，便于复用和替换。
+- 基于 `presentation_core` 提供结构化 Layout 集合，覆盖常见演示页面组织方式。
 
-## `ppt_text_normalize` 当前公开支持命令面
+更多增强说明与后续规划见 [`docs/Roadmap.md`](docs/Roadmap.md)。
 
-当前公开支持命令面包含：
+## PPTX 文本规范化
 
-- `scripts/ppt_text_normalize/scan.py`
-- `scripts/ppt_text_normalize/apply.py`
-- Safe MVP 保守归一化语义与配套报告输出
+`ppt_text_normalize` 用于检查并统一 PPTX 中的文字样式，同时尽量保持原有内容和版式：
 
-源码中保留的 review workspace / reviewed-rules 相关脚本不作为 `r3.1.0-v0.4.0` 的公开发布承诺；需要先完成单独复核。
+- `scripts/ppt_text_normalize/scan.py`：扫描潜在的样式不一致并生成报告。
+- `scripts/ppt_text_normalize/apply.py`：根据扫描结果应用规范化调整。
+
+默认采用 Safe MVP 策略，仅执行经过验证的保守调整。
 
 ## 目录结构
 
 ```text
 SKILL.md                 # agent 主入口
-VERSION                  # 当前 release 版本
-RELEASE_META.json         # 版本、上游基线与追踪范围元数据
+VERSION                  # 当前版本
+RELEASE_META.json         # 版本来源与上游信息
 .env.example              # 环境变量示例
 requirements.txt          # Python 依赖列表
 references/               # agent 角色参考与生成指引
 scripts/                  # 转换、渲染、预览、导出、模板等辅助脚本
 templates/                # brands / layouts / decks / charts / icons
-workflows/                # live-preview、create-template、template-fill、visual-review、图表校验等流程
+workflows/                # generate-pptx、stages、profiles、governance、create-template 等流程
 docs/                     # 使用与设计文档
 ```
 
@@ -117,7 +107,7 @@ agent 主入口：
 SKILL.md
 ```
 
-常用 CLI 检查：
+常用工具入口（使用 `--help` 查看参数）：
 
 ```bash
 python3 scripts/svg_to_pptx.py --help

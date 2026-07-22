@@ -26,6 +26,12 @@ A name the library does not have is reported and the command exits non-zero — 
 
 **Custom icons**: drop your own `.svg` into `<project>/icons/<lib>/` (any `<lib>`, e.g. `custom/`) and reference it as `data-icon="<lib>/<name>"` — it embeds like any library icon.
 
+**Imported vectors**: `create-template` reserves the project-local `imported/`
+namespace. Each extracted vector lives once at
+`<workspace>/icons/imported/<name>.svg` and is referenced as
+`data-icon="imported/<name>"`; do not duplicate it under `templates/` or use
+`imported/` as a hand-curated style library.
+
 ## Usage
 
 Use placeholder syntax **during SVG generation**:
@@ -52,6 +58,8 @@ Use placeholder syntax **during SVG generation**:
 - `x`, `y` — Position
 - `width`, `height` — Size (recommend 32–48px for legibility)
 - `fill` — Color
+
+`data-icon` is case-sensitive because it resolves a real filename. Bundled library directories and basenames are canonical lowercase: use `tabler-outline/award`, not `tabler-outline/Award`. Custom icons retain the exact case of their files; the resolver intentionally does not lowercase identifiers.
 
 `finalize_svg.py` auto-embeds all placeholders during post-processing. To run manually:
 

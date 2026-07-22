@@ -6,9 +6,9 @@
 
 | 项目 | 值 |
 |---|---|
-| Release Version | `r3.1.0-v0.4.0` |
-| Upstream Baseline | `hugohe3/ppt-master@v3.1.0` |
-| Tracked Range | `v3.1.0..c2cb78ad997b41d16cefe083831d62571ab9f741` |
+| Release Version | `r4.1.0-v0.4.0` |
+| Upstream Baseline | `hugohe3/ppt-master@v4.1.0` |
+| Post-tag Tracking | None; fixed tag baseline |
 | Root Directory | `ppt-master/` |
 
 ## 文档列表
@@ -26,5 +26,6 @@
 - `SKILL.md` 是 agent 主入口。
 - `VERSION` 和 `RELEASE_META.json` 记录版本、上游基线和追踪范围。
 - `docs/Roadmap.md` 记录 SUSTech 特有增强和上游兼容关注项。
+- 新建 Brand、Layout、Deck 模板只使用 `design_spec.md`；已有 `brief_lock.json` 仅用于兼容性读取和显式严格审计。
 - `scripts/docs/ppt-text-normalize.md` 记录当前内置 `ppt_text_normalize` Safe MVP；本发布线公开支持 `scan` / `apply`。
-- review gate / browser panel / reviewed-rules flow 保留为源码资产，需单独复核后再作为公开能力宣布。
+- 当前发布只承诺 `ppt_text_normalize` 的 `scan` / `apply` 能力。

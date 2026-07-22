@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1280 720" width="1280" height="720"
+  data-pptx-master="sustech_academic_master" data-pptx-master-name="SUSTech Academic"
+  data-pptx-layout="content" data-pptx-layout-name="Title and Content">
+  <rect id="sustech-master-background" x="0" y="0" width="1280" height="720" fill="#FFFFFF"
+    data-pptx-layer="master" data-pptx-editable="false"/>
+
+  <image id="content-school-motif" href="../images/top_left_motif_standard.png" x="0" y="13" width="70" height="62"
+    preserveAspectRatio="xMidYMid meet" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <image id="content-school-logo" href="../images/full_top_right_school_logo.png" x="1060" y="13" width="220" height="66"
+    preserveAspectRatio="xMidYMid meet" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <line id="content-title-accent" x1="92" y1="76" x2="280" y2="76" stroke="#E3660D" stroke-width="3"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <line id="content-title-rule" x1="280" y1="76" x2="1188" y2="76" stroke="#CECECE" stroke-width="1"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="content-zone-label" x="92" y="124" fill="#9D9D9D" font-family="Arial, sans-serif" font-size="11"
+    data-pptx-layer="layout" data-pptx-editable="false">FLEXIBLE WORKING ZONE</text>
+  <rect id="content-zone-background" x="72" y="132" width="1136" height="534" rx="16" fill="#FFFFFF"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="content-zone-border" x="72" y="132" width="1136" height="534" rx="16" fill="none" stroke="#CECECE" stroke-width="1.2" stroke-dasharray="10 8"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <path id="content-zone-leading-accent" d="M 72 132 L 106 132 L 106 136 L 76 136 L 76 166 L 72 166 Z" fill="#E3660D"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <path id="content-zone-trailing-accent" d="M 1208 666 L 1174 666 L 1174 662 L 1204 662 L 1204 632 L 1208 632 Z" fill="#01ABA8"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="content-zone-description" x="640" y="422" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="16"
+    data-pptx-layer="layout" data-pptx-editable="false">Flexible composition for summary / mixed content / evidence pages</text>
+  <line id="content-footer-rule" x1="92" y1="688" x2="1188" y2="688" stroke="#CECECE" stroke-width="1"
+    data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="content-footer-label" x="92" y="704" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13"
+    data-pptx-layer="layout" data-pptx-editable="false">Southern University of Science and Technology</text>
+
+  <g id="content-title-slot" data-pptx-placeholder="title" data-pptx-bounds="92 20 900 48">
+    <text id="content-title-carrier" data-pptx-carrier="true" x="92" y="60" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="32" font-weight="bold">{{PAGE_TITLE}}</text>
+  </g>
+  <g id="content-section-slot" data-pptx-placeholder="body" data-pptx-idx="1" data-pptx-bounds="92 80 900 36">
+    <text id="content-section-carrier" data-pptx-carrier="true" x="92" y="106" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="26.7">{{SECTION_NAME}}</text>
+  </g>
+  <g id="content-object-slot" data-pptx-placeholder="object" data-pptx-idx="2" data-pptx-bounds="72 132 1136 534">
+    <text id="content-object-carrier" data-pptx-carrier="true" x="640" y="394" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22">{{CONTENT_AREA}}</text>
+  </g>
+  <g id="content-slide-number-slot" data-pptx-placeholder="slide-number" data-pptx-idx="3" data-pptx-bounds="1108 680 80 28">
+    <text id="content-slide-number-carrier" data-pptx-carrier="true" x="1188" y="704" text-anchor="end" fill="#003F43" font-family="Arial, sans-serif" font-size="16" font-weight="bold">{{PAGE_NUM}}</text>
+  </g>
+</svg>

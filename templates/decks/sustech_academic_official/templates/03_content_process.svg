@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1280 720" width="1280" height="720"
+  data-pptx-master="sustech_academic_master" data-pptx-master-name="SUSTech Academic"
+  data-pptx-layout="process" data-pptx-layout-name="Process">
+  <rect id="sustech-master-background" x="0" y="0" width="1280" height="720" fill="#FFFFFF" data-pptx-layer="master" data-pptx-editable="false"/>
+
+  <image id="process-school-motif" href="../images/top_left_motif_standard.png" x="0" y="13" width="70" height="62" preserveAspectRatio="xMidYMid meet" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <image id="process-school-logo" href="../images/full_top_right_school_logo.png" x="1060" y="13" width="220" height="66" preserveAspectRatio="xMidYMid meet" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <line id="process-title-accent" x1="92" y1="76" x2="280" y2="76" stroke="#E3660D" stroke-width="3" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <line id="process-title-rule" x1="280" y1="76" x2="1188" y2="76" stroke="#CECECE" stroke-width="1" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="process-flow-background" x="72" y="156" width="1136" height="246" rx="22" fill="#EAF1F0" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="process-step-1-card" x="110" y="226" width="170" height="88" rx="18" fill="#FFFFFF" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="process-step-2-card" x="344" y="204" width="230" height="116" rx="22" fill="#F6EBDF" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="process-step-3-card" x="638" y="226" width="170" height="88" rx="18" fill="#FFFFFF" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="process-step-4-card" x="872" y="204" width="280" height="116" rx="22" fill="#F6EBDF" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="process-step-1-label" x="195" y="262" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18" data-pptx-layer="layout" data-pptx-editable="false">Step 1</text>
+  <text id="process-step-2-label" x="459" y="252" text-anchor="middle" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22" font-weight="bold" data-pptx-layer="layout" data-pptx-editable="false">Step 2</text>
+  <text id="process-step-2-description" x="459" y="282" text-anchor="middle" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" data-pptx-layer="layout" data-pptx-editable="false">Main process / method focus</text>
+  <text id="process-step-3-label" x="723" y="262" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18" data-pptx-layer="layout" data-pptx-editable="false">Step 3</text>
+  <text id="process-step-4-label" x="1012" y="252" text-anchor="middle" fill="#B63742" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22" font-weight="bold" data-pptx-layer="layout" data-pptx-editable="false">Step 4</text>
+  <text id="process-step-4-description" x="1012" y="282" text-anchor="middle" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" data-pptx-layer="layout" data-pptx-editable="false">Decision / endpoint</text>
+  <path id="process-arrow-1" d="M 280 248 H 328 L 328 244 L 344 258 L 328 272 L 328 268 H 280 Z" fill="#E3660D" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <path id="process-arrow-2" d="M 574 248 H 622 L 622 244 L 638 258 L 622 272 L 622 268 H 574 Z" fill="#E3660D" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <path id="process-arrow-3" d="M 808 248 H 856 L 856 244 L 872 258 L 856 272 L 856 268 H 808 Z" fill="#E3660D" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="process-object-background" x="72" y="426" width="760" height="240" rx="18" fill="#FFFFFF" stroke="#CECECE" stroke-width="1.5" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="process-object-description" x="452" y="562" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" data-pptx-layer="layout" data-pptx-editable="false">Merged explanation / method details / result block</text>
+  <rect id="process-note-card" x="856" y="426" width="352" height="104" rx="18" fill="#F6EBDF" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="process-note-label" x="1032" y="486" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18" data-pptx-layer="layout" data-pptx-editable="false">Method Note / Criteria</text>
+  <rect id="process-outcome-card" x="856" y="562" width="352" height="104" rx="18" fill="#FFFFFF" stroke="#CECECE" stroke-width="1.2" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="process-outcome-label" x="1032" y="622" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18" data-pptx-layer="layout" data-pptx-editable="false">Outcome / Application</text>
+  <line id="process-footer-rule" x1="92" y1="688" x2="1188" y2="688" stroke="#CECECE" stroke-width="1" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <text id="process-footer-label" x="92" y="704" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" data-pptx-layer="layout" data-pptx-editable="false">Southern University of Science and Technology</text>
+
+  <g id="process-title-slot" data-pptx-placeholder="title" data-pptx-bounds="92 20 900 48">
+    <text id="process-title-carrier" data-pptx-carrier="true" x="92" y="60" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="32" font-weight="bold">{{PAGE_TITLE}}</text>
+  </g>
+  <g id="process-section-slot" data-pptx-placeholder="body" data-pptx-idx="1" data-pptx-bounds="92 80 900 36">
+    <text id="process-section-carrier" data-pptx-carrier="true" x="92" y="106" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="26.7">{{SECTION_NAME}}</text>
+  </g>
+  <g id="process-object-slot" data-pptx-placeholder="object" data-pptx-idx="2" data-pptx-bounds="72 426 760 240">
+    <text id="process-object-carrier" data-pptx-carrier="true" x="452" y="532" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22">{{CONTENT_AREA}}</text>
+  </g>
+  <g id="process-slide-number-slot" data-pptx-placeholder="slide-number" data-pptx-idx="3" data-pptx-bounds="1108 680 80 28">
+    <text id="process-slide-number-carrier" data-pptx-carrier="true" x="1188" y="704" text-anchor="end" fill="#003F43" font-family="Arial, sans-serif" font-size="16" font-weight="bold">{{PAGE_NUM}}</text>
+  </g>
+</svg>

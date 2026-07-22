@@ -1,8 +1,10 @@
 from pathlib import Path
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 
 from update_spec import parse_lock
@@ -141,6 +143,19 @@ class TestStaticOverlapChecks(unittest.TestCase):
 
 
 class TestLayoutQualityCliReport(unittest.TestCase):
+    def _report_fixture_dir(self):
+        TEMP_DIR.mkdir(parents=True, exist_ok=True)
+        temporary = tempfile.TemporaryDirectory(
+            prefix="svg-layout-report-",
+            dir=TEMP_DIR,
+        )
+        self.addCleanup(temporary.cleanup)
+        target = Path(temporary.name)
+        for name in ("card_collision.svg", "text_overflow_card.svg"):
+            shutil.copy2(FIXTURE_DIR / name, target / name)
+        shutil.copy2(FIXTURE_DIR / "spec_lock.md", target / "spec_lock.md")
+        return target
+
     def _run_checker(self, *args):
         env = os.environ.copy()
         env["PYTHONPATH"] = str(REPO_ROOT / "scripts")
@@ -159,7 +174,7 @@ class TestLayoutQualityCliReport(unittest.TestCase):
         output.unlink(missing_ok=True)
 
         completed = self._run_checker(
-            str(FIXTURE_DIR),
+            str(self._report_fixture_dir()),
             "--layout-json",
             str(output),
         )
@@ -182,7 +197,7 @@ class TestLayoutQualityCliReport(unittest.TestCase):
         output.unlink(missing_ok=True)
 
         completed = self._run_checker(
-            str(FIXTURE_DIR),
+            str(self._report_fixture_dir()),
             "--export",
             "--output",
             str(output),

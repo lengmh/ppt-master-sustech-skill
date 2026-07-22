@@ -30,19 +30,30 @@ def svg_file_has_only_embedded_images(svg_path: Path) -> bool:
     content = Path(svg_path).read_text(encoding="utf-8")
     return IMAGE_HREF_RE.search(content) is None
 
+
+def _resolve_workspace(path: Path) -> tuple[Path, Path]:
+    path = Path(path)
+    nested = path / "templates"
+    if (nested / "design_spec.md").is_file():
+        return path, nested
+    if path.name == "templates" and (path / "design_spec.md").is_file():
+        return path.parent, path
+    return path, path
+
+
 def export_template_preview(template_dir: Path, output_root: Path | None = None) -> Path:
-    template_dir = Path(template_dir)
+    workspace_root, content_root = _resolve_workspace(Path(template_dir))
     if output_root is None:
         output_root = Path.cwd()
     output_root = Path(output_root)
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    workspace = output_root / build_preview_workspace_name(template_dir.name, stamp)
+    workspace = output_root / build_preview_workspace_name(workspace_root.name, stamp)
     svg_output = workspace / "svg_output"
     svg_output.mkdir(parents=True, exist_ok=False)
 
     copied_svgs = 0
-    for file in sorted(template_dir.iterdir()):
+    for file in sorted(content_root.iterdir()):
         if file.is_dir():
             continue
         suffix = file.suffix.lower()
@@ -54,11 +65,26 @@ def export_template_preview(template_dir: Path, output_root: Path | None = None)
             # references still resolve during finalize_svg.py. The copied
             # svg_output tree will then be embedded into svg_final/ as base64.
             shutil.copy2(file, svg_output / file.name)
-        elif file.name in {"design_spec.md", "brief_lock.json"}:
+        elif file.name == "design_spec.md":
             shutil.copy2(file, workspace / file.name)
 
+    lock_path = workspace_root / "brief_lock.json"
+    if lock_path.is_file():
+        shutil.copy2(lock_path, workspace / lock_path.name)
+
+    for directory_name in ("images", "icons"):
+        source = workspace_root / directory_name
+        if source.is_dir():
+            shutil.copytree(source, workspace / directory_name)
+
+    content_assets = content_root / "assets"
+    if content_assets.is_dir():
+        shutil.copytree(content_assets, svg_output / "assets")
+    if workspace_root == content_root and (content_root / "images").is_dir():
+        shutil.copytree(content_root / "images", svg_output / "images")
+
     if copied_svgs == 0:
-        raise RuntimeError(f"no SVG files found in template directory: {template_dir}")
+        raise RuntimeError(f"no SVG files found in template directory: {content_root}")
 
     ok = finalize_project(
         workspace,
@@ -82,7 +108,7 @@ def export_template_preview(template_dir: Path, output_root: Path | None = None)
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Export a timestamped svg_final preview workspace for a template")
-    parser.add_argument("template_dir", type=Path, help="Template directory under templates/layouts/")
+    parser.add_argument("template_dir", type=Path, help="Template workspace root or legacy flat template directory")
     parser.add_argument("--output-root", type=Path, default=None, help="Where to create the preview workspace (default: current working directory)")
     args = parser.parse_args()
 
