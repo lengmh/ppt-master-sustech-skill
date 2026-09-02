@@ -2,14 +2,23 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import hashlib
 from typing import Any
 from xml.etree import ElementTree as ET
 
-from ..drawingml.utils import detect_text_lang, _xml_escape
+from ..drawingml.utils import (
+    _xml_escape,
+    detect_text_lang,
+    text_has_rtl_characters,
+    text_uses_rtl,
+)
 from .chart_data import (
     _DEFAULT_CHART_COLORS,
     _category_axis_is_date,
     _chart_list,
+    _chart_plot_area_layout,
     _data_label_position,
     _data_label_point_items,
     _data_labels_config,
@@ -25,6 +34,7 @@ from .chart_style import (
     _chart_text_entry_font_size,
     _chart_text_entry,
     _chart_text_sizes,
+    _chart_title_is_bounded,
     _chart_tx_pr_xml,
     _classic_chart_style,
     _font_face_xml,
@@ -143,6 +153,88 @@ def _data_label_flags_xml(config: dict[str, Any]) -> str:
     )
 
 
+def _source_data_labels_xml(config: dict[str, Any]) -> str | None:
+    source = config.get("source_ooxml")
+    if source is None:
+        return None
+    if not isinstance(source, dict) or source.get("encoding") != "base64":
+        raise RuntimeError(
+            "Native PPTX chart data_labels.source_ooxml must be base64 metadata"
+        )
+    encoded = source.get("payload")
+    expected_sha = source.get("sha256")
+    if not isinstance(encoded, str) or not isinstance(expected_sha, str):
+        raise RuntimeError(
+            "Native PPTX chart data_labels.source_ooxml is incomplete"
+        )
+    try:
+        payload = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise RuntimeError(
+            "Native PPTX chart data_labels.source_ooxml payload is invalid base64"
+        ) from exc
+    if len(payload) > 2_000_000:
+        raise RuntimeError(
+            "Native PPTX chart data_labels.source_ooxml payload is too large"
+        )
+    if hashlib.sha256(payload).hexdigest() != expected_sha.lower():
+        raise RuntimeError(
+            "Native PPTX chart data_labels.source_ooxml checksum mismatch"
+        )
+    try:
+        root = ET.fromstring(payload)
+    except ET.ParseError as exc:
+        raise RuntimeError(
+            "Native PPTX chart data_labels.source_ooxml is malformed"
+        ) from exc
+    chart_ns = "http://schemas.openxmlformats.org/drawingml/2006/chart"
+    rel_ns = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    if root.tag != f"{{{chart_ns}}}dLbls":
+        raise RuntimeError(
+            "Native PPTX chart data_labels.source_ooxml root must be c:dLbls"
+        )
+    if any(
+        isinstance(name, str) and name.startswith(f"{{{rel_ns}}}")
+        for node in root.iter()
+        for name in node.attrib
+    ):
+        raise RuntimeError(
+            "Native PPTX chart data_labels.source_ooxml cannot contain relationships"
+        )
+    return ET.tostring(root, encoding="unicode")
+
+
+def _data_label_custom_text_xml(
+    text: str,
+    *,
+    font_size: int,
+    color: str | None,
+    bold: bool,
+    font_face: str | None,
+    language: str | None,
+) -> str:
+    fill_xml = (
+        f'<a:solidFill><a:srgbClr val="{color}"/></a:solidFill>'
+        if color else ""
+    )
+    bold_attr = ' b="1"' if bold else ""
+    paragraphs: list[str] = []
+    for line in text.split("\n"):
+        lang = detect_text_lang(line, language)
+        rtl_attr = ' rtl="1"' if text_uses_rtl(line, language) else ""
+        run_rtl = '<a:rtl val="1"/>' if text_has_rtl_characters(line) else ""
+        paragraphs.append(
+            f'<a:p><a:pPr{rtl_attr}/><a:r><a:rPr lang="{lang}" '
+            f'sz="{font_size}"{bold_attr}>{fill_xml}{_font_face_xml(font_face)}'
+            f'{run_rtl}</a:rPr><a:t>{_xml_escape(line)}</a:t></a:r></a:p>'
+        )
+    return (
+        "<c:tx><c:rich><a:bodyPr/><a:lstStyle/>"
+        + "".join(paragraphs)
+        + "</c:rich></c:tx>"
+    )
+
+
 def _data_labels_xml(
     config: dict[str, Any] | None,
     *,
@@ -152,9 +244,13 @@ def _data_labels_xml(
     font_size: int,
     default_color: str | None,
     default_font_face: str | None,
+    language: str | None = None,
 ) -> str:
     if config is None:
         return ""
+    source_xml = _source_data_labels_xml(config)
+    if source_xml is not None:
+        return source_xml
     show_leader_lines = _chart_bool(
         _first_present(
             config.get("show_leader_lines"),
@@ -169,7 +265,13 @@ def _data_labels_xml(
     color = _hex_or_none(config.get("color")) or default_color
     bold = _chart_bool(config.get("bold"), False)
     font_face = _chart_text_entry_font_face(config, default_font_face)
-    tx_pr_xml = _chart_tx_pr_xml(label_font_size, color, bold=bold, font_face=font_face)
+    tx_pr_xml = _chart_tx_pr_xml(
+        label_font_size,
+        color,
+        bold=bold,
+        font_face=font_face,
+        language=language,
+    )
     num_fmt = _first_present(
         config.get("number_format"),
         config.get("numberFormat"),
@@ -192,6 +294,9 @@ def _data_labels_xml(
         for idx in range(point_count):
             item = selected_items.get(idx)
             if item is None:
+                point_label_xml += f'<c:dLbl><c:idx val="{idx}"/><c:delete val="1"/></c:dLbl>'
+                continue
+            if item.get("delete") is True:
                 point_label_xml += f'<c:dLbl><c:idx val="{idx}"/><c:delete val="1"/></c:dLbl>'
                 continue
             item_font_size_raw = _first_present(item.get("font_size"), item.get("fontSize"))
@@ -218,10 +323,28 @@ def _data_labels_xml(
             )
             item_bold = _chart_bool(item.get("bold"), bold)
             item_position_xml = f'<c:dLblPos val="{item_position}"/>' if item_position else ""
+            item_text_properties_xml = _chart_tx_pr_xml(
+                item_font_size,
+                item_color,
+                bold=item_bold,
+                font_face=item_font_face,
+                language=language,
+            )
+            custom_text_xml = ""
+            if item.get("text") is not None:
+                custom_text_xml = _data_label_custom_text_xml(
+                    str(item["text"]),
+                    font_size=item_font_size,
+                    color=item_color,
+                    bold=item_bold,
+                    font_face=item_font_face,
+                    language=language,
+                )
             point_label_xml += (
                 f'<c:dLbl><c:idx val="{idx}"/>'
+                f"{custom_text_xml}"
                 f"{item_num_fmt_xml}"
-                f"{_chart_tx_pr_xml(item_font_size, item_color, bold=item_bold, font_face=item_font_face)}"
+                f"{item_text_properties_xml}"
                 f"{item_position_xml}"
                 f"{_data_label_flags_xml({**config, **item})}"
                 "</c:dLbl>"
@@ -243,7 +366,7 @@ def _data_labels_xml(
         point_label_xml += (
             f'<c:dLbl><c:idx val="{idx}"/>'
             f"{num_fmt_xml}"
-            f"{_chart_tx_pr_xml(label_font_size, label_color, bold=bold, font_face=font_face)}"
+            f"{_chart_tx_pr_xml(label_font_size, label_color, bold=bold, font_face=font_face, language=language)}"
             f"{position_xml}"
             f"{flags_xml}"
             "</c:dLbl>"
@@ -314,6 +437,7 @@ def _series_xml(
     data_label_font_size: int = 900,
     data_label_color: str | None = None,
     data_label_font_face: str | None = None,
+    language: str | None = None,
     category_column: int = 1,
     color_start_index: int | None = None,
     series_indices: list[int] | None = None,
@@ -377,17 +501,25 @@ def _series_xml(
                 )
             marker_xml = _marker_xml(radar_marker_style)
         invert_xml = '<c:invertIfNegative val="0"/>' if chart_type in {"bar", "column"} else ""
+        item_data_labels = _data_labels_config(item)
+        effective_data_labels = (
+            item_data_labels if item_data_labels is not None else data_labels
+        )
         data_labels_xml = (
             _data_labels_xml(
-                data_labels,
+                effective_data_labels,
                 chart_type=chart_type,
                 grouping=grouping,
                 point_count=len(item["values"]),
                 font_size=data_label_font_size,
                 default_color=data_label_color,
                 default_font_face=data_label_font_face,
+                language=language,
             )
-            if _series_scoped_data_labels(data_labels)
+            if (
+                item_data_labels is not None
+                or _series_scoped_data_labels(data_labels)
+            )
             and chart_type in {"area", "bar", "column", "line"}
             else ""
         )
@@ -417,14 +549,23 @@ def _chart_title_paragraph_xml(
     font_size: int,
     color: str | None = None,
     font_face: str | None = None,
+    primary_language: str | None = None,
 ) -> str:
     fill_xml = (
         f'<a:solidFill><a:srgbClr val="{color}"/></a:solidFill>'
         if color else ""
     )
-    lang = detect_text_lang(text)
+    lang = detect_text_lang(text, primary_language)
+    rtl_attr = (
+        ' rtl="1"'
+        if text_uses_rtl(text, primary_language)
+        else ''
+    )
+    run_rtl = '<a:rtl val="1"/>' if text_has_rtl_characters(text) else ''
     return (
-        f'<a:p><a:r><a:rPr lang="{lang}" sz="{font_size}">{fill_xml}{_font_face_xml(font_face)}</a:rPr>'
+        f'<a:p><a:pPr{rtl_attr}/><a:r><a:rPr lang="{lang}" '
+        f'sz="{font_size}">{fill_xml}{_font_face_xml(font_face)}'
+        f'{run_rtl}</a:rPr>'
         f"<a:t>{_xml_escape(text)}</a:t></a:r></a:p>"
     )
 
@@ -437,6 +578,7 @@ def _chart_title_xml(
     subtitle: Any = None,
     subtitle_font_size: int | None = None,
     font_face: str | None = None,
+    primary_language: str | None = None,
 ) -> str:
     title_entry = _chart_text_entry(title)
     subtitle_entry = _chart_text_entry(subtitle)
@@ -450,6 +592,7 @@ def _chart_title_xml(
             font_size=_chart_text_entry_font_size(item, font_size),
             color=_chart_text_entry_color(item, color),
             font_face=_chart_text_entry_font_face(item, font_face),
+            primary_language=primary_language,
         ))
     if subtitle_entry is not None:
         text, item = subtitle_entry
@@ -458,12 +601,32 @@ def _chart_title_xml(
             font_size=_chart_text_entry_font_size(item, subtitle_font_size or font_size),
             color=_chart_text_entry_color(item, color),
             font_face=_chart_text_entry_font_face(item, font_face),
+            primary_language=primary_language,
         ))
     return (
         "<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/>"
         f"{''.join(paragraphs)}"
-        "</c:rich></c:tx><c:layout/></c:title>"
+        "</c:rich></c:tx><c:layout/><c:overlay val=\"0\"/></c:title>"
         '<c:autoTitleDeleted val="0"/>'
+    )
+
+
+def _plot_area_layout_xml(
+    chart_data: dict[str, Any],
+    chart_bounds: tuple[int, int, int, int],
+) -> str:
+    layout = _chart_plot_area_layout(chart_data, chart_bounds)
+    if layout is None:
+        return "<c:layout/>"
+    x, y, width, height = layout
+    return (
+        "<c:layout><c:manualLayout>"
+        '<c:layoutTarget val="inner"/>'
+        '<c:xMode val="edge"/><c:yMode val="edge"/>'
+        '<c:wMode val="factor"/><c:hMode val="factor"/>'
+        f'<c:x val="{x:.12g}"/><c:y val="{y:.12g}"/>'
+        f'<c:w val="{width:.12g}"/><c:h val="{height:.12g}"/>'
+        "</c:manualLayout></c:layout>"
     )
 
 
@@ -473,6 +636,7 @@ def _chart_legend_xml(
     font_size: int,
     color: str | None = None,
     font_face: str | None = None,
+    primary_language: str | None = None,
 ) -> str:
     style = payload.get("style") if isinstance(payload.get("style"), dict) else {}
     show_legend = payload.get("show_legend", style.get("show_legend", False))
@@ -493,7 +657,7 @@ def _chart_legend_xml(
     return (
         f'<c:legend><c:legendPos val="{position}"/><c:layout/>'
         '<c:overlay val="0"/>'
-        f'{_chart_tx_pr_xml(font_size, color, font_face=font_face)}'
+        f'{_chart_tx_pr_xml(font_size, color, font_face=font_face, language=primary_language)}'
         '</c:legend>'
     )
 
@@ -684,6 +848,7 @@ def _axis_pair_xml(
     axes: dict[str, dict[str, Any]],
     secondary: bool,
 ) -> str:
+    primary_language = chart_style.get("primary_language")
     category_role = "secondary_category" if secondary else "category"
     value_role = "secondary_value" if secondary else "value"
     category = axes.get(category_role, {})
@@ -710,12 +875,14 @@ def _axis_pair_xml(
         axis_font_size,
         chart_style.get("text_color"),
         font_face=chart_style.get("font_face"),
+        language=primary_language,
     )
     cat_title_xml = "" if secondary else _axis_title_xml(
         _first_present(axis_titles.get("category"), axis_titles.get("x")),
         font_size=axis_title_font_size,
         color=chart_style.get("text_color"),
         font_face=chart_style.get("font_face"),
+        primary_language=primary_language,
     )
     value_title_key = "secondary_value" if secondary else "value"
     value_title = axis_titles.get(value_title_key)
@@ -726,6 +893,7 @@ def _axis_pair_xml(
         font_size=axis_title_font_size,
         color=chart_style.get("text_color"),
         font_face=chart_style.get("font_face"),
+        primary_language=primary_language,
     )
     cat_gridlines = _axis_major_gridlines_xml(
         category,
@@ -858,6 +1026,7 @@ def _combo_plot_xml(
             data_label_font_size=axis_font_size,
             data_label_color=chart_style.get("text_color"),
             data_label_font_face=chart_style.get("font_face"),
+            language=chart_style.get("primary_language"),
             line_style=plot.get("line_style", "line"),
             category_column=int(plot.get("category_column", 1)),
             color_start_index=start_index,
@@ -875,6 +1044,7 @@ def _combo_plot_xml(
                 font_size=axis_font_size,
                 default_color=chart_style.get("text_color"),
                 default_font_face=chart_style.get("font_face"),
+                language=chart_style.get("primary_language"),
             )
             if not _series_scoped_data_labels(data_labels)
             else ""
@@ -1057,6 +1227,7 @@ def _chart_plot_xml(
         data_label_font_size=axis_font_size,
         data_label_color=chart_style.get("text_color"),
         data_label_font_face=chart_style.get("font_face"),
+        language=chart_style.get("primary_language"),
     )
     data_labels_xml = (
         _data_labels_xml(
@@ -1067,6 +1238,7 @@ def _chart_plot_xml(
             font_size=axis_font_size,
             default_color=chart_style.get("text_color"),
             default_font_face=chart_style.get("font_face"),
+            language=chart_style.get("primary_language"),
         )
         if chart_type in {"area", "bar", "column", "line"}
         and not _series_scoped_data_labels(chart_data.get("data_labels"))
@@ -1139,7 +1311,8 @@ def _chart_plot_xml(
         return (
             '<c:doughnutChart><c:varyColors val="1"/>'
             f"{ser_xml}"
-            '<c:firstSliceAng val="0"/><c:holeSize val="75"/>'
+            '<c:firstSliceAng val="0"/>'
+            f'<c:holeSize val="{chart_data["hole_size"]}"/>'
             "</c:doughnutChart>"
         )
     if chart_type == "of_pie":
@@ -1213,6 +1386,7 @@ def _xy_axis_xml(
     chart_style: dict[str, str | None],
     axes: dict[str, dict[str, Any]] | None = None,
 ) -> str:
+    primary_language = chart_style.get("primary_language")
     normalized_axes = axes or {}
     x_axis = normalized_axes.get("x", {})
     y_axis = normalized_axes.get("y", {})
@@ -1221,18 +1395,21 @@ def _xy_axis_xml(
         axis_font_size,
         chart_style.get("text_color"),
         font_face=chart_style.get("font_face"),
+        language=primary_language,
     )
     x_title_xml = _axis_title_xml(
         _first_present(axis_titles.get("x"), axis_titles.get("category")),
         font_size=axis_title_font_size,
         color=chart_style.get("text_color"),
         font_face=chart_style.get("font_face"),
+        primary_language=primary_language,
     )
     y_title_xml = _axis_title_xml(
         _first_present(axis_titles.get("y"), axis_titles.get("value")),
         font_size=axis_title_font_size,
         color=chart_style.get("text_color"),
         font_face=chart_style.get("font_face"),
+        primary_language=primary_language,
     )
 
     def value_axis_xml(
@@ -1353,7 +1530,9 @@ def _chart_xml(
     *,
     chart_rels_id: str,
     chart_data: dict[str, Any],
+    chart_bounds: tuple[int, int, int, int],
     inherited_styles: dict[str, str] | None = None,
+    primary_language: str | None = None,
 ) -> bytes:
     style = payload.get("style") if isinstance(payload.get("style"), dict) else {}
     colors = (
@@ -1364,6 +1543,7 @@ def _chart_xml(
     text_sizes = _chart_text_sizes(payload, elem, inherited_styles)
     axis_titles = _axis_titles(payload)
     chart_style = _classic_chart_style(payload, elem, inherited_styles)
+    chart_style["primary_language"] = primary_language
     plot_xml = _chart_plot_xml(
         chart_data,
         colors,
@@ -1372,35 +1552,45 @@ def _chart_xml(
         axis_titles=axis_titles,
         chart_style=chart_style,
     )
+    bounded_title = _chart_title_is_bounded(payload)
     title_xml = _chart_title_xml(
-        payload.get("title"),
+        None if bounded_title else payload.get("title"),
         font_size=text_sizes["title"],
         color=chart_style.get("text_color"),
-        subtitle=payload.get("subtitle"),
+        subtitle=None if bounded_title else payload.get("subtitle"),
         subtitle_font_size=text_sizes["subtitle"],
         font_face=chart_style.get("font_face"),
+        primary_language=primary_language,
     )
     legend_xml = _chart_legend_xml(
         payload,
         font_size=text_sizes["legend"],
         color=chart_style.get("text_color"),
         font_face=chart_style.get("font_face"),
+        primary_language=primary_language,
+    )
+    chart_language = primary_language or "en-US"
+    base_text_properties_xml = _chart_tx_pr_xml(
+        text_sizes["base"],
+        chart_style.get("text_color"),
+        font_face=chart_style.get("font_face"),
+        language=primary_language,
     )
     xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"
               xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
               xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 <c:date1904 val="0"/>
-<c:lang val="en-US"/>
+<c:lang val="{_xml_escape(chart_language)}"/>
 <c:chart>
 {title_xml}
-<c:plotArea><c:layout/>{plot_xml}{_chart_area_sp_pr_xml(chart_style.get("plot_fill"))}</c:plotArea>
+<c:plotArea>{_plot_area_layout_xml(chart_data, chart_bounds)}{plot_xml}{_chart_area_sp_pr_xml(chart_style.get("plot_fill"))}</c:plotArea>
 {legend_xml}
 <c:plotVisOnly val="1"/>
 <c:dispBlanksAs val="gap"/>
 </c:chart>
 {_chart_area_sp_pr_xml(chart_style.get("chart_fill"))}
-{_chart_tx_pr_xml(text_sizes["base"], chart_style.get("text_color"), font_face=chart_style.get("font_face"))}
+{base_text_properties_xml}
 <c:externalData r:id="{chart_rels_id}"><c:autoUpdate val="0"/></c:externalData>
 </c:chartSpace>'''
     return xml.encode("utf-8")

@@ -2,189 +2,52 @@
 
 # SVG Image Embedding Guide
 
-Technical spec and workflow for adding images to SVG files.
+Status names, resource lifecycle, and the embedding workflow for images in SVG pages. [`svg-effects.md`](./svg-effects.md) §6.5 owns the native carrier, crop transport, and filter/clip contracts; Base64 embedding, preview serving, and image-optimization flags are tool behavior in [`svg-pipeline.md`](../scripts/docs/svg-pipeline.md).
 
 ---
 
 ## Image Resource List Format
 
-Defined in the Design Specification & Content Outline; each image carries an `Acquire Via` field plus a status annotation. This file is authoritative for status names and SVG embedding behavior. If image approach includes "B) User-provided": run `analyze_images.py` right after the Strategist confirmation stage and complete the list before outputting the design spec.
+Each image carries an `Acquire Via` field plus a status. Default Generate's authority is `design_spec.md §VIII` plus its lock projection (run `analyze_images.py` after confirmation when user images are selected and complete the list before Executor); Quick's is the main agent's active-context decisions (explicit user paths first, unspecified acquisition resolved automatically, all preparation finished before SVG authoring without confirmation or a persisted roster).
 
 ```markdown
 | Filename | Dimensions | Purpose | Type | Layout pattern | Crop Policy | Acquire Via | Status | Reference |
 |----------|------------|---------|------|----------------|-------------|-------------|--------|-----------|
-| team.jpg | 800x600 | Team photo | Photography | `#2 left-third` | adaptive | web | Pending | Diverse engineering team in modern office |
-| formula_001.png | 736x168 | Page 3 block equation | Latex Formula | formula | no-crop | formula | Rendered | `E = mc^2` |
+| team.jpg | 800x600 | Team photo | Photography | `Put faces behind the hiring claim; #P1-02 + #M2-08 fading the photo edge into the page so copy meets it without a frame` | adaptive | web | Pending | Diverse engineering team in modern office |
 ```
 
 ### Image Status Enum
 
 | Status | Meaning | Executor Handling |
 |--------|---------|-------------------|
-| **Pending** | Acquisition needed (`Acquire Via: ai` / `web`) or derivation needed (`Acquire Via: slice`); not yet attempted | Image Acquisition Phase (Step 5) consumes this; must not remain after Step 5 |
-| **Generated** | AI-generated file exists at expected path, or sliced element file exists at expected path | Reference from `../images/`; no on-slide credit needed. **Exception**: an `Illustration Sheet` row is only a slice source — it lives in §VIII but never in `spec_lock.md images`, so the Executor never places it |
-| **Sourced** | Web-sourced file exists at expected path | Reference from `../images/`; check `image_sources.json` for `license_tier` — if `attribution-required`, render an inline credit element on the slide (see [`executor-web-image.md`](./executor-web-image.md) §1 and [`image-searcher.md`](./image-searcher.md) §7 for the visual spec) |
-| **Rendered** | Deterministic formula PNG exists at expected path (`Acquire Via: formula`) | Reference from `../images/`; use `preserveAspectRatio="xMidYMid meet"` and do not crop |
-| **Needs-Manual** | Acquisition attempted once + one retry, failed; for `slice`, parent sheet is unavailable | Dashed placeholder unless user has manually supplied the file. For `slice` rows, place the parent sheet and rerun `slice_images.py`; do not hand-place individual element files |
-| **Existing** | User already has image (`Acquire Via: user`) | Place in `images/`, reference with `<image>` |
-| **Placeholder** | Intentionally not prepared yet (`Acquire Via: placeholder`) | Dashed border placeholder; replace later |
+| **Pending** | Acquisition or declared derivation needed, not yet attempted | Step 5 consumes it; must not remain afterward |
+| **Failed** | Latest automatic attempt failed; retryable, non-terminal | Step 5 reruns the owning manifest or resolves the row to `Needs-Manual`; never usable content |
+| **Needs-Selection** | Web search produced one bounded thumbnail page; no original or provenance yet | Step 5 promotes one candidate, advances to `next_candidate_page`, or after exhaustion changes the query and returns the row to `Pending`; never consumed |
+| **Generated** | AI/slice output exists | Reference from `../images/`; manifest records govern attribution; an `Illustration Sheet` stays in §VIII only as an unplaced slice source |
+| **Sourced** | Web-sourced file exists at the expected path | Reference from `../images/`; with `license_tier: attribution-required` in `image_sources.json`, render an inline credit ([`executor-web-image.md`](./executor-web-image.md) §1, [`image-searcher.md`](./image-searcher.md) §7) |
+| **Needs-Manual** | The owning path requires manual fulfillment; for `slice`, the parent sheet is unavailable | Default may use a dashed placeholder until its readiness gate; Quick blocks every required row in this status even with an unverified candidate file — validate and reconcile a supplied replacement to `Existing`, `Generated`, or `Sourced` first. Quick automated AI exhaustion never creates it ([`image-generator.md`](./image-generator.md) §7's no-AI replan). A retained manual `slice` needs the parent sheet and a `slice_images.py` rerun, never hand-placed element files |
+| **Existing** | User-supplied (`Acquire Via: user`) | Place in `images/`, reference with `<image>` |
+| **Placeholder** | Intentionally not prepared (`Acquire Via: placeholder`) | Dashed placeholder; replace later |
 
 ---
 
 ## Workflow
 
-```
-1. Strategist defines image needs → Add image resource list with Acquire Via + Status per row
-2. Image Acquisition (Step 5):
-   - Pending + ai  → Image_Generator runs image_gen.py     → Generated
-   - Pending + web → Image_Searcher runs image_search.py   → Sourced
-   - Pending + slice → after parent AI sheet is Generated, slice_images.py cuts element files → Generated
-   - formula / user / placeholder rows are skipped
-3. Executor generates SVGs (svg_output/)
-   ├── Existing / Generated → <image href="../images/xxx.png" .../>
-   ├── Sourced + license_tier=no-attribution → <image href=...> only
-   ├── Sourced + license_tier=attribution-required → <image href=...> + small <text> credit element on the slide
-   ├── Sourced + license_tier=manual → <image href=...> only (user-supplied --from-url; rights/credit are user responsibility)
-   ├── Rendered formula → <image href="../images/formula_001.png" preserveAspectRatio="xMidYMid meet" .../>
-   └── Placeholder / Needs-Manual without file → Dashed border + description text
-4. Preview: python3 -m http.server -d <project_path> 8000 → /svg_output/<filename>.svg
-5. Post-processing & Export → follow [`generate-pptx.md`](../workflows/generate-pptx.md) Step 7
-```
+1. Resolve image needs — Default: Strategist resource list + lock projection; Quick: the main agent in active context.
+2. Prepare project-local resources before SVG authoring: `user` → materialize under `images/` → `Existing`; a Pending prepared derivative → [`image-base.md`](./image-base.md) §1 before ordinary dispatch; `ai` → Image_Generator → `Generated`, a Default recovery decision, or the Quick no-AI replan; `web` with vision → Image_Searcher saves at most 8 ranked previews → `Needs-Selection` → promote or next page → `Sourced` / `Needs-Manual`; `web` without vision → strict metadata-ranked best-only candidate with the method recorded → `Sourced` / `Needs-Manual`; `slice` → after the parent sheet is `Generated`, `slice_images.py` → `Generated`.
+3. Authoring consumes only prepared resources: `Existing` / `Generated` → `<image href="../images/xxx.png" …/>`; `Sourced` → `<image>` plus a credit `<text>` only for `attribution-required` (`no-attribution` and `manual` place the image alone); `Placeholder` / `Needs-Manual` → dashed border plus description text until a supplied file is validated and reconciled.
+4. Export — Default: [`generate-pptx.md`](../workflows/generate-pptx.md) Step 7; Quick: after every required resource has a validated file/provenance and usable status, its final checker then `--quick-generate` export.
 
-> Keep external references in `svg_output/` during generation. `finalize_svg.py` auto-embeds images into the mandatory `svg_final/` visual preview; native PPTX export independently reads `svg_output/`.
-
-**Hard rule — export boundary**: `svg_final/` is a self-contained SVG preview for embeddable raster/SVG assets and may be manually inserted into PowerPoint as an SVG picture. EMF/WMF assets retain the documented external-reference exception for lossless native passthrough. The only supported generated-PPTX route is `svg_output/` through the project SVG-to-DrawingML converter. PowerPoint's manual Convert-to-Shape operation is unsupported.
+Keep external references in `svg_output/` during generation; Default's `finalize_svg.py` embeds images into the `svg_final/` preview, Quick omits it, and both native exports read `svg_output/` directly. **Hard rule — export boundary**: `svg_final/` is a self-contained preview that may be inserted into PowerPoint as an SVG picture (EMF/WMF keep the external-reference exception for lossless passthrough); the only supported generated-PPTX route is `svg_output/` through the project converter; PowerPoint's manual Convert-to-Shape is unsupported.
 
 ---
 
-## External Reference vs Base64 Embedding
-
-| Method | Pros | Cons | Suitable For |
-|--------|------|------|-------------|
-| **External reference** | Small file size, fast iteration, easy to replace | Preview requires HTTP server from project root | `svg_output/` development phase |
-| **Base64 embedding** | Self-contained file, stable direct preview / SVG-picture insertion | Large file size | `svg_final/` preview phase |
-
----
-
-## Method 1: External Reference (Recommended for Generation Phase)
-
-### Syntax
+## Canonical `<image>` form
 
 ```xml
-<image href="../images/image.png" x="0" y="0" width="1280" height="720"
-       preserveAspectRatio="xMidYMid slice"/>
+<image href="../images/image.png" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
 ```
 
-### Key Attributes
+`href` is the relative project path; `x`, `y`, `width`, `height` the display frame; `preserveAspectRatio` `xMidYMid slice` (center crop, like CSS `cover`), `xMidYMid meet` (complete display, like `contain`), or `none` (stretch — never for a `no-crop` source). A Base64 `data:` href is the `svg_final/` preview form produced by finalization, not an authoring form. `clipPath` on `<image>` is conditionally allowed under [`shared-standards-core.md`](./shared-standards-core.md) §1.2; when it does not fit, bake rounded corners into an alpha PNG before embedding.
 
-| Attribute | Description | Example |
-|-----------|-------------|---------|
-| `href` | Image path (relative or absolute) | `"../images/cover.png"` |
-| `x`, `y` | Image top-left corner position | `x="0" y="0"` |
-| `width`, `height` | Image display dimensions | `width="1280" height="720"` |
-| `preserveAspectRatio` | Scaling mode | `"xMidYMid slice"` |
-
-### preserveAspectRatio Common Values
-
-| Value | Effect |
-|-------|--------|
-| `xMidYMid slice` | Center crop (similar to CSS `cover`) |
-| `xMidYMid meet` | Complete display (similar to CSS `contain`) |
-| `none` | Stretch to fill, no aspect ratio preservation |
-
-### Preview Method
-
-Browser security blocks external images on directly opened SVGs. Serve via HTTP from the project root:
-
-```bash
-python3 -m http.server -d <project_path> 8000
-# Visit http://localhost:8000/svg_output/your_file.svg
-```
-
----
-
-## Method 2: Base64 Embedding (Recommended for Preview Phase)
-
-### Syntax
-
-```xml
-<image href="data:image/png;base64,iVBORw0KGgo..." x="0" y="0" width="1280" height="720"/>
-```
-
-### MIME Types
-
-| MIME Type | File Format |
-|-----------|-------------|
-| `image/png` | PNG |
-| `image/jpeg` | JPG/JPEG |
-| `image/gif` | GIF |
-| `image/webp` | WebP |
-| `image/svg+xml` | SVG |
-
----
-
-## Conversion Process
-
-Follow [`generate-pptx.md`](../workflows/generate-pptx.md) Step 7; it owns the
-serial post-processing and export commands. Its mandatory finalization step
-embeds image references into the self-contained `svg_final/` preview, while the
-supported native PPTX release still reads `svg_output/` and maps it directly to
-DrawingML.
-
-### Standalone: align_embed_images.py (advanced)
-
-For processing specific SVGs without the full pipeline:
-
-```bash
-python3 scripts/svg_finalize/align_embed_images.py <svg_file>
-python3 scripts/svg_finalize/align_embed_images.py --dry-run <svg_file>
-```
-
-Use `finalize_svg.py --only align-images` for project-level batches. The old
-`crop-images`, `fix-aspect`, and `embed-images` step names are compatibility
-aliases only when invoked through `finalize_svg.py --only`.
-
----
-
-## Best Practices
-
-### Image Optimization
-
-Compress before embedding to reduce file size:
-
-```bash
-convert input.png -quality 85 -resize 1920x1080\> output.png  # ImageMagick
-pngquant --quality=65-80 input.png -o output.png               # pngquant (recommended)
-```
-
-### File Organization
-
-```
-project/
-├── images/            # Image assets
-├── sources/           # Source files and their accompanying images
-│   └── article_files/
-├── svg_output/        # Raw version (external references)
-└── svg_final/         # Derived self-contained visual preview (images embedded)
-```
-
-### Rounded Corner / Non-rectangular Image Cropping
-
-`clipPath` **on `<image>` elements** is conditionally allowed — authoritative constraints in [`shared-standards-core.md`](./shared-standards-core.md) §1.2; do not restate or relax here.
-
-Fallback when `clipPath` doesn't fit: bake rounded corners into the source image (PNG with alpha) before embedding.
-
----
-
-## FAQ
-
-**Q: Can't see images when opening SVG directly?**
-Browser security blocks cross-directory requests. Serve via HTTP from project root, or run `finalize_svg.py` first and view from `svg_final/`.
-
-**Q: Base64 file too large?**
-Compress the source, use JPEG, reduce resolution to match actual display dimensions.
-
-**Q: How to reverse-extract a Base64 image?**
-```bash
-base64 -d image.b64 > image.png
-```
+Project layout: `images/` (assets), `sources/` (source files and their `*_files/` images), `svg_output/` (external references), `svg_final/` (Default-only embedded preview). Preview `svg_output/` through `python3 -m http.server -d <project_path> 8000` (browsers block cross-directory images on directly opened files). Native export keeps original image bytes by default (`--image-sizing cap`); explicit compact export uses `--image-sizing display --image-scale 2 --image-quality 85`, and `--no-image-optimize` forces original bytes.

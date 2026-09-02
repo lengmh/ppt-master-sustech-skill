@@ -2,405 +2,198 @@
 
 # Image_Generator Reference Manual
 
-Role definition for the **AI image generation path**: convert each `Acquire Via: ai` row into an optimized prompt, generate the image, and save it to `project/images/`; also defines the `slice` derivation path for AI-generated illustration sheets.
+Role definition for the **AI image generation path**: turn each active `Acquire Via: ai` row into one prose prompt, generate the image into `project/images/`, and derive `slice` elements from illustration, illustrated-icon, and lettering sheets.
 
-**Trigger**: resource list rows with `Acquire Via: ai` or `slice`. The role is loaded only when at least one such row exists.
+**Trigger**: the Default resource list contains `Acquire Via: ai` or `slice`, or Quick has resolved a required AI/sliced image in active context.
 
 ---
 
 ## 1. Core Principle — Maximize AI Image Capability in Service of the Deck
 
-AI images exist to serve the deck's communication goal. Pick whatever combination of `page_role` and `text_policy` makes the page work best.
-
-**Two page roles** (orthogonal to type):
+Pick whatever `page_role` and `text_policy` make the page work; everything else inside the bitmap is the AI's judgment — no mandated padding, no type-locked text policy, no scenario whitelist.
 
 | `page_role` | Use |
 |---|---|
-| `local` | Image occupies a region of an SVG page (left half, right column, hero band, accent corner). Composition is the AI's call — fill the region as the page design wants |
-| `hero_page` | Image is the page's main voice — cover, chapter divider, mood transition, single-number hero, closing quote. SVG above may be minimal or empty |
-
-**Two text policies** (orthogonal to page_role):
+| `local` | Composed by SVG within the page — boxed, unboxed, repeated as chrome, or the dominant non-full-canvas visual; SVG owns geometry and carrier combination |
+| `hero_page` | The page's main voice — cover, chapter divider, mood transition, single-number hero, closing quote; SVG above may be minimal or empty |
 
 | `text_policy` | Use |
 |---|---|
 | `none` | No text inside the image |
-| `embedded` | Image contains text as part of the artwork — decorative lettering, designed title, hand-lettered keywords, infographic labels, anything the page needs |
+| `embedded` | Stable text as part of the artwork — decorative lettering, wordmarks, hand-lettered words, figure-internal labels |
 
-**Hard rule — only what's actually hard**:
-
-- Same `deck_rendering` + same core deck color anchors/semantic behavior for every image in the deck
-- HEX codes and color names are rendering guidance — never visible text in the image
-- Long body copy / data points / bulleted lists / long quotes stay in SVG (improving them later means regenerating the image, which is expensive)
-- **In-image text is only for words that will not need editing later** — visual keywords, decorative lettering, mood words. Editable text (titles that may be reworded, subtitles, dates, authors, captions, body) belongs in SVG. Changing one in-image word costs an image regeneration; one SVG word costs a keystroke.
-- Prompts are one coherent prose paragraph, not tag soup (a model-output reality, not an aesthetic choice)
-
-Everything else is the AI's judgment per page. No mandated padding, no type-locked text_policy, no scenario whitelists for hero_page.
+**Hard rule — only what is actually hard**: one `deck_rendering` and the same core deck color anchors for every image in the deck; HEX codes and color names are rendering guidance, never visible text; long copy, data points, bullet lists, and quotes stay in SVG; in-image text is only for words that will never need editing (one in-image word costs a regeneration, one SVG word a keystroke); prompts are one coherent prose paragraph, not tag soup.
 
 ---
 
 ## 2. Style and Composition Inputs
 
-Every AI image uses one deck-wide rendering, the deck's stable color anchors/semantic behavior, and a per-image type / composition. Only rendering is a separate image-direction decision.
-
 | Dimension | Decides | When fixed |
 |---|---|---|
-| **Rendering** | Visual style family (vector / sketch-notes / 3d-isometric / corporate-photo / …) | Once per deck — every AI image in the deck shares one rendering |
-| **Deck colors** | Core background / primary / accent / secondary-accent / text anchors from `spec_lock.md colors`, interpreted with the Design Spec and per-image context; these are not reconfirmed | Anchored after Stage 2 |
-| **Type** | What the image's internal composition skeleton looks like — geometric layout of a local infographic block (infographic / flowchart / framework / matrix / cycle / funnel / pyramid / comparison / timeline / map / scene). Only applies to `page_role: local`; for `page_role: hero_page`, describe composition with §4.1 primitives instead of picking a type. | Per image |
+| **Rendering** | Visual style family (vector / sketch-notes / 3d-isometric / corporate-photo / …) | Once per deck |
+| **Deck colors** | Core background / primary / accent / secondary-accent / text anchors from `spec_lock.md colors` (Default) or the active-context decisions (Quick) | Default after Stage 2; Quick before acquisition |
+| **Type** | Optional recall for a local structural infographic's skeleton (infographic / flowchart / framework / matrix / cycle / funnel / pyramid / comparison / timeline / map / scene); omit when no template fits, for single-subject/portrait, and for `hero_page` | Per image |
 
-> Rendering decides *how the image is drawn* (line quality, texture, depth). Color instructions begin from the deck roles: background / secondary background usually dominate, primary carries main forms, and accents stay scarce. Adjust proportions and derive coherent lighting/material/tint transitions for the image context; do not replace the deck's identity with an unrelated image-only palette.
+Rendering decides how the image is drawn; color begins from the deck roles — background / secondary background dominate the field, primary carries main forms, accents stay scarce — with context-justified lighting, material, and tint transitions but never an unrelated image-only palette.
 
-### 2.1 Where to find each dimension
-
-| Reference | Loaded |
-|---|---|
-| [`image-renderings/_index.md`](./image-renderings/_index.md) — rendering catalog + auto-selection table | Always (Step 1 below) |
-| [`image-type-templates/_index.md`](./image-type-templates/_index.md) — type catalog + auto-selection table | Always (Step 1 below) |
-| `image-renderings/<chosen>.md` | After Step 2 resolves the rendering — one preset file, or every exact reference listed for `custom` |
-| `image-type-templates/<chosen>.md` | After Step 3 picks the type per image — only the types actually used |
-
-**Hard rule — on-demand loading**:
-
-- Read the rendering and type `_index.md` files once at role entry.
-- After locking inputs, read **only** the specific preset rendering, custom rendering references, and type files selected.
-- **Never** glob-read an entire subdirectory (`image-renderings/*.md` is forbidden). Token cost balloons and the AI loses focus.
+**Hard rule — on-demand loading**: read [`image-renderings/_index.md`](./image-renderings/_index.md) and [`image-type-templates/_index.md`](./image-type-templates/_index.md) once at role entry; after resolving inputs read only the selected preset rendering file, the exact custom references, and the type files actually used. Never glob a subdirectory.
 
 ---
 
 ## 3. Workflow
 
-### Step 1 — Load the dimension indices
-
-Read the two index files that own user-visible image direction and per-image composition.
-
-```
-read_file references/image-renderings/_index.md
-read_file references/image-type-templates/_index.md
-```
-
-### Step 2 — Resolve deck-wide rendering + deck colors
-
-**Primary path — Strategist already recorded rendering and core deck color anchors in `spec_lock.md colors`**:
-
-```
-image_rendering: vector-illustration
-background: #F8F9FA
-primary: #1E3A5F
-accent: #D4AF37
-```
-
-Use them as identity anchors. Do not create another user-facing image-color choice. The rendering and image subject may derive coherent tonal transitions, material colors, lighting, and atmospheric hues when the context requires them, while the core roles keep their established meaning.
-
-**Hard rule — `custom` catalog basis**: when `image_rendering` is `custom`, first inspect the optional `image_rendering_references` row. If present, read every exact `image-renderings/<id>.md` it lists and synthesize their line, texture, depth, material, and mood guidance under `image_rendering_behavior` before assembling prompts. If absent, the custom is genuinely novel: read no preset file and use `image_rendering_behavior` directly. Never infer or add adjacent references during execution. The deck color-role rows remain authoritative.
-
-**Declared-inference fallback — when an existing `spec_lock.md` omits the `image_rendering` key** (see [`failure-recovery.md`](../workflows/governance/failure-recovery.md) §2):
-
-This fallback covers a missing key only. An empty or invalid value stops for lock repair. If `spec_lock.md` itself is absent, stop at [`generate-pptx.md`](../workflows/generate-pptx.md) Step 5 before prompt assembly or image generation; do not use `design_spec.md` as a substitute.
-
-| Signal | Maps to |
-|---|---|
-| `design_spec.md d. Style` mode + descriptor | Rendering (consult renderings `_index.md` auto-selection table) |
-| Existing `spec_lock.md colors` rows | Deck color anchors; interpret them with the completed `design_spec.md`, never replace confirmed identity from a second palette |
-| Existing `spec_lock.md icons.library` | Sanity check: chosen rendering should be compatible with the icon library's visual weight |
-
-If rendering inference surfaces multiple candidates, pick the first; do not present another choice after confirmation.
-
-If the table returns `custom`, stop and repair the lock: authoring `image_rendering_behavior` is a planning decision this fallback cannot make, and the deck's SVG style prose is not an image-rendering description.
-
-> **Tell the user**: when falling back, print one line "spec_lock.md has no `image_rendering`—inferring `<X>` from design_spec; image colors still use the locked deck roles." Then proceed.
-
-Then read the **single resolved** rendering file. It gives you:
-
-- The 80-120 word style paragraph (rendering)
-- Two ready-to-paste rendering snippets (fewshot)
-
-Derive color behavior from the available roles and image context: background / secondary background usually carry most of the field, primary carries main forms, and accent / secondary accent remain selective. A rendering may justify a different balance and coherent derived tones; decorative text colors must remain readable. Add a new lock role only when that derived color becomes a reusable cross-image semantic token.
-
-### Step 3 — Per-image type + assembly
-
-For each `Acquire Via: ai` row in `design_spec.md §VIII`:
-
-1. **Determine `page_role`** — Strategist's explicit value wins; a blank or omitted value resolves to `local`. `hero_page` must be explicit.
-2. **Determine `text_policy`** — Strategist's value wins when set. **Declared-inference fallback for a blank or omitted value**: pick `none` or `embedded` from the row's `Purpose`, `Reference`, and page intent based on whether in-image text serves the page. Long body / data / lists stay in SVG.
-3. **Determine type** — only when the resolved `page_role` is `local` (the image sits as a region block on an SVG page). Match the row's `Purpose` against the `_index.md` auto-selection table (methodology visualization → `framework`; process steps → `flowchart`; SWOT/Eisenhower → `matrix`; PDCA / flywheel → `cycle`; etc.). `Purpose` is authoritative for picking among the 11 internal-composition types. **When the resolved `page_role` is `hero_page`, skip type selection** and describe composition directly using §4.1 primitives (single-subject / portrait / typographic / atmospheric).
-4. `read_file references/image-type-templates/<type>.md` (only if not already read — types are commonly reused across images in one deck)
-5. **Assemble the prompt** by combining:
-   - The rendering's style paragraph (from Step 2)
-   - Color-role instructions anchored by the deck HEX values and refined for the image context (from Step 2)
-   - The type's structural layout (from Step 3)
-   - The image's specific `Reference` intent (from `design_spec.md §VIII`)
-   - The container sizing guidance from the type file (so the model knows it's painting a local block, not a full canvas)
-   - The hard rules from §5 below (HEX-not-as-text, simplified figures, text policy)
-
-The assembled prompt is **one cohesive paragraph**, not a bulleted list of tags. See §4 for the assembly template.
-
-### Step 4 — Write the manifest and execute the confirmed path
-
-Write `project/images/image_prompts.json` per §6. Then follow §7 Path Selection. `image_gen.py --manifest` is Path A only; confirmed `host-native` runs the host image tool directly, and confirmed `manual` renders the Markdown sidecar and hands off without API generation.
+1. **Load the indices** above.
+2. **Resolve deck rendering + colors.** Default: `spec_lock.md colors` already carries `image_rendering` and the role HEX (`image_rendering: vector-illustration`, `background: #F8F9FA`, `primary: #1E3A5F`, `accent: #D4AF37`) — identity anchors, not a second user-facing choice. Quick: the agent resolves one rendering/color set in context and writes it to `image_prompts.json`. **`custom`**: read every `image_rendering_references` file when the row exists — apply one basis under `image_rendering_behavior`, or synthesize several by their stated line, texture, depth, material, and mood contributions; with no references use the behavior alone; never infer adjacent references. **Missing `image_rendering` key in an existing lock** ([`failure-recovery.md`](../workflows/governance/failure-recovery.md) §2): infer the rendering from `design_spec.md d. Style` plus the intended image jobs against the complete catalog, keep the existing color rows as anchors, sanity-check against `icons.library`, choose the strongest fit without presenting a choice, print "spec_lock.md has no `image_rendering`—inferring `<X>` from design_spec; image colors still use the locked deck roles.", and stop for lock repair if the inference lands on `custom` or the value is empty/invalid; outside Quick, an absent lock stops at Generate Step 5. Then read the single resolved rendering file (an 80–120-word style paragraph plus two fewshot snippets).
+3. **Per-image type + assembly.** Explicit row values bind; Quick resolves omissions. `Layout pattern` is never copied into the prompt; when page use depends on stable composition, carry the row's `Reference` / §IX / active-context contract — subject and quiet zones, boundary or direction, overlap/seam, approximate share — without inventing layout. `page_role`: the row's value, else `local` (`hero_page` is Strategist-explicit in Default; Quick may resolve it). `text_policy`: the row's value, else `none` or `embedded` from `Purpose`, `Reference`, and page intent. Type: an Illustration Sheet omits `type` and follows §4.3; another local structural infographic takes one of the 11 types only on a real index match, otherwise §4.1 E prose; a local single-subject/portrait uses §4.1 A/B; a `hero_page` uses §4.1 A–E. Read `image-type-templates/<type>.md` only when selected. Assemble one paragraph from the rendering style paragraph, the deck color behavior, the type layout or composition prose, the `Reference` intent as concrete visual nouns, the container note, and the §5 hard rules.
+4. **Write the manifest (§6) and execute the selected path (§7)** — Default's confirmed path, Quick's explicit path or `auto`, without asking.
 
 ---
 
 ## 4. Prompt Assembly Template
 
-Every assembled prompt follows this paragraph structure. **Write prose, not tag soup**.
-
 ```
-[Rendering style paragraph — 80-120 words from the chosen rendering file].
-[Deck color behavior — state the core anchors and any context-justified tonal treatment, e.g. "secondary background #F8F9FA provides the breathing field, primary #1E3A5F carries main forms, accent #D4AF37 marks one emphasis; subtle lighter/darker material transitions remain in the same visual family"].
-[Type-specific composition — from the chosen type file, e.g. "central hub node with four radiating satellite nodes connected by clean lines"].
-[Image-specific subject — translated from the row's Reference intent into concrete visual nouns].
-[Container note — "composed as a {W}x{H}px image for {page_role} use"; add composition cues only when the page actually needs them. SVG-overlay-reservation cues ("leave the lower band calm — SVG title overlays it", "keep the right third calmer for SVG text") are valid **only** when `page_role: hero_page` (SVG sits on top of the image). For `page_role: local`, the image sits inside a region block and the SVG layer never overlays its interior — never reserve overlay space in a local prompt].
-[Hard rules — see §5].
+[Rendering style paragraph — 80–120 words from the chosen rendering file].
+[Deck color behavior — the core anchors and any context-justified tonal treatment, e.g. "secondary background #F8F9FA provides the breathing field, primary #1E3A5F carries main forms, accent #D4AF37 marks one emphasis; subtle lighter/darker material transitions stay in the same visual family"].
+[Composition — from the chosen type file or §4.1 prose].
+[Image-specific subject — the row's Reference intent as concrete visual nouns].
+[Container note — "composed as a {W}x{H}px image for {page_role} use"; carry the owned composition contract when one exists. Reserve an SVG-overlay region for `hero_page`, or for a `local` image only when §VIII / §IX explicitly plans native labels, hotspots, lenses, or overlays there; otherwise an opaque local image reserves no interior space, and a transparent slice is an isolated element].
+[Hard rules — §5].
 ```
 
-**Word budget**: 150-300 words. Embedded-text prompts skew longer; pure background prompts can be shorter.
+Budget 150–300 words (embedded-text prompts longer, pure backgrounds shorter). **Forbidden — tag soup** (`"modern, flat design, gradient, vibrant, professional, clean, 4K"`): it produces model-average output; write one coherent visual scene.
 
-**Forbidden — tag-soup prompts**:
+### 4.1 No-type composition primitives
 
-```
-❌ "modern, flat design, gradient, vibrant, professional, clean, 4K, high quality"
-```
+A/B describe a hero or a local single-subject region; C/D are hero-page compositions; E authors any custom composition, including a structural infographic no type template matches.
 
-This produces generic, model-average output. The model is not weighting your tags — write **one coherent visual scene** instead.
+- **A — single dominant subject**: one focal subject placed with intent (centered, thirds, slight offset), scaled to command the container, supporting context subordinate, a deliberate open side only when the page needs it. Product reveal, concept introduction, chapter-opener, brand statement, local object region.
+- **B — single human subject (portrait)**: one person, frontal or three-quarter, head and upper body, face as the focal point with eyes near the upper-third line, neutral or softly blurred background, comfortable headroom, framing adapted to the container. Founder, speaker, testimonial, executive, local bio; figure treatment follows the rendering (§5.2).
+- **C — typographic hero**: one large text element — a word, phrase, headline, number, or short multi-line lockup — rendered as art with dominant weight, any supporting visual subordinate, breathing room scaled to the text. `text_policy: embedded`; copy that must stay exact or editable goes to SVG (switch to D).
+- **D — atmospheric backdrop** (`hero_page` only): gradients, subtle patterns, or restrained color blocks with no dominant subject (a small geometric anchor may sit in a corner or along an edge), activity arranged around the planned SVG overlay region so it stays calm; a `local` image reserves only a named focal/quiet area instead. Cover and divider backgrounds, breathing pages, any page where SVG carries the words.
+- **E — custom**: when none of A–D fits (triptych, asymmetric multi-focal, narrative diorama), write the composition directly in the composition sentence — one paragraph of 2–5 sentences stating subject count and layout structure concretely enough to execute, with breathing room or an overlay region only when the page needs it; a primitive name alone is not a description. Example: *Triptych — three equal vertical bands, each holding one symbolic object centered on a shared low horizon; bands separated by 2px hairline rules; reads as one composed page.*
 
-### 4.1 Hero-page composition primitives
+**Fewshot per primitive** (deck-context placeholders intact):
 
-When `page_role: hero_page` (the image is the page's main voice — cover, chapter divider, mood transition, signature stat, closing quote), the image's internal composition does not need its own structural `type` (matrix / cycle / framework etc. are for *local* infographic blocks). Instead, describe the composition directly in the prompt using one of the four primitives below.
+> **A — 3d-isometric product reveal, `none`, 600×600**: 3D isometric illustration in true 30°/30°/30° projection. One dominant product-form subject — a stylized device or sleek tech object — commands the center of the canvas, rendered in primary electric blue `#0EA5E9` on its lit faces with a 15% darker tonal shift on shadowed faces and a subtle 8%-opacity outer glow. Small supporting context: three thin connecting lines in accent vivid cyan `#06B6D4` arcing from the subject toward the edges, and a soft 8% drop shadow grounding it. Background is deep secondary navy `#0A0E27`, including the shadowed plane. The subject is the singular focal element with deliberate breathing room. Composed as a 600×600 hero block. NO text, letters, numbers, or labels anywhere. Color values are rendering guidance only.
 
-**Primitive A — single dominant subject (product / object / concept hero)**
+> **B — corporate-photo executive headshot, `none`, 600×800**: Editorial corporate portrait of one professional executive, centered slightly left, chest-up at eye level, looking confidently toward the camera with a relaxed natural expression. Contemporary business attire in a neutral palette. Soft natural light from the upper left, gentle shadow on the right side of the face. Background a softly out-of-focus office — secondary light gray `#F8F9FA` wall with a hint of primary deep navy `#1E3A5F` in a blurred architectural element. Restrained professional grading, shallow depth of field, eyes near the upper-third line with comfortable headroom. Composed as a 600×800 bio portrait. NO text, name tags, or captions. Color values are rendering guidance only.
 
-> One dominant subject occupying 60-70% of the canvas, positioned with intent (centered, rule-of-thirds offset, or slight left/right). Supporting context <30% of canvas weight. Generous negative space — at least 15% padding on the subject's "open" side. No second-place subject competing.
+> **C — ink-notes big-number stat, `embedded`, 800×500**: Professional hand-drawn visual-note style on pure white. The central content is the hand-lettered number "100x" in bold confident ink strokes, centered with the slight wobble of hand-lettering; a thin hand-drawn underline beneath; one small doodle — a star or upward arrow — beside it for rhythm. Accent coral `#E8655A` appears only as a tiny emphasis dot under 4% of the canvas. Background pure white `#FFFFFF`. Composed as an 800×500 typographic hero with enough room for the letterforms. No other text or labels — just "100x" and the doodle.
 
-Use for: product reveal, concept introduction, chapter title visual, brand statement.
-
-**Primitive B — single human subject (portrait)**
-
-> One person, frontal or three-quarter turn, head + upper body. Subject occupies 50-65% of canvas height, centered or rule-of-thirds offset. Eyes at the upper-third horizontal line. Background neutral, minimal, or softly blurred. No competing foreground objects. At least 15% padding above the crown.
-
-Use for: founder profile, speaker bio, testimonial page, executive intro. Pair with `rendering: corporate-photo` for photographic realism; otherwise the §5.2 simplified-figures rule applies.
-
-**Primitive C — typographic hero (the text *is* the image)**
-
-> The image's central content is one large text element — a short headline, big number, or single word — rendered as art, occupying 40-60% of canvas height. Minimal supporting visual (small icon, geometric anchor, accent line) at <25% weight. At least 20% padding around the text.
-
-Use with `text_policy: embedded`. Must obey the §5.3 rule — text that is part of the artwork and stable can be embedded; copy that must stay exact or editable goes to SVG overlay (switch to Primitive D).
-
-**Primitive D — atmospheric backdrop (no subject)**
-
-> Atmospheric field with no dominant subject — gradients, subtle patterns, or restrained color blocks. Small geometric anchor optional, placed in a corner or along an edge, never centered. The center 60-70% of the canvas must stay calm to receive SVG title/text overlay.
-
-**Applies to `page_role: hero_page` only.** The "calm center for SVG overlay" contract is the defining feature of this primitive — and it only holds when SVG actually sits on top of the image. `page_role: local` images live inside a region block; the SVG layer never overlays their interior, so Primitive D is not a valid choice for local. Local schematic / scene / chart images use the §3 type templates instead.
-
-Use for: cover background, chapter divider background, breathing-page background, any page where the SVG layer carries the words and the image only sets tone.
-
-**Primitive E — custom (escape hatch)**
-
-When none of A/B/C/D describe the page's intended layout (triptych, asymmetric multi-focal, narrative diorama, etc.), write the composition description directly into the prompt's composition sentence — same paragraph slot A/B/C/D occupy, but in your own words. No new field; the freedom is in the prose.
-
-**Hard rule — custom composition prose**:
-
-| Rule | Value |
-|---|---|
-| Length | One paragraph, 2-5 sentences, replacing A/B/C/D's opening paragraph |
-| Required content | subject count, layout structure, where breathing room sits, where SVG overlay can claim canvas |
-| Forbidden | Naming a competing primitive ("like A but two subjects") |
-
-Example opening for a triptych hero:
-
-> Triptych — three equal vertical bands of canvas, each holding one symbolic object centered in its band; objects share a low horizon line; bands separated by 2px hairline rules; collectively reads as a single composed page. [...rest of prompt continues with rendering paragraph + color behavior + container note...]
-
-**Fewshot examples per primitive** (one each, deck-context placeholders intact):
-
-> **A — 3d-isometric + tech-neon product reveal, text_policy: none, 600×600**
->
-> 3D isometric illustration in true 30°/30°/30° projection. One dominant product-form subject — a stylized device or sleek tech object — occupies the center of the canvas at roughly 65% of the area. The subject is rendered in primary electric blue `#0EA5E9` on its lit faces, with 15% darker tonal shift on shadowed faces. A subtle 8%-opacity outer glow halo surrounds the subject. Small supporting context: three thin connecting lines in accent vivid cyan `#06B6D4` arcing from the subject toward the canvas edges (suggesting connectivity), and a soft 8% drop shadow grounding the subject. Background is deep secondary navy `#0A0E27` (about 30% of canvas, including shadowed plane). The subject is clearly the singular focal element. Composed as a 600×600 hero block with 15% padding around the subject. NO text, letters, numbers, or labels anywhere. Color values are rendering guidance only.
-
-> **B — corporate-photo + cool-corporate executive headshot, text_policy: none, 600×800**
->
-> Editorial corporate portrait photograph of one professional executive. The person is centered slightly left of canvas center, photographed from chest-up at eye level, looking confidently toward the camera with a relaxed natural expression — not posed-stiff, not over-smiling. Professionally attired in a contemporary business setting (a tailored blazer, neutral palette clothing). Soft natural light from the upper left, gentle shadow on the right side of the face. Diverse, professionally attired subject, photorealistically rendered, contemporary styling. Background is a softly out-of-focus office context — secondary light gray `#F8F9FA` wall with a subtle hint of primary deep navy `#1E3A5F` in a blurred architectural element. Color grading is cool-corporate — restrained, professional. Shallow depth of field — subject sharp, background gently blurred. Subject's eyes positioned at the upper-third horizontal line. Composed as a 600×800 bio portrait with 10% padding. NO text, name tags, or captions in the image. Color values are rendering guidance only.
-
-> **C — ink-notes + mono-ink big-number stat, text_policy: embedded, 800×500**
->
-> Professional hand-drawn visual-note style on pure white background. The image's central content is the hand-lettered number "100x" — rendered in bold confident ink strokes occupying about 50% of the canvas height, centered with deliberate slight wobble characteristic of hand-lettering. Text is in English/Latin characters only. Beneath the number, a thin hand-drawn underline in ink. To the side of the number, one small hand-drawn doodle decoration — a star or upward arrow — adds visual rhythm. Accent coral `#E8655A` (from the deck's accent) appears only as a tiny emphasis dot, totaling under 4% of canvas. Background is pure white `#FFFFFF`. Composed as an 800×500 typographic hero block with 20% padding around the number. No other text or labels in the image — just the "100x" headline and the small doodle.
-
-> **D — vector-illustration + cool-corporate cover background, text_policy: none, 1280×720**
->
-> Clean flat vector illustration backdrop. Atmospheric composition with no central subject — bold geometric shapes arranged along the canvas edges to leave the center calm. Primary deep navy `#1E3A5F` forms a confident diagonal block across the lower-left third; secondary light gray `#F8F9FA` occupies the upper two-thirds as breathing space; accent gold `#D4AF37` appears only as one thin geometric line near the lower right corner (under 5% of canvas). Crisp 2px outlines, no gradients, single 8% soft drop shadow under the navy block. The central 60% of the canvas is deliberately calm and unbusy — designed to receive a slide title overlaid in SVG. Composed as a 1280×720 full-bleed PPT background. NO text, letters, numbers, signs, watermarks, or written symbols anywhere in the image. Color values are rendering guidance only — do not display HEX codes or color names as text. Simplified geometric shapes only.
+> **D — vector-illustration cover background, `none`, 1280×720**: Clean flat vector backdrop with no central subject — bold geometric shapes along the canvas edges leaving the planned central title field calm. Primary deep navy `#1E3A5F` forms a confident diagonal block across the lower left; secondary light gray `#F8F9FA` provides the breathing field; accent gold `#D4AF37` appears only as one thin geometric line near the lower right, under 5% of the canvas. Crisp 2px outlines, no gradients, a single 8% soft drop shadow under the navy block. The intended SVG title region stays calm. Composed as a 1280×720 full-bleed background. NO text, letters, numbers, signs, watermarks, or written symbols anywhere. Color values are rendering guidance only — do not display HEX codes or color names as text.
 
 ### 4.2 Prompt depth — expand for subject-domain accuracy
 
-**Hard rule**: For images whose deck purpose calls for subject-domain accuracy (scientific figures, academic paper figures, engineering schematics, medical / legal / regulated content), expand the prompt without budget ceiling — 500-1000+ words is normal. The §4 word budget (150-300) is the routine-illustration default, not a cap.
+**Hard rule**: for scientific, academic, engineering, medical, legal, or otherwise regulated figures, expand without a ceiling — 500–1000+ words is normal, and §4's budget is a routine-illustration default, never a cap. **Forbidden — pre-emptive shortening.** Name the field's visual conventions explicitly: chemistry/materials (IUPAC atom colors, bond conventions, lattice type, Å / ps units, A/B/C subplot circles, view angle), biology (compartment colors, scale bars, organelle and staining conventions), physics (axis symbols, signature curve shapes, units, peak labeling), engineering (schematic notation, dimension callouts, section cuts) — illustrative, not an enumeration. Read `sources/` when uncertain.
 
-**Forbidden — pre-emptive shortening**: never trim a subject-domain prompt to fit §4's budget. Name the field's visual conventions explicitly in the prompt.
+### 4.3 Illustration sheets — one generation, many composable elements
 
-**Detail to name in the prompt** (illustrative, not an enumeration to match):
+A sheet generates compatible transparent **illustration**, **illustrated-icon**, or **decorative lettering** elements sharing rendering, deck-color treatment, and finish; subjects, silhouettes, weights, and jobs may differ, and SVG composes after slicing. Lettering is stable Layer 1 artwork, never page copy turned into an image.
 
-| Domain | Conventions to spell out |
-|---|---|
-| chemistry / materials | IUPAC atom colors, bond conventions, lattice type, Å / ps units, subplot labeling (A / B / C circles), view angle |
-| biology | cell compartment colors, scale bars, organelle conventions, staining palette |
-| physics | axis labels with proper symbols, signature curve shapes, unit annotations, peak labeling format |
-| engineering | schematic notation, dimension callouts, section-cut conventions |
+**Default — batch compatible elements; split when separate generation improves the result**: group illustrated-icon cues normally, group lettering by compatible letterform character and treatment (not font name), and split for style, geometry, detail, quality, or semantic precision. A single element may use a keyed `1x1` sheet; full-canvas or opaque images take the normal §4.1 path.
 
-**When uncertain about field conventions**: read `sources/` before drafting the prompt.
+**Hard rule — a sheet is a generation source, not a slide asset**: never referenced from SVG; out of `spec_lock.md images` in Default, generation-only in Quick's context and manifest; only sliced element rows are placed. **Hard rule — separable treatment before keying**: when the slice excludes a supporting surface, choose a treatment whose complete visible geometry stands alone against the key field; engraved, etched, debossed, inlaid, or bas-relief treatments are valid only when their carrier belongs in the slice — never define a carrier as necessary and ask the prompt to remove it.
 
-### 4.3 Illustration sheets — one generation, many spot elements
+**Sheet prompt convention** — one `page_role: local` item with `image_size` from final placement; spot sheets `text_policy: none`, lettering sheets `embedded`:
 
-When a deck wants several small **spot illustrations** scattered as decorative accessories across pages, do **not** generate them one image per slot. Generate one sheet and slice it. One call buys identical rendering, deck-color treatment, and line quality—the same consistency protected by `deck_rendering` + `color_scheme`.
+- Derive `aspect_ratio` and `--grid` from the target shape, not a universal square grid. State an invisible logical **R×C grid** and the cell shape (compact square object, tall portrait, wide vignette, wide lettering mark); center and isolate each element with even clear gutters; never draw cells, panels, dividers, borders, frames, or alternate gutter colors; never shrink every subject into a square sticker.
+- One flat chroma key across the sheet — pure `#00FF00`, `#0000FF`, or `#FF0000`, chosen so its color dominates no element or effect — stated as exact HEX, unchanged in every gutter, free of reflections or spill; grain, halftone, and vignette stay inside elements. The key is technical, not deck palette.
+- Shared `deck_rendering` + `color_scheme`.
+- Illustration / illustrated-icon sheet: name each element and its page or reuse job; for an icon, the compact cue that must survive at placement size; the §5.3 `none` cue.
+- Lettering sheet: exactly one named stable string per cell as the only text, quoted literally; the group's letterform character and treatment, then role, placement/background relationship, relative weight, and energy under §5.3's controlled-authorship default; artistry glyph-bound (silhouette, stroke structure, material, texture, depth, contour-bound light); no topic motifs, scene fragments, icons, detached ribbons, or particles unless the approved treatment is a lettering-plus-illustration lockup; key-only padding, no scene, unrelated copy, labels, watermark, or mockup surface.
+- **Delivery floor, not an aesthetic ceiling**: enlarge the cell, change the grid, or use a larger or separate sheet when a treatment needs footprint; never weaken an approved treatment to fit a crop.
 
-**When to use**: the §VIII image resource plan needs ≥3 small spot illustrations from the same family across the deck. For a single hero/local image, stay with the normal one-row-per-image flow (§4.1). Use sheets only where decorative illustration genuinely lifts the page; an unused element costs nothing, but a deck papered in decoration reads cheap.
+**Cell geometry is designed**: `slice_images.py --grid RxC` cuts rows first; `cell_ratio = sheet_ratio × rows / cols`. On a wide sheet `1xN` yields tall cells and `Nx1` wide cells; any `MxN` is valid when its cells match the placements.
 
-**Hard rule**: a spot sheet is a generation source, not a slide asset. The sheet row is never listed in `spec_lock.md images` and never referenced from SVG. Only the sliced element rows are placed.
-
-**Sheet prompt convention** (one manifest item, `page_role: local`, `text_policy: none`, `image_size` chosen from final placement size):
-
-- Choose the sheet `aspect_ratio` and `--grid` from the target element shape. Do not default every sheet to `1:1` + a symmetric grid.
-- Lay the elements out in an explicit **R×C grid, evenly spaced with clear gutters**, each element **centered in its own cell** and isolated (no element bleeds into a neighbor).
-- State the intended cell shape in the prompt: compact square object, tall portrait element, or wide landscape vignette. Do not let the model shrink every subject into a centered square sticker.
-- One **flat single-color background** across the whole sheet, set to the deck's background/secondary HEX — this is what lets the slicer key it out cleanly and lets the cut element sit on the slide without a visible box.
-- Shared `deck_rendering` + `color_scheme` as always. NO text, labels, or numbers anywhere (§5.1, §5.3).
-
-**Cell geometry is designed, not assumed.** `slice_images.py --grid RxC` cuts rows first and columns second. The cell ratio is:
-
-```text
-cell_ratio = sheet_ratio * rows / cols
-```
-
-Use that deliberately. On a wide sheet (`16:9`, `21:9`, `4:1`, `8:1`), `1xN` makes each cell tall/portrait because the width is divided by `N` while height is kept; `Nx1` makes each cell wide/landscape because height is divided by `N` while width is kept. A designed `MxN` grid is also valid when the resulting cell ratio matches the intended placements.
-
-| Target spot shape | Sheet plan | Slice grid |
+| Target element shape | Sheet plan | Slice grid |
 |---|---|---|
-| Compact objects / badges | `1:1` sheet | `2x2`, `2x3`, or `3x3` |
-| Tall side accents / upright objects | wide or square sheet | `1xN`, or any `MxN` whose cells are portrait |
-| Wide banners / horizontal vignettes | wide sheet | `Nx1`, or any `MxN` whose cells are landscape |
+| Compact objects / badges / illustrated icons | `1:1` sheet | `2x2`, `2x3`, or `3x3` |
+| Tall side accents / upright objects | wide or square sheet | `1xN`, or any `MxN` with portrait cells |
+| Wide banners / horizontal vignettes | wide sheet | `Nx1`, or any `MxN` with landscape cells |
+| Large page anchors / dominant cutouts | dedicated sheet matching the silhouette | `1x1` |
+| Decorative words, phrases, multi-line lockups | wide sheet | `Nx1`, or any `MxN` fitting the string shapes |
 
-If one deck needs mixed shapes, create separate sheets per shape family unless one carefully designed grid gives every element enough room. Keep the visual family consistent through the same `deck_rendering` and `color_scheme`, not by forcing all cells into one square sheet.
+Shape families that cannot share a roomy grid take separate sheets; coherence comes from rendering and colors, not one forced sheet.
 
-**Resource contract — the sheet and its elements are different row kinds.** A sliced element can only be placed if it exists as a resource the Executor is allowed to reference (`spec_lock.md images`). So §VIII carries two row kinds (planning authority: [`strategist-image.md`](./strategist-image.md)):
-
-- **Sheet row** — `Acquire Via: ai`, `Type: Illustration Sheet`, the intent prompt, named as the slice source with its intended cell shape and placement purpose (`Reference: landscape footer-vignette spot set`). It is generated in Step 5 but **never placed on a slide** — keep it **out of** `spec_lock.md images`. Image_Generator resolves the exact `aspect_ratio`, grid, and slice command from this intent.
-- **Element rows** — one per used element, `Acquire Via: slice`, filename matching a `--names` output, `Reference` naming the parent sheet + cell/element. These **are** placed — list every one in `spec_lock.md images`, normally with `crop=no-crop` (a tight-trimmed transparent spot should be fit, not cover-cropped). Their dimensions are filled in after slicing (Step 5 re-runs `analyze_images.py`). Each row must already carry a Strategist-selected decorative-cutout Layout pattern, never a boxed container — see Placement below.
-
-For traceability, add optional `slice_grid` and `slice_names` fields to the sheet item in `image_prompts.json` after choosing the geometry. `image_gen.py` ignores unknown item fields but preserves them in the manifest, so these fields document the exact command that must be used for slicing.
-
-**Slice** with [`slice_images.py`](../scripts/slice_images.py) — cells are cut row-major into individual files in `images/`. With `--alpha` they are **transparent cutout stickers** (image-layout-patterns `#63`), not rectangular content images. Recommended flags: `--names` (semantic per-cell filenames matching the element rows; the count **must** equal `rows*cols`), `--trim` (tight-crop each cell so imprecise placement inside a cell doesn't leave lopsided margins), `--alpha` (knock the flat background out to transparency so an element drops onto any slide color):
+**Resource contract**: a **sheet row** is `Acquire Via: ai`, `Type: Illustration Sheet`, named as the slice source with intent, cell shape, and purpose (`Reference: reusable title/corner illustration family`, `illustrated-icon set: cues = ...`, or `decorative lettering set: exact strings = ...`); Step 5 generates it, it is never placed, and Image_Generator resolves its aspect ratio, grid, and slice command. **Element rows** are one per used element, `Acquire Via: slice`, filename matching `--names`, `Reference` naming the parent and cell, listed in the placeable authority normally with `crop=no-crop` (tight slices use fit, not cover-crop), `Type: Illustrated icon` for a compact cue (never an SVG library entry), reusable across pages, each carrying an owner-resolved layout recommendation, dimensions filled after slicing by `analyze_images.py`. Add `slice_grid` and `slice_names` to the sheet's manifest item — the comma-separated basenames are the complete required output set.
 
 ```bash
+SHEET_KEY_HEX="#00FF00"  # example only; choose a key absent from every element/effect
 python3 scripts/slice_images.py <project>/images/illus_sheet.png --grid 2x3 \
-    --names team,product,customer,growth,risk,vision --trim --alpha
+    --names team,product,customer,growth,risk,vision --trim --alpha \
+    --bg "${SHEET_KEY_HEX}" --strict-alpha
 ```
 
-**Three constraints that decide whether it looks good**:
+`--names` count equals `rows*cols`; `--strict-alpha` writes nothing on an incomplete cut. Three quality constraints: **strict key recovery** — raise `--tolerance` only enough to absorb measured flat-field drift, `--inset` only for an isolated outer gutter, and regenerate or enlarge when an effect reaches an edge; **clean isolated cells** — fused cells, scene backgrounds, or flourishes crossing a cell make the sheet unusable, and re-rolls follow only a strict keying failure or user/preview evidence, never taste; **enough source pixels** — each cell at least 1.5–2× its display size (`1K` small accents, `2K` medium, `4K` large or enlarged).
 
-1. **Flat background, matched to the slide.** `image_gen.py` has no transparent-background mode, so the cut element carries whatever was behind it. A flat sheet background (= deck background HEX) is what `--alpha` keys out and what makes non-keyed pieces blend.
-2. **Clean grid, or it cuts ugly.** The model will not place every element perfectly; force a clear grid with gutters, and generate **a few sheets** (re-roll the same prompt) to pick the cleanest-laid-out one before slicing. State the exact row/column structure and cell shape so the model does not invent a square matrix. `--trim` absorbs the rest.
-3. **Generate only as large as needed.** Each cell is a fraction of the sheet. Pick the smallest sheet size that keeps each sliced cell at least **1.5-2x** the intended display size. `1K` is usually enough for small 80-160px decorative spots; use `2K` for medium 180-320px placements; reserve `4K` for large, cropped, or potentially enlarged elements.
+**Placement**: a slice is a decorative accessory, not a boxed picture — a spot wasted in a centered rectangle looks cheaper than none; it may stay unboxed at a margin, run off the canvas edge, sit behind or beside text with a slight rotation, vary in size and angle across pages, enter a container, or combine with backgrounds, shapes, text, photos, other slices, and lettering; stable chrome may repeat exactly while anchors and accents vary in scale, position, pairing, and interaction. Editable copy stays SVG; a large SVG-composed anchor remains `local` / `slice`, and `hero_page` applies only when one bitmap owns the page. No quota.
 
-**Placement — these are decorative accessories, not boxed pictures.** Strategist selects each element row's pattern from the decorative-cutout family in [`image-layout-patterns.md`](./image-layout-patterns.md): `#63` sticker/cutout, `#4` bleed off the canvas edge, `#58` corner fragment, `#66` fade into the background, `#69` slight editorial rotation, or `#49` asymmetric cluster. Executor realizes that choice through margin position, off-edge treatment, overlap, scale, and angle rather than reserving a tidy tile. Anchor most pages on one primary element and let the rest stay small ([primary-per-page](./strategist-image.md)).
+### 4.4 Registered reconstruction groups and shared plates
 
-**Through-line — one family, many roles.** A spot sheet pays off more when the same motif family also drives the cover and section dividers. A large cover / divider anchor is not a giant sheet cell—generate it as its own `hero_page` image sharing the sheet's `deck_rendering`, `color_scheme`, and subject world. Plan this only when the deck leans into illustration, never as a quota.
+Use when a person, product, creature, effect, or scene element must cross native titles, panels, frames, cards, or shapes while the original scene stays behind it. Minimum group: a clean base plus one subject/foreground layer; add layers only for overlap or independent editing.
+
+| Output | Required content |
+|---|---|
+| Clean base | Full original canvas with every planned removable element removed and the hidden background reconstructed |
+| Optional midground | Full canvas with only the content that sits between base and primary subjects |
+| Subject / foreground | Full canvas with one subject or one z-order-compatible set on RGBA transparency |
+| Shared layer plate | Several mutually non-overlapping objects isolated together in one full-canvas or regular-cell output |
+
+**Mandatory — preserve registration**: derive every full-canvas member independently from the same canonical source, keeping canvas dimensions, pose, scale, position, lighting, and style, never trimming or cropping a registered output; record the shared source and group in the owning rows. **Image to PPTX (Codex required)**: follow its §3 per-region decision — a complete, separable, resolution-sufficient region may stay source-derived, otherwise use Codex's native reference-image capability; inspect every member and the recomposition; do not adapt `image_gen.py` or its backends for that profile; other hosts unsupported.
+
+Procedure: (1) from the canonical reference remove every planned subject, foreground object, source graphic, and editable text, then inpaint one clean base without redesigning the background; (2) prepare the subject/foreground as an exact source-derived layer or a reference reconstruction, never from a generated base or layer; (3) prefer one shared plate when objects do not overlap and share an isolation treatment, with padded bboxes (shadows and effects included) pairwise disjoint; (4) a registered plate keeps original positions with one nested-SVG crop per recorded bbox ([`svg-effects.md`](./svg-effects.md) §6.5), a rearranged regular-cell plate is sliced under §4.3 and each asset placed at its recorded bbox; (5) prefer direct RGBA, otherwise one exact flat key over the whole layer and one `1x1` `--alpha` slice without `--trim` so coordinates hold — never one keyed image per object; (6) save under `<project>/images/`, registered full-canvas members `no-crop`. Overlapping or differently ordered objects take separate layers; a shared output is valid only when every final object still becomes an independent picture.
+
+> **Shared registered-plate prompt core**: Using the supplied canonical page as the only visual reference, isolate the following foreground objects together on one full-canvas extraction plate: {stable object ids/descriptions}. Preserve each object's visible identity, silhouette, pose, scale, rotation, lighting, shadow, and exact original canvas position; keep the original aspect ratio and registration; retain only the listed objects and remove the background and every unlisted element; do not rearrange, resize, merge, duplicate, or let objects touch; retain an explicitly listed source graphic or wordmark exactly and remove editable slide text and every unlisted logo. Return RGBA if supported; otherwise one uniform exact {key HEX} matte with no gradient, texture, spill, or extra marks.
+
+Outside Image to PPTX, Path A uses single-image edit mode and Path B the host tool — the declared derivation exception for already-planned group rows, every member kept in the resource authority and sidecar; SVG realization follows [`image-layout-patterns.md`](./image-layout-patterns.md) `#A2-03`:
+
+```bash
+python3 scripts/image_gen.py "Remove the planned foreground subjects and reconstruct the hidden background; preserve the exact canvas" \
+  --reference-image <project>/images/<source>.png -o <project>/images -f <group>_base
+python3 scripts/image_gen.py "Isolate the planned non-overlapping foreground objects at their exact original positions on one flat #00FF00 plate" \
+  --reference-image <project>/images/<source>.png -o <project>/images -f <group>_plate_key
+python3 scripts/slice_images.py <project>/images/<group>_plate_key.png --grid 1x1 \
+  --names <group>_plate --alpha --bg "#00FF00"
+```
 
 ---
 
 ## 5. Global Hard Rules
 
-These rules apply to **every** prompt regardless of dimension choices. Append them as a closing sentence to every assembled prompt.
+Append these to every assembled prompt.
 
 ### 5.1 HEX is rendering guidance, not text
 
-Image generation models occasionally paint color names and HEX values as **visible labels in the image** (a `#1E3A5F` swatch literally drawn as the string "#1E3A5F"). This destroys the image.
+Models occasionally paint color names and HEX values as visible labels. Append: *Color values (HEX codes like #1E3A5F) and color names are rendering guidance only — do NOT display HEX codes, color names, or palette labels as visible text anywhere in the image.*
 
-**Append to every prompt**:
+### 5.2 Human depiction follows the selected rendering
 
-> Color values (HEX codes like #1E3A5F) and color names are rendering guidance only — do NOT display HEX codes, color names, or palette labels as visible text anywhere in the image.
-
-### 5.2 Simplified human figures, no realistic faces
-
-When the image contains people:
-
-> Human figures appear as simplified stylized silhouettes or symbolic representations — no photorealistic faces, no detailed anatomy, no celebrity likeness. Express role/emotion through posture, attire, and simple gestures.
-
-Exception: when the chosen rendering is `corporate-photo`, photorealism is intentional — replace the above with: `Diverse, professionally attired subjects. Editorial photography style, natural composition`.
+Match facial detail, anatomy, texture, and realism to the rendering and the row's Reference — silhouette, detailed illustration, painterly figure, or editorial photograph as that rendering allows. **Hard rule — likeness authorization**: never request an identifiable real-person or celebrity likeness unless the Reference explicitly names a user-authorized subject; generic or fictional people are free.
 
 ### 5.3 Text policy — two-layer ownership
 
-Every AI-image page carries text in two layers:
-
 | Layer | Owned by | Examples |
 |---|---|---|
-| Layer 1 (image-owned) | the prompt — baked into the raster | figure-internal annotations (axis labels, A / B / C markers, units, scale bars, panel labels); architecture / schematic module names, node labels, signal-path identifiers; hero typographic or decorative lettering that *is* the visual |
-| Layer 2 (SVG-owned) | `<text>` overlay — fully editable | page-level chrome (title, navigation, footer, body bullets, conclusion callout); readable copy, captions |
+| Layer 1 (image-owned) | the prompt, baked into the raster | figure-internal annotations (axis labels, A/B/C markers, units, scale bars, panel labels); schematic module names, node labels, signal-path ids; stable artistic lettering that *is* the visual |
+| Layer 2 (SVG-owned) | editable `<text>` overlay | authoritative deck/page/chapter titles; navigation, footer, body bullets, conclusion callouts; readable copy and captions |
 
-`text_policy` controls only Layer 1. AI judges per image; no global default bias.
+`text_policy` controls only Layer 1, judged per image with no global bias. Positive triggers for `embedded` — a paper-figure panel comparison (panel labels), a textbook math or signal figure (curve names, axes, units), a discipline-convention schematic (`Self-Attention`, `FFN`, node ids), a data figure with stable axes, a typographic hero (§4.1 C) — start at `embedded` and then apply the editability filter; defaulting a whole `ai` list to `none` because "SVG can always overlay" is the failure mode this table breaks. Prompt cues: `none` → *"NO text of any kind anywhere in the image — no letters, numbers, signs, watermarks, labels, or written symbols."*; `embedded` → describe the exact characters, how they are rendered, and the treatment inside the scene.
 
-**When `embedded` is the right call — positive triggers** (any one match flips the row from a `none` starting point to `embedded`; the editability rule at the tail of §5.3 still has final say):
+**Hard rule — decide by editability, not model capability**: Layer 1 text can never be edited, corrected, searched, restyled, or reflowed. Text that is part of the artwork and stable — decorative lettering, a wordmark, a hand-lettered phrase, figure-internal identifiers — may be Layer 1; anything that must stay exact, searchable, editable, or may be reworded is Layer 2, whatever `text_policy` says: authoritative titles, chrome, navigation, footer, bullets, captions, data values. Bake title-like wording only when the approved plan treats those exact characters as stable artwork. Never pre-judge by script or length — never push text to SVG, shorten a headline, or downgrade `embedded` to `none` on the assumption that a script or long string "won't render"; a multi-word phrase or two-line lockup qualifies exactly as one word does. Name the exact characters literally; do not re-read the generated image to verify them. When the headline must stay editable, use Primitive D and overlay it.
 
-| Trigger | Typical Layer 1 text |
-|---|---|
-| Paper-figure panel comparison (A/B/C, before/after) | Panel labels — `A` / `B` / `C`, or short panel descriptors |
-| Textbook math / signal figure | Curve names (`sin` / `cos`), axis labels, unit symbols |
-| Architecture / schematic following discipline conventions | Module names (`Self-Attention`, `FFN`, `Add & Norm`), node ids, signal-path tags |
-| Data figure with stable axes | Axis labels, units, scale bars |
-| Typographic hero (§4.1 Primitive C) | The designed word / number that *is* the image |
+**Reference — controlled, deck-aligned artistic authorship** (high expression on user request or a confirmed direction): give the model the exact string, communication role, placement/background relationship, deck identity, relative weight, and desired energy; the rendering, semantic colors, mood, and page hierarchy define the envelope. Glyph-native expression carries identity through silhouette, stroke construction, internal material/texture, contour-bound depth and light, and composition; literal topic illustrations or detached decoration compete with the glyph, and a lettering-plus-illustration lockup needs an explicit request or confirmed direction. Within the treatment let the model combine or omit gesture, material, dimensionality, texture, lighting, and hierarchy — possibility space, not a recipe; never flatten the art to ease extraction (§4.3's gates protect delivery); when fit is uncertain use the lower density; keep a multi-line lockup as one element when its hierarchy is part of the art.
 
-Defaulting an entire `ai` resource list to `none` because "SVG can always overlay" is the failure mode this table exists to break. When any row matches a trigger, start at `embedded` and verify the editability filter below still holds.
-
-| `text_policy` | Prompt cue |
-|---|---|
-| `none` | "NO text of any kind anywhere in the image — no letters, numbers, signs, watermarks, labels, or written symbols." |
-| `embedded` | Describe the Layer 1 text directly inside the visual scene: the word(s), how they're rendered, and the artistic treatment. |
-
-**Hard rule — cross-cutting**: Layer 2 chrome stays SVG regardless of `text_policy`. Never bake the deck title, navigation, footer, body bullets, or conclusion callout into the image, even when `embedded`.
-
-**Forbidden — text that may be reworded**: any word that may later change belongs in Layer 2, not Layer 1. Layer 1 is for stable visual identifiers and designed lettering that is part of the image itself.
-
-**Font choice for in-image text — free description, with the deck typography as one optional reference**
-
-The font for in-image text is a free natural-language description, not an enum. Pick whatever serves the image: blackletter for a heritage cover, hand-brushed for a manifesto poster, retro chrome 3D for Y2K, art-deco display for a luxury hero, ribbon script for a bookstore zine — any artistic treatment the image earns.
-
-The table below is **a reference for the one case where you want the in-image lettering to read as the same typographic family as the SVG body** (e.g. a clean editorial deck where the cover title in the image should feel like the body Helvetica, not a surprise blackletter). Use it as a starting point, not a constraint.
-
-| `spec_lock typography.font_family` contains | Optional descriptor if you want to echo the SVG body |
-|---|---|
-| `KaiTi` / `FangSong` / `Georgia` / serif families | "elegant serif lettering, refined letterforms" |
-| `Microsoft YaHei` / `PingFang SC` / `Arial` / sans-serif families | "clean geometric sans-serif, modern letterforms" |
-| `SimHei` / `Impact` / `Arial Black` / display families | "bold display lettering, heavy expressive strokes" |
-| `Consolas` / `Courier New` / monospace families | "monospace technical lettering, fixed-width" |
-| sketch-notes / ink-notes rendering, or no family specified | "hand-lettered organic strokes, natural variation" |
-
-**When to ignore the table**:
-
-- Decorative / background lettering, posters, large mood words → describe the artistic treatment freely
-- Cover hero title that wants its own visual identity (blackletter, retro chrome, art-deco display, brushed script) → describe freely
-- Sketch-notes / ink-notes / hand-drawn renderings where the lettering is part of the rendering itself → describe freely
-- Any case where rendering already implies a font character (e.g. `vintage-poster` implies period display lettering) → trust the rendering, no need to echo SVG body
-
-**When to use the table**: a designed title (cover main title, chapter heading) on a deck whose visual identity is grounded in the SVG body typography, and where a surprise font choice would feel out of place.
-
-**In-image text vs SVG text — decide by editability, not by model capability**
-
-Layer 1 text is rasterized into the artwork — once generated it cannot be edited, corrected, searched, restyled, or reflowed. That is the durable reason to choose where text lives, independent of any backend's rendering ability or the script / length involved:
-
-| Text | Layer |
-|---|---|
-| Part of the artwork and stable — decorative lettering, designed title, hand-lettered keyword, figure-internal identifiers (axis labels, panel letters, units) | Layer 1 (image) OK |
-| Page chrome, body copy, captions, data values — anything that must stay exact, searchable, or may be reworded | Layer 2 (SVG) |
-
-Generation is non-deterministic on every backend, but **do not pre-judge by script or length** — never push text to SVG, shorten a headline, or downgrade `embedded` to `none` on the assumption that a particular script or a long string "won't render". Decide where text lives by the editability rule above, not by guessed rendering ability. Name the exact characters to bake literally in the prompt; do not re-read the generated image to verify them.
-
-**Prefer in-image**: text that is genuinely part of the artwork and will not be edited — a designed word, a stat lettering, a figure-internal label.
-
-**Push to SVG overlay instead**: page chrome, captions, data values, or any copy that must stay exact or editable. When the headline must remain editable, switch to **Primitive D (atmospheric backdrop)** and overlay it as SVG text.
+**Font for in-image text** is a free description, not an enum — blackletter for a heritage cover, hand-brushed for a manifesto, retro chrome for Y2K, art-deco display for luxury, ribbon script for a zine. Echo the SVG body only when stable lettering should read as the same family as the deck's typography: serif families → "elegant serif lettering, refined letterforms"; sans (YaHei / PingFang / Arial) → "clean geometric sans-serif, modern letterforms"; display (SimHei / Impact / Arial Black) → "bold display lettering, heavy expressive strokes"; monospace → "monospace technical lettering, fixed-width"; sketch/ink renderings or no family → "hand-lettered organic strokes, natural variation". Ignore that echo for decorative or background lettering, posters, mood words, cover wordmarks wanting their own identity, hand-drawn renderings, or any rendering that already implies a period letterform.
 
 ### 5.4 No brand names or trademarks in the subject
 
-> The image must not depict identifiable brand logos, trademarks, or product likenesses unless the row's Reference explicitly names a real brand asset the user owns.
+The image must not depict identifiable logos, trademarks, or product likenesses unless the Reference explicitly names a real brand asset the user owns.
 
 ---
 
 ## 6. Manifest Schema
 
-Write `project/images/image_prompts.json` with this shape:
+Write `project/images/image_prompts.json`:
 
 ```json
 {
@@ -408,12 +201,9 @@ Write `project/images/image_prompts.json` with this shape:
   "generated_at": "{ISO-8601 date}",
   "deck_rendering": "vector-illustration",
   "color_scheme": {
-    "background": "#FFFFFF",
-    "secondary_bg": "#F8F9FA",
-    "primary": "#1E3A5F",
-    "accent": "#D4AF37",
-    "secondary_accent": "#4A7BB5",
-    "body_text": "#1D2430"
+    "background": "#FFFFFF", "secondary_bg": "#F8F9FA",
+    "primary": "#1E3A5F", "accent": "#D4AF37",
+    "secondary_accent": "#4A7BB5", "body_text": "#1D2430"
   },
   "items": [
     {
@@ -423,7 +213,7 @@ Write `project/images/image_prompts.json` with this shape:
       "text_policy": "none",
       "aspect_ratio": "16:9",
       "image_size": "2K",
-      "prompt": "{fully assembled paragraph per §4 — use §4.1 Primitive D for atmospheric cover}",
+      "prompt": "{fully assembled paragraph per §4 — Primitive D for an atmospheric cover}",
       "alt_text": "Modern tech abstract background with deep blue gradient and digital waves",
       "status": "Pending"
     },
@@ -442,224 +232,94 @@ Write `project/images/image_prompts.json` with this shape:
 }
 ```
 
-### Field reference
+| Field | Required | Description |
+|---|---|---|
+| `deck_rendering`, `color_scheme` | yes | One rendering and the core color anchors shared by every item; no separate image palette |
+| `items[].filename` | yes | Output filename with extension, from the resource authority |
+| `items[].type` | no | One of the 11 internal-composition types for a local structural infographic when a template genuinely fits; omitted for §4.1 E prose, `hero_page`, sheets, and single-subject/portrait |
+| `items[].page_role` | yes | `local` (default) or `hero_page` |
+| `items[].text_policy` | yes | `none` or `embedded`, judged per image (§5.3) |
+| `items[].aspect_ratio` | yes | Passed to `image_gen.py --aspect_ratio` |
+| `items[].prompt` | yes | The assembled paragraph |
+| `items[].image_size` | no | `512px` / `1K` / `2K` / `4K` |
+| `items[].model` | no | Per-item backend model override |
+| `items[].alt_text` | no | Short caption |
+| `items[].slice_grid`, `items[].slice_names` | for a placeable-element sheet | Exact `RxC` and the comma-separated basenames (`rows*cols` unique outputs) for `slice_images.py` |
+| `items[].status` | yes | `Pending` initially; the CLI writes `Generated` / `Failed` / `Needs-Manual` |
 
-| Field | Required | Source | Description |
-|---|---|---|---|
-| `deck_rendering` | yes | Step 2 lock | Single rendering name shared by all items in this deck |
-| `color_scheme` | yes | `spec_lock.md colors` | Core deck color anchors shared by every item; prompts may add contextual tonal behavior, but no separate image palette |
-| `items[].filename` | yes | `§VIII` resource list | Output filename with extension |
-| `items[].type` | conditional | Step 3 per-image (only when `page_role: local`) | One of 11 internal-composition types: `infographic`, `flowchart`, `framework`, `matrix`, `cycle`, `funnel`, `pyramid`, `comparison`, `timeline`, `map`, `scene`. **Omit `type` entirely when `page_role: hero_page`** — the composition comes from §4.1 primitives written directly into the prompt, not from a type file. |
-| `items[].page_role` | yes | Step 3 per-image | `local` (default — region block on SVG page) or `hero_page` (image is page's main voice; SVG overlay minimal or empty) |
-| `items[].text_policy` | yes | Step 3 per-image | `none` (image carries no text — explicit visual rule) or `embedded` (image contains decorative lettering, designed title, hand-lettered keywords, or stable visual identifiers like axis labels / subplot letters / unit symbols). AI judges per image; no global default bias — see §5.3. |
-| `items[].aspect_ratio` | yes | Container sizing | Passed to `image_gen.py --aspect_ratio` |
-| `items[].prompt` | yes | §4 assembly | The full assembled paragraph |
-| `items[].image_size` | no | Container sizing | `512px` / `1K` / `2K` / `4K` |
-| `items[].alt_text` | no | Accessibility | Short caption |
-| `items[].slice_grid` | no | §4.3 sheet geometry | Illustration sheet only; exact `RxC` grid to pass to `slice_images.py --grid` |
-| `items[].slice_names` | no | §4.3 sheet geometry | Illustration sheet only; semantic filenames to pass to `slice_images.py --names` |
-| `items[].status` | yes | CLI manages | `Pending` initially; CLI updates to `Generated` / `Failed` / `Needs-Manual` |
-
-> **Back-compat for legacy `type` values**: existing manifests using `background` / `hero` / `portrait` / `typography` (the four removed pseudo-types) remain readable. Read them as: `background` → `page_role: hero_page` + no type; `hero` → `page_role: hero_page` + no type (use §4.1 Primitive A in prompt); `portrait` → `page_role: local` + no type (use §4.1 Primitive B); `typography` → `page_role: hero_page` + `text_policy: embedded` + no type (use §4.1 Primitive C). New manifests should follow the rule above (omit `type` when `page_role: hero_page`).
->
-> **Existing manifest compatibility**:
->
-> - **Fixed compatibility defaults**: a missing `page_role` resolves to `local`; a missing `text_policy` resolves to `none`. Emit one aggregate legacy-compatibility warning per manifest.
-> - **Declared replay procedure**: an existing manifest may lack `deck_rendering`, or an existing local item may lack `type`, because `items[].prompt` is already assembled. Leave that metadata absent, execute the existing prompt verbatim, and do not reconstruct either value. This exception applies only to replaying an existing manifest; new manifests must satisfy the field table above. A `hero_page` item still omits `type` intentionally.
-> - A legacy `deck_palette` field may remain but cannot override `color_scheme`. Read legacy `page_role: full_page` as `hero_page`.
+**Compatibility**: legacy `type` values read as `background` → `hero_page` + no type, `hero` → `hero_page` + Primitive A, `portrait` → `local` + Primitive B, `typography` → `hero_page` + `embedded` + Primitive C; a missing `page_role` is `local`, a missing `text_policy` is `none` (one aggregate warning per manifest); an existing manifest lacking `deck_rendering` or an item lacking `type` replays its assembled `prompt` verbatim without reconstruction; a legacy `deck_style_anchor` or `deck_palette` never overrides `deck_rendering` / `color_scheme`; legacy `page_role: full_page` reads as `hero_page`.
 
 ---
 
 ## 7. Generation Execution
 
-> Prerequisite: §3 Steps 1-3 complete; `images/image_prompts.json` exists and validates. The manifest is the shared audit/source contract for all modes. It does **not** imply that `image_gen.py --manifest` should run; that command is Path A only.
-
-### Path Selection (Deterministic)
-
-C (AI-generated) supports three implementation modes sharing one `image_prompts.json` source:
+Prerequisite: §3 complete and `images/image_prompts.json` validates. The manifest is the shared contract for every mode; it never implies that `image_gen.py --manifest` runs — that command is Path A only.
 
 | Trigger | Mode | Mechanism |
 |---|---|---|
-| **Default** — `IMAGE_BACKEND` configured | **Path A**: `image_gen.py --manifest` | One command runs the whole manifest with concurrency; status writes back per item |
-| `IMAGE_BACKEND` not configured (or Path A fails) AND host has a native image tool | **Path B**: Host-native tool | Agent invokes the host's image capability; outputs land at `project/images/<filename>` |
-| **Both Path A and Path B fail/unavailable** | **Offline Manual Mode** | Manifest stays on disk; user generates externally from `items[].prompt` and places files at `project/images/<filename>` |
+| `api`, or `auto` with `IMAGE_BACKEND` configured | **Path A** `image_gen.py --manifest` | One command runs the manifest with concurrency and writes status per item |
+| `host-native`, or `auto` with a host image tool | **Path B** host-native tool | The agent invokes the host capability; outputs land at `project/images/<filename>` |
+| Default confirmed `manual`, or Quick explicitly `manual` | **Offline Manual** | Manifest stays on disk; the user generates from `items[].prompt` and places files |
 
-**Selection logic — declared-procedure fallback when no path is confirmed**: the confirmed user choice wins. When neither channel confirmed a specific path — the effective choice is `auto` (explicitly confirmed or defaulted) or absent — use the automatic A → B → C chain:
+**Path selection**: planning never inspects configuration or probes a provider — capability is resolved only here. Default honors `AI Image Acquisition Path` from `design_spec.md §I` (already consumed from the confirmation; never reopen `result.json`): `api` → Path A; `host-native` → Path B, skipping A even when `IMAGE_BACKEND` is configured; `manual` → Offline Manual; `auto` → Path A when `IMAGE_BACKEND` is configured (two consecutive failures fall to B), then Path B when the host has a native tool, never Offline Manual by itself; a missing row returns to Step 4 recovery. Quick honors an explicit `api` / `host-native` / `manual` instruction, otherwise `auto` A → B without asking. **Hard rule**: normal execution never reopens selection; a confirmed path that fails after its retry never switches provider — Default enters the recovery decision below, Quick applies its no-AI replan. All modes share one output contract: a file at `project/images/<filename>`.
 
-0. **Confirmed override (wins)** — honor `AI Image Acquisition Path` from `design_spec.md §I`. Generate Step 4 already consumed the final confirmation into that durable artifact; do not reopen `result.json` here. If the recorded choice is set and not `auto`, honor it directly, **even when it contradicts `IMAGE_BACKEND`**:
-   - `api` → **Path A** (`image_gen.py --manifest`).
-   - `host-native` → **Path B** (host's native image tool) — skip A and do **not** run `image_gen.py --manifest`, *even if `IMAGE_BACKEND` is configured*.
-   - `manual` → **Offline Manual** (write prompts, render the Markdown sidecar, hand off; do **not** run `image_gen.py --manifest`).
-   If an explicitly chosen path is unavailable or still fails after its retry, mark the affected row `Needs-Manual`; do not switch to another automated provider. Only when the Design Spec records `auto` or no specific path applies does the automatic chain decide. A legacy project missing this Design Spec row returns to Step 4 recovery to consume persisted confirmation once and record it; Image_Generator does not inspect the confirmation channel itself.
-1. **Try Path A** — if `IMAGE_BACKEND` is configured (env or `.env`), run `image_gen.py --manifest`. If it fails twice in a row, fall to Path B.
-2. **Try Path B** — if `IMAGE_BACKEND` was not configured (A skipped), or A failed, and the host has a native image tool (Codex / Antigravity / Claude Code / similar), the agent invokes the host's image capability directly.
-3. **Fall to C (Offline Manual)** — if B is also unavailable (no host-native tool) or fails, write prompts to `images/image_prompts.json` and hand off to the user.
-
-**Hard rule**: Step 4 is execution, not re-decision. Never present an interactive choice between paths here — image strategy was locked in Strategist Step 4 h item.
-
-> All three modes share one output contract: file at `project/images/<filename>`. Step 6 SVG references are mode-agnostic.
-
-### Path A — `image_gen.py --manifest` (Default)
+### Path A — `image_gen.py --manifest`
 
 ```bash
-python3 scripts/image_gen.py \
-  --manifest project/images/image_prompts.json \
-  --output project/images
+python3 scripts/image_gen.py --manifest project/images/image_prompts.json --output project/images
 ```
 
-The CLI iterates `items[]` with adaptive concurrency, writes `status` back per item, and is **idempotent**: re-running only re-processes entries whose status is `Pending` or `Failed`.
+Validates the file behind every `Generated` row before skipping it, iterates retryable rows with bounded adaptive concurrency, and writes each status atomically; a missing or corrupt file returns to `Failed`, and persistent rate limits end the run as retryable `Failed`. Options: `--concurrency` (default `IMAGE_CONCURRENCY` or 3; halves on rate limit, min 1), `--image_size`, `--output`/`-o`, `--backend`/`-b`, `--model`/`-m`, `--list-backends`. Interrupting is safe (completed items stay `Generated`); the Markdown sidecar re-renders on completion, or run `--render-md` after an interruption. Configuration: process environment first, then the first `.env` in cwd, the skill directory, the clone root, `~/.ppt-master/.env` — `IMAGE_BACKEND` (required; `--list-backends` shows the set and support tiers), `IMAGE_CONCURRENCY`, provider-specific `{PROVIDER}_API_KEY` / `_BASE_URL` / `_MODEL` (never `IMAGE_API_KEY` / `IMAGE_MODEL` / `IMAGE_BASE_URL`), and for OpenAI-compatible platforms `OPENAI_SIZE_PRESET` (`auto|legacy|gpt-image|gpt-image-2|dall-e-2`), `OPENAI_RESPONSE_FORMAT` (`auto|b64_json|url|omit`), `OPENAI_QUALITY` (`auto|omit|low|medium|high|standard|hd`) under `IMAGE_BACKEND=openai`; see `.env.example`. The single-image form `image_gen.py "prompt" --filename …` remains for ad-hoc re-rolls.
 
-**Parameters**:
+### Path B — host-native image tool
 
-| Parameter | Short | Description | Default |
-|---|---|---|---|
-| `--manifest` | - | Path to `image_prompts.json` | — |
-| `--concurrency` | - | Max concurrent requests; halves on rate-limit, min 1 | `IMAGE_CONCURRENCY` env or `3` |
-| `--image_size` | - | Default size (`512px`/`1K`/`2K`/`4K`); per-item `image_size` wins | `1K` |
-| `--output` | `-o` | Output directory | Manifest's parent dir |
-| `--backend` | `-b` | Override `IMAGE_BACKEND` for this run | env |
-| `--model` | `-m` | Default model; per-item `model` wins | Backend default |
-| `--list-backends` | - | Print support tiers and exit | — |
+Automatic when `IMAGE_BACKEND` is unset or Path A failed and the host (Codex, Antigravity, Claude Code, similar) offers an image tool; the user may also name it explicitly. Prompts come from `items[].prompt`; never run `image_gen.py --manifest` here, but still run `python3 scripts/image_gen.py --render-md project/images/image_prompts.json` for the sidecar. Batch a few rows at a time (~3–4) when the host runs tools in parallel, serially otherwise. Outputs land at the resource-list filename; hosts with fixed native resolutions generate at the closest size and backfill the actual pixels into `Dimensions` — never upscale to fake a size (display-side upscaling up to ~1.3× is a non-blocking warning). Mark each item `Generated` as its file lands.
 
-> The single-image form `image_gen.py "prompt" --filename ...` is preserved for ad-hoc one-offs (re-rolling a single image) but is no longer the primary path.
+### Offline Manual Mode
 
-**Configuration sources**:
-- Current process environment variables
-- First `.env` found in this order: current working directory, skill directory (e.g. `~/.agents/skills/ppt-master/.env`), clone repo root, `~/.ppt-master/.env`
+Entered only after Default confirmed `manual` (Stage 2 or the recovery decision) or an explicit Quick instruction — never asked again inside acquisition. Verify the manifest, set `status: "Needs-Manual"` on every affected item ([`image-base.md`](./image-base.md) §3), and print one consolidated handoff: filenames, the `images/image_prompts.md` paste-ready blocks (or `items[].prompt`), the exact target `project/images/<filename>`, and the continuation — Default draws dashed placeholders and blocks every Step 7 export command until files are validated and placeholders replaced; Quick blocks direct export until every required row is validated and reconciled to `Generated`, and only while the original context survives (otherwise a clean run).
 
-Precedence:
-- Current process environment wins
-- `.env` fills missing values only
+#### Default exhausted-automation decision
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `IMAGE_BACKEND` | Required | Backend identifier; run `image_gen.py --list-backends` for the current set |
-| `IMAGE_CONCURRENCY` | Optional | Manifest-mode default concurrency (CLI `--concurrency` wins) |
-| `{PROVIDER}_API_KEY` | Required | Provider-specific API key, e.g. `GEMINI_API_KEY`, `ZHIPU_API_KEY` |
-| `{PROVIDER}_BASE_URL` | Optional | Provider-specific custom endpoint |
-| `{PROVIDER}_MODEL` | Optional | Provider-specific model override |
-| `OPENAI_SIZE_PRESET` | Optional | OpenAI-compatible size mapping: `auto`, `legacy`, `gpt-image`, `gpt-image-2`, `dall-e-2` |
-| `OPENAI_RESPONSE_FORMAT` | Optional | OpenAI-compatible response field: `auto`, `b64_json`, `url`, `omit` |
-| `OPENAI_QUALITY` | Optional | OpenAI-compatible quality field: `auto`, `omit`, `low`, `medium`, `high`, `standard`, `hd` |
+When required rows stay unresolved after the confirmed path or `auto`'s A → B, keep them `Failed`, pause once with one consolidated list (filenames, prompts, attempted paths, concrete errors), and ask for exactly one outcome: **repair and retry** (the same confirmed path; `auto` keeps A → B; a repeat failure returns here with the new error), **generate manually** (record `AI Image Acquisition Path: manual` in `design_spec.md §I`, mark rows `Needs-Manual`, hand off, author up to the Step 7 readiness gate), or **cancel the affected AI images** (return to Step 4 as a post-confirmation override, remove the `ai` and dependent `slice` rows, revise their §IX jobs and lock rows to native text/SVG or confirmed non-AI sources, set the path `not applicable` when no AI rows remain, never add a new source or drop required content). Never create `Needs-Manual` before manual fulfillment is confirmed.
 
-> Use provider-specific names only (e.g. `GEMINI_API_KEY`, `OPENAI_API_KEY`). See `.env.example` in clone mode or `${SKILL_DIR}/.env.example` in skill-install mode for the full set per backend.
+#### Quick exhausted-automation no-AI replan
 
-> Note: OpenAI-compatible platforms that reject OpenAI-specific fields stay under `IMAGE_BACKEND=openai`; configure the `OPENAI_*` compatibility knobs instead of adding a provider-specific backend.
+Do not ask and do not enter Offline Manual: retain the filename, attempted path, concrete error, and replacement carrier for the completion report; remove the `ai` row, its dependent `slice` rows, and the manifest item; re-render `image_prompts.md` when other items remain, otherwise delete both manifest files; carry the communication job with native text/SVG or prepared non-AI assets; add no other source. Retaining AI imagery means repairing capability and a new Quick run.
 
-> `IMAGE_API_KEY`, `IMAGE_MODEL`, and `IMAGE_BASE_URL` are intentionally unsupported.
-
-> If `.env` or the current environment contains multiple provider configs, `IMAGE_BACKEND` explicitly selects the active one.
-
-**Support tiers (recommended usage)**: Core / Extended / Experimental. Run `image_gen.py --list-backends` for the current assignments.
-
-**Concurrency (manifest mode)**:
-- Default 3 concurrent requests, halves on the first rate-limit response, minimum 1 (= serial fallback)
-- Rate-limited items requeue automatically; per-item failures are recorded with `last_error` and skipped
-- Interrupting mid-run is safe — completed items keep `status: Generated` and are skipped on re-run
-- On normal completion the Markdown sidecar is re-rendered automatically; if the run is interrupted, run `--render-md` manually to refresh the sidecar
-
-### Path B — Host-Native Image Tool
-
-Triggered automatically when `IMAGE_BACKEND` is not configured (or Path A fails) **and** the host provides a native image generation tool (Codex, Antigravity, Claude Code's image tool, and similar). No user prompting required — the agent detects the host capability and proceeds. The user may also explicitly name this path ("use Codex's image tool") to force it even when `IMAGE_BACKEND` is configured.
-
-- Agent invokes the host's native image tool directly; prompts come from `items[].prompt`
-- Do **not** run `image_gen.py --manifest` in Path B. That command is Path A and may use configured API/proxy backends even when the user confirmed host-native.
-- Still run `python3 scripts/image_gen.py --render-md project/images/image_prompts.json` so the human-readable sidecar exists without touching any backend.
-- **Batch for speed, mind the rate**: when the host can run independent tool calls in parallel (e.g. Claude Code issues independent calls concurrently), fire several generations together in modest groups — a few rows at a time (~3–4), not the whole manifest at once — so their latency overlaps without flooding the host's image quota. When the host only runs tools serially, generate one row at a time. This mirrors Path A's default concurrency of 3.
-- Outputs **must** land at `project/images/<filename-from-resource-list>`. Match the Image Resource List dimensions when the host supports arbitrary sizes. Hosts with **fixed native resolutions** (common — e.g. ~1672x941 landscape / ~1086x1448 portrait) generate at the closest native size and backfill the actual pixels into the resource list `Dimensions` column — same convention as formula rows ("actual dimensions from formula manifest") and slice rows ("dimensions filled after slicing"). Do **not** upscale the file to fake the requested size (interpolation adds no detail); minor display-side upscaling (up to ~1.3x in practice) may surface as a non-blocking quality-checker warning and requires no acknowledgement.
-- Mark each item's `status` `Generated` in the manifest the moment its file lands — as each completes, not in one pass at the end (so an interrupted batch leaves accurate state)
-- Executor downstream is path-agnostic — no spec change required between Path A and Path B
-
-### Offline Manual Mode (C's third implementation mode)
-
-**Trigger**: the automatic chain reaches this point after both Path A and Path B fail or are unavailable, the user explicitly confirmed `manual`, or an explicitly confirmed automated path still fails after its own retry.
-
-**Workflow** (no user prompting; system enters this mode automatically):
-
-1. Verify `images/image_prompts.json` was written
-2. Set `status: "Needs-Manual"` on every affected item per [`image-base.md`](./image-base.md) §6
-3. Continue to Step 6 — Executor draws a dashed placeholder for each `Needs-Manual` row; the Step 7 image readiness gate verifies the supplied files and swaps them in
-4. Print one consolidated handoff to the user:
-   - Filenames awaiting manual generation
-   - Pointer to `images/image_prompts.md` (paste-ready `### Image N:` block per item) or `image_prompts.json` (`items[].prompt`)
-   - Target placement: `project/images/<filename>` matching the resource list exactly
-   - Resume command: re-run Step 7 once all expected files exist
-
-**User-initiated**: When Strategist Step 4 captured "user wants manual generation" up front, Path A is skipped from the start; the workflow above runs as a planned mode.
-
-> The pipeline tolerates `Needs-Manual` rows end-to-end. The user can leave the project, generate offline at their own pace, then resume Step 7.
-
-#### AI-specific Failure Handling (extends image-base.md §6)
-
-When the path is `auto` and Path A's backend fails twice in a row:
-
-1. Do not halt. Automatically attempt to fall back to **Path B (Host-Native Tool)**.
-2. If Path B also fails or is unavailable, mark the row `Needs-Manual`.
-3. Report to user: filename, prompt used, error message.
-4. Fall through to **Offline Manual Mode** above.
-
-When `api` or `host-native` was explicitly confirmed, failure or unavailability does not authorize an automated provider switch. Retry the confirmed path once; if it still fails, mark the row `Needs-Manual`, report the filename/prompt/error, and use the manual handoff above.
-
-> If the alternate platform watermarks outputs (e.g. Gemini web), the repository includes `scripts/gemini_watermark_remover.py`.
-
-#### Guardrails (All Modes)
-
-**Hard rule**:
-
-- Do not claim an image is generated without an actual file at the expected path
-- `Needs-Manual` is set only when `manual` was confirmed or the selected automated recovery path was attempted and failed — not as a way to skip work that automation could have done
-- Status transitions are evidence-driven: a file at the expected path permits `Generated`; an exhausted recovery path permits `Needs-Manual`
+**Failure handling** (extends [`image-base.md`](./image-base.md) §3): on `auto`, two consecutive Path A failures fall to Path B without halting; if B also fails, Default enters the decision above and Quick the replan. A confirmed `api` or `host-native` path is retried once, never switched. If an alternate platform watermarks outputs (e.g. Gemini web), `scripts/gemini_watermark_remover.py` exists. **Guardrails**: never claim an image exists without a file at its path; `Needs-Manual` only on confirmed or explicit manual; status transitions are evidence-driven — a file permits `Generated`, exhausted Default automation stays `Failed` until a retry succeeds or the user chooses, exhausted Quick rows leave only through the replan.
 
 ---
 
 ## 8. Common Issues & Variant Workflow
 
-### Reference field is omitted or blank — declared-inference fallback for existing AI rows
+**Blank `Reference` on an existing AI row — declared inference** from a non-empty `Purpose` (stop and repair when `Purpose` is blank too): cover → `hero_page` + Primitive A or D; chapter divider → `hero_page` + D or A, chapter title in SVG; methodology / framework → `type: framework`, `local`; process → `type: flowchart`, `local`; before/after → `type: comparison`, `local`; team or lifestyle group → `type: scene`, `local`, `corporate-photo` or `warm-scene`; headshot → `local` + Primitive B, `corporate-photo`; big number or hero quote → `hero_page` + Primitive C, `embedded`; mood transition → `hero_page` + D, or `type: scene` when narrative.
 
-When an existing AI Resource List row omits `Reference` or contains a blank `Reference`, infer a reasonable image from its non-empty `Purpose`. If `Purpose` is also omitted or blank, stop and repair the row. Examples (not prescriptions):
+**Unsatisfactory images** — adjust the one dimension responsible, never rewrite the whole prompt:
 
-| Purpose | A reasonable starting point |
-|---------|-----------------------------|
-| Cover | `page_role: hero_page` + §4.1 Primitive A (single-subject) or D (atmospheric); choose `text_policy` by what the cover should communicate |
-| Chapter divider | `page_role: hero_page` + Primitive D (atmospheric) or A (single-subject); often `text_policy: embedded` with a designed chapter title |
-| Methodology / framework illustration | `type: framework`, `page_role: local` |
-| Process / workflow illustration | `type: flowchart`, `page_role: local` |
-| Before/After or two-option page | `type: comparison`, `page_role: local` |
-| Team / lifestyle photo (group) | `type: scene`, `page_role: local`; rendering = `corporate-photo` or `warm-scene` |
-| Single-person headshot / bio | `page_role: local` + §4.1 Primitive B (portrait); rendering = `corporate-photo` for photo realism |
-| Big-number / hero quote block | `page_role: hero_page` + §4.1 Primitive C (typographic); `text_policy: embedded` |
-| Mood transition / atmosphere | `page_role: hero_page` + Primitive D (atmospheric), or `type: scene` if narrative |
-
-### When Images Are Unsatisfactory
-
-Diagnose the failure category, adjust the **one specific dimension** responsible, do not rewrite the whole prompt.
-
-| Symptom | Most likely cause | Adjustment |
+| Symptom | Cause | Adjustment |
 |---|---|---|
-| Image looks generic, model-average | Tag-soup prompt | Rewrite as one coherent paragraph per §4 |
-| Wrong style family (looks photorealistic when flat was intended) | Rendering mismatch or rendering paragraph diluted | Reaffirm chosen rendering's style paragraph at the top of the prompt |
-| Colors don't match deck | Core role anchors or their semantic/proportion instructions were diluted | Restate which deck roles own the field, main forms, and sparse accents; remove unrelated hues while preserving context-justified tonal transitions |
-| Hex code or color name visible as text in image | Missing §5.1 closing sentence | Append the §5.1 hard rule verbatim |
-| Garbled letters in supposedly text-free image | `text_policy: none` rule too weak | Strengthen with explicit list: "no letters, no numbers, no words, no signs, no labels, no captions, no watermarks" |
-| SVG text overlay clashes with busy image area | Page design needs negative space the prompt didn't request | Add a composition cue like "leave the {center / left third / lower band} relatively calm for text overlay" — only when the page actually overlays text on top of the image |
-| Subject vague | Reference field too abstract | Rewrite reference with concrete nouns (verbs + objects) |
-| Faces too realistic / uncanny | §5.2 rule omitted, or rendering is photo-incompatible | Either append §5.2, or switch rendering to a non-photo family |
+| Generic, model-average | Tag-soup prompt | One coherent paragraph per §4 |
+| Wrong style family | Rendering paragraph diluted | Reaffirm the rendering paragraph at the top |
+| Colors off-deck | Role anchors or proportions diluted | Restate which roles own field, forms, and accents; remove unrelated hues |
+| Lettering unrelated, overdecorated, or too dominant | Expression exceeded the deck identity or planned weight | Keep the string and family; lower effect density, ornament, contrast, or lighting energy |
+| Lettering surrounded by mountains, buildings, animals, icons, ribbons | The model turned topic context into an unrequested lockup | Remove every external motif; express identity through glyph structure, material, texture, depth, light |
+| HEX or color name visible as text | Missing §5.1 sentence | Append it verbatim |
+| Garbled letters in a text-free image | `none` cue too weak | Enumerate: no letters, numbers, words, signs, labels, captions, watermarks |
+| SVG overlay clashes with a busy region | No calm-region cue | Add "leave the {center / left third / lower band} calm for text overlay" only when text really overlays |
+| Subject vague | Abstract Reference | Concrete nouns (verbs + objects) |
+| Human depiction off-style | §5.2 cues diluted | Restate the rendering's facial detail, anatomy, texture, realism |
 
-**Variant workflow**:
-
-1. Set the unsatisfactory item's `status` back to `Pending` and update its `prompt` in place
-2. Re-run the same confirmed path used for the original item: Path A may re-run `image_gen.py --manifest` (only that item is re-processed); Path B uses the host-native tool again for that item; Offline Manual re-renders the sidecar and hands off
-3. To try multiple stylistic approaches, append additional items with distinct filenames (e.g. `cover_bg_v2.png`) rather than overwriting
+**Variant workflow**: set the item's `status` back to `Pending`, update its `prompt` in place, rerun the same resolved path (Path A reprocesses only that item; Path B regenerates it; Manual re-renders the sidecar); for several stylistic tries append items with distinct filenames (`cover_bg_v2.png`).
 
 ---
 
 ## 9. Forbidden
 
-- Generating prompts for `web` rows — those go through [`image-searcher.md`](./image-searcher.md)
-- Brand names or HEX codes inside the subject description (degrades output)
-- Mixing renderings or introducing an unrelated image-only palette across images in the same deck
-- Tag-soup prompts (keyword lists separated by commas without a coherent visual scene)
-- Globbing `image-renderings/*.md` or any subdirectory — read only the chosen preset or exact custom-reference files
-- Placing an image without updating its `image_prompts.json` `status` and the resource list status
-- Switching rendering or core deck-color semantics for a single image—`hero_page` is not an exception to deck-wide coherence
-- Embedding body copy, data points, bullet lists, or long quotes inside an image — those route to SVG
+- Prompts for `web` rows — those go through [`image-searcher.md`](./image-searcher.md)
+- Brand names or HEX codes inside the subject description
+- Mixing renderings or an unrelated image-only palette within one deck — `hero_page` is no exception
+- Tag-soup prompts
+- Globbing `image-renderings/*.md` or any subdirectory
+- Placing an image without updating `image_prompts.json` `status` and the resource authority
+- Embedding body copy, data points, bullet lists, or long quotes in an image

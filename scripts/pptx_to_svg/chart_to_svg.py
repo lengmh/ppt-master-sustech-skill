@@ -7,6 +7,8 @@ payload when the chart XML cache can be mapped to the current chart schema.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import math
 import re
 from dataclasses import dataclass
@@ -249,7 +251,13 @@ def _payload_from_chart_xml(
             has_date_axis or chart_tag in {"bubbleChart", "scatterChart"}
         ),
     )
-    _apply_chart_metadata(payload, chart_root, plot_area, chart)
+    _apply_chart_metadata(
+        payload,
+        chart_root,
+        plot_area,
+        chart,
+        palette=palette,
+    )
     return payload, visual_styles
 
 
@@ -261,16 +269,46 @@ def _combo_payload(
     *,
     palette: ColorPalette | None,
 ) -> tuple[dict[str, Any], list[SeriesVisualStyle]]:
-    series_indices_by_plot = [
-        _plot_series_indices(chart, "unsupported-combo-series-order")
+    series_identifiers_by_plot = [
+        _plot_series_identifiers(chart, "unsupported-combo-series-order")
         for chart in chart_nodes
     ]
-    flat_series_indices = [
-        index
-        for series_indices in series_indices_by_plot
-        for index in series_indices
+    source_indices_by_plot = [
+        identifiers[0] for identifiers in series_identifiers_by_plot
     ]
-    if sorted(flat_series_indices) != list(range(len(flat_series_indices))):
+    source_orders_by_plot = [
+        identifiers[1] for identifiers in series_identifiers_by_plot
+    ]
+    flat_source_indices = [
+        index
+        for indices in source_indices_by_plot
+        for index in indices
+    ]
+    flat_source_orders = [
+        order
+        for orders in source_orders_by_plot
+        for order in orders
+    ]
+    expected_series_order = list(range(len(flat_source_orders)))
+    canonical_indices = (
+        flat_source_indices == flat_source_orders
+        and sorted(flat_source_indices) == expected_series_order
+    )
+    normalizable_indices = (
+        len(set(flat_source_indices)) == len(flat_source_indices)
+        and sorted(flat_source_orders) == expected_series_order
+    )
+    if canonical_indices:
+        series_indices_by_plot = source_indices_by_plot
+    elif normalizable_indices and palette is not None and not palette.strict:
+        palette._diagnose(
+            "combo-series-indices-normalized",
+            "Combo chart series idx values do not match their contiguous "
+            "display order",
+            "reindex series by their unique contiguous order values",
+        )
+        series_indices_by_plot = source_orders_by_plot
+    else:
         raise _UnsupportedChart("unsupported-combo-series-order")
     axes_by_id = _axis_nodes_by_id(plot_area)
     if not axes_by_id:
@@ -378,7 +416,7 @@ def _combo_payload(
             str(color)
             for color in plot_payload.get("style", {}).get("colors", [])
         )
-        _apply_plot_data_labels(plot_payload, chart)
+        _apply_plot_data_labels(plot_payload, chart, palette=palette)
         plot_entry: dict[str, Any] = {
             "axis": axis_name,
             "categories": list(plot_payload["categories"]),
@@ -424,6 +462,7 @@ def _combo_payload(
         chart_root,
         plot_area,
         chart_nodes[0],
+        palette=palette,
         include_plot_labels=False,
     )
     return payload, visual_styles
@@ -574,7 +613,13 @@ def _stock_payload(
         "type": "stock",
     }
     visual_styles = _chart_visual_styles(payload, chart, palette)
-    _apply_chart_metadata(payload, chart_root, plot_area, chart)
+    _apply_chart_metadata(
+        payload,
+        chart_root,
+        plot_area,
+        chart,
+        palette=palette,
+    )
     return payload, visual_styles
 
 
@@ -955,6 +1000,213 @@ def _chart_visual_styles(
     return styles
 
 
+def _representative_gradient_color(
+    gradient: ET.Element,
+    palette: ColorPalette | None,
+) -> tuple[str, float] | None:
+    """Collapse a chart gradient to one representative tolerant-mode color."""
+    resolved: list[tuple[str, float]] = []
+    for stop in gradient.findall("a:gsLst/a:gs", C_NS):
+        try:
+            color, opacity = resolve_color(
+                find_color_elem(stop),
+                palette,
+                strict=False,
+            )
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if color is not None:
+            resolved.append((color, opacity))
+    if not resolved:
+        return None
+    channels = [
+        tuple(int(color[offset:offset + 2], 16) for offset in (1, 3, 5))
+        for color, _opacity in resolved
+    ]
+    averaged = tuple(
+        round(sum(channel[index] for channel in channels) / len(channels))
+        for index in range(3)
+    )
+    color = "#" + "".join(f"{value:02X}" for value in averaged)
+    opacity = sum(value for _color, value in resolved) / len(resolved)
+    return color, max(0.0, min(1.0, opacity))
+
+
+def _representative_fill(
+    container: ET.Element | None,
+    palette: ColorPalette | None,
+) -> tuple[str | None, float, bool]:
+    """Return a flat color approximation for one chart fill container."""
+    if container is None:
+        return None, 1.0, False
+    if container.find("a:noFill", C_NS) is not None:
+        return None, 1.0, True
+    solid = container.find("a:solidFill", C_NS)
+    if solid is not None:
+        try:
+            color, opacity = resolve_color(
+                find_color_elem(solid),
+                palette,
+                strict=False,
+            )
+        except (TypeError, ValueError, OverflowError):
+            color = None
+            opacity = 1.0
+        if color is not None:
+            return color.upper(), max(0.0, min(1.0, opacity)), True
+    gradient = container.find("a:gradFill", C_NS)
+    if gradient is not None:
+        representative = _representative_gradient_color(gradient, palette)
+        if representative is not None:
+            return representative[0].upper(), representative[1], True
+    return None, 1.0, False
+
+
+def _normalized_line_paint(
+    line: ET.Element | None,
+    palette: ColorPalette | None,
+) -> _LinePaint | None:
+    if line is None:
+        return None
+    color, opacity, explicit = _representative_fill(line, palette)
+    raw_width = line.attrib.get("w", "")
+    width = int(raw_width) / 9525.0 if raw_width.isdigit() else 1.5
+    width = max(0.0, min(1000.0, width))
+    cap = {
+        "rnd": "round",
+        "sq": "square",
+        "flat": "butt",
+    }.get(line.attrib.get("cap"), "round")
+    return _LinePaint(
+        color,
+        opacity,
+        width,
+        cap,
+        not (explicit and color is None),
+        not explicit,
+    )
+
+
+def _normalized_shape_paint(
+    sp_pr: ET.Element | None,
+    palette: ColorPalette | None,
+) -> _ShapePaint:
+    fill, opacity, explicit = _representative_fill(sp_pr, palette)
+    line = (
+        _normalized_line_paint(sp_pr.find("a:ln", C_NS), palette)
+        if sp_pr is not None
+        else None
+    )
+    return _ShapePaint(fill, opacity, explicit, line)
+
+
+def _normalized_marker_paint(
+    marker: ET.Element | None,
+    palette: ColorPalette | None,
+) -> _MarkerPaint:
+    if marker is None:
+        return _MarkerPaint(None, 5.0, _normalized_shape_paint(None, palette))
+    symbol = _element_val(marker.find("c:symbol", C_NS))
+    if symbol not in {None, "circle", "none"}:
+        symbol = "circle"
+    raw_size = _element_val(marker.find("c:size", C_NS))
+    try:
+        size = float(raw_size) if raw_size is not None else 5.0
+    except (TypeError, ValueError, OverflowError):
+        size = 5.0
+    return _MarkerPaint(
+        symbol,
+        max(2.0, min(72.0, size)),
+        _normalized_shape_paint(marker.find("c:spPr", C_NS), palette),
+    )
+
+
+def _normalized_chart_visual_styles(
+    payload: dict[str, Any],
+    plot: ET.Element,
+    palette: ColorPalette | None,
+) -> list[SeriesVisualStyle]:
+    """Keep chart data visible when source-only styling is not portable."""
+    chart_type = payload["type"]
+    series_nodes = plot.findall("c:ser", C_NS)
+    styles: list[SeriesVisualStyle] = []
+    if chart_type in {"pie", "doughnut", "of_pie"} and series_nodes:
+        expected_count = len(payload["categories"])
+        if chart_type == "of_pie":
+            expected_count += 1
+        series = series_nodes[0]
+        base_shape = _normalized_shape_paint(
+            series.find("c:spPr", C_NS),
+            palette,
+        )
+        points: dict[int, _ShapePaint] = {}
+        for point in series.findall("c:dPt", C_NS):
+            raw_index = _element_val(point.find("c:idx", C_NS))
+            if raw_index is None or not raw_index.isdigit():
+                continue
+            point_index = int(raw_index)
+            if 0 <= point_index < expected_count:
+                points[point_index] = _normalized_shape_paint(
+                    point.find("c:spPr", C_NS),
+                    palette,
+                )
+        for index in range(expected_count):
+            auto = _automatic_color(palette, index)
+            shape = points.get(index, base_shape)
+            fill = shape.fill if shape.fill_explicit else auto
+            line = shape.line
+            stroke = _line_color(line, "#FFFFFF")
+            styles.append(
+                SeriesVisualStyle(
+                    fill=fill,
+                    fill_opacity=shape.fill_opacity,
+                    stroke=stroke,
+                    stroke_opacity=line.opacity if line is not None else 1.0,
+                    stroke_width=line.width if line is not None else 1.0,
+                    line_cap=line.cap if line is not None else "round",
+                    marker_fill=fill,
+                    marker_stroke=stroke,
+                )
+            )
+    else:
+        for index, series in enumerate(series_nodes):
+            shape = _normalized_shape_paint(
+                series.find("c:spPr", C_NS),
+                palette,
+            )
+            if not shape.fill_explicit:
+                first_point = series.find("c:dPt/c:spPr", C_NS)
+                point_shape = _normalized_shape_paint(first_point, palette)
+                if point_shape.fill_explicit:
+                    shape = _ShapePaint(
+                        point_shape.fill,
+                        point_shape.fill_opacity,
+                        True,
+                        shape.line,
+                    )
+            styles.append(
+                _series_visual_style(
+                    shape,
+                    _normalized_marker_paint(
+                        series.find("c:marker", C_NS),
+                        palette,
+                    ),
+                    chart_type=chart_type,
+                    auto_color=_automatic_color(palette, index),
+                )
+            )
+    colors = [
+        style.fill
+        or style.stroke
+        or style.marker_fill
+        or _automatic_color(palette, index)
+        for index, style in enumerate(styles)
+    ]
+    if colors:
+        payload["style"] = {"colors": colors}
+    return styles
+
+
 def _strict_axis_bool(elem: ET.Element | None, default: bool) -> bool:
     if elem is None:
         return default
@@ -989,8 +1241,12 @@ def _validate_canonical_series_order(
             expected_index += 1
 
 
-def _plot_series_indices(plot: ET.Element, status: str) -> list[int]:
+def _plot_series_identifiers(
+    plot: ET.Element,
+    status: str,
+) -> tuple[list[int], list[int]]:
     indices: list[int] = []
+    orders: list[int] = []
     for series in plot.findall("c:ser", C_NS):
         values: list[int] = []
         for child_name in ("idx", "order"):
@@ -1005,12 +1261,15 @@ def _plot_series_indices(plot: ET.Element, status: str) -> list[int]:
             ):
                 raise _UnsupportedChart(status)
             values.append(int(raw_value))
-        if values[0] != values[1]:
-            raise _UnsupportedChart(status)
         indices.append(values[0])
-    if not indices or len(set(indices)) != len(indices):
+        orders.append(values[1])
+    if (
+        not indices
+        or len(set(indices)) != len(indices)
+        or len(set(orders)) != len(orders)
+    ):
         raise _UnsupportedChart(status)
-    return indices
+    return indices, orders
 
 
 def _axis_number(elem: ET.Element | None) -> int | float | None:
@@ -1605,7 +1864,26 @@ def _validate_chart_semantics(
     """Reject valid chart features the compact marker cannot reproduce."""
     chart_type = payload["type"]
     grouping = payload.get("grouping")
-    visual_styles = _chart_visual_styles(payload, plot, palette)
+    try:
+        visual_styles = _chart_visual_styles(payload, plot, palette)
+    except _UnsupportedChart as exc:
+        if (
+            exc.status != "unsupported-chart-series-style"
+            or palette is None
+            or palette.strict
+        ):
+            raise
+        palette._diagnose(
+            "chart-series-style-normalized",
+            "Chart series styling uses DrawingML features outside the native "
+            "flat-color chart contract",
+            "preserve chart data and use representative flat series colors",
+        )
+        visual_styles = _normalized_chart_visual_styles(
+            payload,
+            plot,
+            palette,
+        )
     for tag in (
         "trendline", "errBars", "dropLines", "hiLowLines", "upDownBars",
     ):
@@ -1700,9 +1978,13 @@ def _validate_chart_semantics(
         if first_slice not in {None, "0"}:
             raise _UnsupportedChart("unsupported-chart-pie-options")
     if chart_type == "doughnut":
-        hole_size = _element_val(plot.find("c:holeSize", C_NS))
-        if hole_size != "75":
+        raw_hole_size = _element_val(plot.find("c:holeSize", C_NS))
+        if raw_hole_size is None or not raw_hole_size.isdigit():
             raise _UnsupportedChart("unsupported-chart-doughnut-options")
+        hole_size = int(raw_hole_size)
+        if not 10 <= hole_size <= 90:
+            raise _UnsupportedChart("unsupported-chart-doughnut-options")
+        payload["hole_size"] = hole_size
     if chart_type == "of_pie":
         for tag in ("splitType", "splitPos", "custSplit"):
             if plot.find(f"c:{tag}", C_NS) is not None:
@@ -1716,14 +1998,74 @@ def _validate_chart_semantics(
     return visual_styles
 
 
-def _apply_plot_data_labels(payload: dict[str, Any], plot: ET.Element) -> None:
-    if plot.find("c:ser/c:dLbls", C_NS) is not None:
+def _apply_plot_data_labels(
+    payload: dict[str, Any],
+    plot: ET.Element,
+    *,
+    palette: ColorPalette | None = None,
+) -> None:
+    chart_type = str(payload.get("type") or "")
+    series_nodes = plot.findall("c:ser", C_NS)
+    series_payloads = payload.get("series")
+    if not isinstance(series_payloads, list) or len(series_payloads) != len(series_nodes):
         raise _UnsupportedChart("unsupported-chart-series-data-labels")
-    data_labels = _data_labels_payload(plot.find("c:dLbls", C_NS))
+
+    for series_node, series_payload in zip(series_nodes, series_payloads):
+        dlabels = series_node.find("c:dLbls", C_NS)
+        if dlabels is None:
+            continue
+        if chart_type not in {"area", "bar", "column", "line"}:
+            if palette is None or palette.strict:
+                raise _UnsupportedChart("unsupported-chart-series-data-labels")
+            palette._diagnose(
+                "chart-series-data-labels-omitted",
+                "Per-series chart data labels are outside the native contract "
+                f"for {chart_type} charts",
+                "keep the chart data and any supported plot-level labels",
+            )
+            continue
+        point_count = len(series_payload.get("values") or [])
+        try:
+            series_labels = _data_labels_payload(
+                dlabels,
+                palette=palette,
+                point_count=point_count,
+                preserve_source=True,
+            )
+            if not series_labels:
+                continue
+            validate_data_label_position(
+                series_labels.get("position"),
+                chart_type,
+                payload.get("grouping"),
+            )
+        except (_UnsupportedChart, RuntimeError):
+            if palette is None or palette.strict:
+                raise _UnsupportedChart("unsupported-chart-series-data-labels") from None
+            palette._diagnose(
+                "chart-series-data-labels-omitted",
+                "Source per-series chart data labels could not be normalized",
+                "keep the chart data and any supported plot-level labels",
+            )
+            continue
+        series_payload["data_labels"] = series_labels
+
+    data_labels = _data_labels_payload(
+        plot.find("c:dLbls", C_NS),
+        palette=palette,
+    )
     if not data_labels:
         return
     if payload["type"] not in {"area", "bar", "column", "line"}:
-        raise _UnsupportedChart("unsupported-chart-data-labels")
+        if palette is None or palette.strict:
+            raise _UnsupportedChart("unsupported-chart-data-labels")
+        palette._diagnose(
+            "chart-data-labels-normalized",
+            "Source data-label options are outside the native contract for "
+            f'{payload["type"]} charts',
+            "use the normalized SVG chart label layout",
+        )
+        return
     try:
         validate_data_label_position(
             data_labels.get("position"),
@@ -1741,6 +2083,7 @@ def _apply_chart_metadata(
     plot_area: ET.Element,
     plot: ET.Element,
     *,
+    palette: ColorPalette | None = None,
     include_plot_labels: bool = True,
 ) -> None:
     """Copy visible classic-chart chrome supported by the native schema."""
@@ -1770,7 +2113,7 @@ def _apply_chart_metadata(
             payload["legend_position"] = position
 
     if include_plot_labels:
-        _apply_plot_data_labels(payload, plot)
+        _apply_plot_data_labels(payload, plot, palette=palette)
 
     axis_titles: dict[str, str] = {}
     category_axis_nodes = (
@@ -2059,13 +2402,181 @@ def _data_label_text_style(tx_pr: ET.Element) -> dict[str, Any]:
     return style
 
 
-def _data_labels_payload(dlabels: ET.Element | None) -> dict[str, Any] | None:
+_DATA_LABEL_POSITION_ALIASES = {
+    "bestFit": "best_fit",
+    "ctr": "center",
+    "inBase": "inside_base",
+    "inEnd": "inside_end",
+    "outEnd": "outside_end",
+    "t": "above",
+}
+
+
+def _data_label_position_payload(owner: ET.Element) -> str | None:
+    position = _element_val(owner.find("c:dLblPos", C_NS))
+    if not position:
+        return None
+    normalized = _DATA_LABEL_POSITION_ALIASES.get(position)
+    if normalized is None:
+        raise _UnsupportedChart("unsupported-chart-data-labels")
+    return normalized
+
+
+def _data_label_flag_payload(
+    owner: ET.Element,
+    *,
+    include_missing: bool,
+) -> dict[str, bool]:
+    config: dict[str, bool] = {}
+    for tag, field in (
+        ("showVal", "show_value"),
+        ("showCatName", "show_category"),
+        ("showSerName", "show_series"),
+        ("showPercent", "show_percent"),
+    ):
+        elem = owner.find(f"c:{tag}", C_NS)
+        if elem is not None:
+            config[field] = ooxml_bool(elem.attrib.get("val"), True)
+        elif include_missing:
+            config[field] = False
+    return config
+
+
+def _source_data_label_text_style(
+    owner: ET.Element,
+    palette: ColorPalette | None,
+) -> dict[str, Any]:
+    """Read visible label run properties without requiring canonical OOXML."""
+    r_pr = owner.find(".//a:defRPr", C_NS)
+    if r_pr is None:
+        r_pr = owner.find(".//a:rPr", C_NS)
+    if r_pr is None:
+        return {}
+
+    style: dict[str, Any] = {}
+    raw_size = r_pr.attrib.get("sz")
+    if raw_size is not None:
+        try:
+            size_px = float(raw_size) / 75.0
+        except ValueError:
+            size_px = 0.0
+        if size_px > 0 and math.isfinite(size_px):
+            style["font_size"] = (
+                int(size_px) if size_px.is_integer() else round(size_px, 3)
+            )
+    if r_pr.attrib.get("b") is not None:
+        style["bold"] = ooxml_bool(r_pr.attrib.get("b"), True)
+
+    solid_fill = r_pr.find("a:solidFill", C_NS)
+    color_elem = find_color_elem(solid_fill)
+    if color_elem is not None:
+        color, alpha = resolve_color(color_elem, palette)
+        if alpha > 0:
+            style["color"] = color
+
+    latin = r_pr.find("a:latin", C_NS)
+    east_asian = r_pr.find("a:ea", C_NS)
+    latin_face = latin.attrib.get("typeface", "").strip() if latin is not None else ""
+    east_asian_face = (
+        east_asian.attrib.get("typeface", "").strip()
+        if east_asian is not None else ""
+    )
+    font_face = (
+        f"{latin_face}, {east_asian_face}"
+        if latin_face and east_asian_face and latin_face != east_asian_face
+        else latin_face or east_asian_face
+    )
+    if font_face:
+        style["font_family"] = font_face
+    return style
+
+
+def _point_data_label_payload(
+    dlabel: ET.Element,
+    *,
+    palette: ColorPalette | None,
+    point_count: int,
+) -> dict[str, Any]:
+    allowed_children = {
+        "dLblPos", "delete", "extLst", "idx", "numFmt", "showBubbleSize",
+        "showCatName", "showLegendKey", "showPercent", "showSerName",
+        "showVal", "spPr", "tx", "txPr",
+    }
+    if any(_local_name(child.tag) not in allowed_children for child in dlabel):
+        raise _UnsupportedChart("unsupported-chart-point-labels")
+    idx = _element_val(dlabel.find("c:idx", C_NS))
+    if idx is None or not idx.isdigit():
+        raise _UnsupportedChart("unsupported-chart-point-labels")
+    point_index = int(idx)
+    if point_index < 0 or point_index >= point_count:
+        raise _UnsupportedChart("unsupported-chart-point-labels")
+
+    for tag in ("showLegendKey", "showBubbleSize"):
+        elem = dlabel.find(f"c:{tag}", C_NS)
+        if elem is not None and ooxml_bool(elem.attrib.get("val"), True):
+            raise _UnsupportedChart("unsupported-chart-point-labels")
+
+    item: dict[str, Any] = {"idx": point_index}
+    delete = dlabel.find("c:delete", C_NS)
+    if delete is not None:
+        item["delete"] = ooxml_bool(delete.attrib.get("val"), True)
+    item.update(_data_label_flag_payload(dlabel, include_missing=False))
+    position = _data_label_position_payload(dlabel)
+    if position:
+        item["position"] = position
+    num_fmt = dlabel.find("c:numFmt", C_NS)
+    if num_fmt is not None and num_fmt.attrib.get("formatCode"):
+        item["number_format"] = num_fmt.attrib["formatCode"]
+    tx_pr = dlabel.find("c:txPr", C_NS)
+    if tx_pr is not None:
+        item.update(_source_data_label_text_style(tx_pr, palette))
+
+    tx = dlabel.find("c:tx", C_NS)
+    if tx is not None:
+        rich = tx.find("c:rich", C_NS)
+        if rich is None or len(list(tx)) != 1:
+            raise _UnsupportedChart("unsupported-chart-point-labels")
+        paragraphs = rich.findall("a:p", C_NS)
+        if not paragraphs:
+            raise _UnsupportedChart("unsupported-chart-point-labels")
+        lines = ["".join(node.text or "" for node in p.findall(".//a:t", C_NS)) for p in paragraphs]
+        text = "\n".join(lines)
+        if not text:
+            raise _UnsupportedChart("unsupported-chart-point-labels")
+        item["text"] = text
+        item.update(_source_data_label_text_style(rich, palette))
+    return item
+
+
+def _source_data_labels_ooxml(dlabels: ET.Element) -> dict[str, str]:
+    if any(
+        isinstance(name, str) and name.startswith(f"{{{NS['r']}}}")
+        for node in dlabels.iter()
+        for name in node.attrib
+    ):
+        raise _UnsupportedChart("unsupported-chart-series-data-labels")
+    payload = ET.tostring(dlabels, encoding="utf-8")
+    return {
+        "encoding": "base64",
+        "payload": base64.b64encode(payload).decode("ascii"),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+    }
+
+
+def _data_labels_payload(
+    dlabels: ET.Element | None,
+    *,
+    palette: ColorPalette | None = None,
+    point_count: int | None = None,
+    preserve_source: bool = False,
+) -> dict[str, Any] | None:
     if dlabels is None:
         return None
-    if dlabels.find("c:dLbl", C_NS) is not None:
+    point_nodes = dlabels.findall("c:dLbl", C_NS)
+    if point_nodes and point_count is None:
         raise _UnsupportedChart("unsupported-chart-point-labels")
     allowed_children = {
-        "numFmt", "txPr", "dLblPos", "showLegendKey", "showVal",
+        "dLbl", "extLst", "numFmt", "spPr", "txPr", "dLblPos", "showLegendKey", "showVal",
         "showCatName", "showSerName", "showPercent", "showBubbleSize",
         "showLeaderLines",
     }
@@ -2079,20 +2590,10 @@ def _data_labels_payload(dlabels: ET.Element | None) -> dict[str, Any] | None:
         if elem is not None and ooxml_bool(elem.attrib.get("val"), True):
             raise _UnsupportedChart("unsupported-chart-data-labels")
 
-    config: dict[str, Any] = {}
-    for tag, field in (
-        ("showVal", "show_value"),
-        ("showCatName", "show_category"),
-        ("showSerName", "show_series"),
-        ("showPercent", "show_percent"),
-    ):
-        elem = dlabels.find(f"c:{tag}", C_NS)
-        config[field] = (
-            ooxml_bool(elem.attrib.get("val"), True)
-            if elem is not None else False
-        )
-    if not any(config.values()):
-        return None
+    config: dict[str, Any] = _data_label_flag_payload(
+        dlabels,
+        include_missing=True,
+    )
 
     leader_lines = dlabels.find("c:showLeaderLines", C_NS)
     if leader_lines is not None:
@@ -2101,26 +2602,40 @@ def _data_labels_payload(dlabels: ET.Element | None) -> dict[str, Any] | None:
             True,
         )
 
-    position = _element_val(dlabels.find("c:dLblPos", C_NS))
+    position = _data_label_position_payload(dlabels)
     if position:
-        position_aliases = {
-            "bestFit": "best_fit",
-            "ctr": "center",
-            "inBase": "inside_base",
-            "inEnd": "inside_end",
-            "outEnd": "outside_end",
-            "t": "above",
-        }
-        normalized_position = position_aliases.get(position)
-        if normalized_position is None:
-            raise _UnsupportedChart("unsupported-chart-data-labels")
-        config["position"] = normalized_position
+        config["position"] = position
     num_fmt = dlabels.find("c:numFmt", C_NS)
     if num_fmt is not None and num_fmt.attrib.get("formatCode"):
         config["number_format"] = num_fmt.attrib["formatCode"]
     tx_pr = dlabels.find("c:txPr", C_NS)
     if tx_pr is not None:
-        config.update(_data_label_text_style(tx_pr))
+        try:
+            config.update(_data_label_text_style(tx_pr))
+        except _UnsupportedChart:
+            config.update(_source_data_label_text_style(tx_pr, palette))
+    if point_nodes:
+        assert point_count is not None
+        points = [
+            _point_data_label_payload(
+                point,
+                palette=palette,
+                point_count=point_count,
+            )
+            for point in point_nodes
+        ]
+        if len({point["idx"] for point in points}) != len(points):
+            raise _UnsupportedChart("unsupported-chart-point-labels")
+        config["points"] = points
+        if preserve_source:
+            config["source_ooxml"] = _source_data_labels_ooxml(dlabels)
+    if not any(
+        config.get(field)
+        for field in (
+            "points", "show_category", "show_percent", "show_series", "show_value",
+        )
+    ):
+        return None
     return config
 
 

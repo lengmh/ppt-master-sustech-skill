@@ -1,9 +1,11 @@
-/* PPT Master - Strategist confirmation stage UI
- * Stage 1 captures the communication contract, Stage 2 confirms a coherent
- * deck solution, and Stage 3 resolves production mechanics. Finite fields use
- * /static/catalogs.json; coordinated design directions seed color, typography,
- * icons, generated-image rendering, and conditional template-application prose.
- * Final confirm saves result.json.
+/* PPT Master - Strategist confirmation UI
+ * Stage 1 confirms the communication contract and the free-design/template
+ * choice together. Stage 2 combines the coherent deck solution and production
+ * mechanics, then writes the final result.
+ * Finite fields use /static/catalogs.json; coordinated design directions seed
+ * mode, visual style, color, typography, icons, and generated-image rendering,
+ * while template-application prose stays conditional. Final confirm saves the
+ * flattened current values to result.json.
  */
 (function () {
     "use strict";
@@ -14,19 +16,39 @@
             page_title: "PPT Master - Confirm Design",
             topbar_hint: "Answer the open questions, or pick and customize recommendations, then continue.",
             stage_anchors: "Stage 1 · Communication contract",
-            stage_design: "Stage 2 · Deck direction & visual system",
-            stage_images: "Stage 3 · Resources & production",
+            stage_final_plan: "Stage 2 · Final plan & production",
             loading: "Loading…",
-            load_error: "Could not load recommendations.json. The AI must write it before launch.",
+            load_error: "Could not load the current recommendation stage. The AI must write it before launch.",
             btn_confirm: "Confirm",
             btn_confirm_contract: "Confirm contract & continue →",
-            btn_confirm_solution: "Confirm solution & continue →",
+            btn_confirm_final_plan: "Confirm final plan →",
             deriving: "Generating the downstream options from your choices…",
+            template_selection_required: "Choose free design or use templates. When using templates, select at least one workspace.",
+            template_selection_conflict: "Choose at most one workspace per kind.",
             connection_lost: "Connection to the confirm server was interrupted; retrying. If this keeps failing, return to the chat for confirmation.",
-            already_confirmed: "Already confirmed once. Re-submitting overwrites the previous choices.",
             confirmed_title: "✓ Confirmed",
             confirmed_hint: "Your choices are saved. You can close this page and return to the chat.",
             lang_toggle_title: "Switch language",
+            sec_template_choice: "Design basis",
+            template_choice_hint: "Choose how this deck should establish its design system.",
+            template_free_title: "Design from the current content",
+            template_free_desc: "Use no reusable template workspace. The Strategist will derive the visual system from this project.",
+            template_use_title: "Use templates",
+            template_use_desc: "Select one or more reusable Brand, Style, Layout, Deck, or specified workspaces.",
+            sec_template_library: "Template combination",
+            template_library_hint: "Choose at most one workspace per kind. All four kinds can combine; Layout takes structural precedence over Deck.",
+            sec_template_explicit: "Specified templates",
+            template_explicit_hint: "Choose at most one exact workspace supplied for this run; every kind it contains is applied. Its source path is shown for verification.",
+            template_kind_brand: "Brand",
+            template_kind_style: "Style",
+            template_kind_layout: "Layout",
+            template_kind_deck: "Deck",
+            template_source_library: "Library",
+            template_source_explicit: "Specified path",
+            template_source_path: "Source path",
+            template_select_none: "None",
+            template_none_registered: "No registered templates",
+            template_none_explicit: "No specified templates for this run",
             sec_canvas: "Canvas format",
             sec_pages: "Page count",
             sec_audience: "Target audience",
@@ -39,13 +61,25 @@
             sec_type: "Typography",
             sec_images: "Image usage",
             sec_image_production: "Image production",
+            sec_proactive_execution: "Proactive execution",
             sec_mode: "Generation mode",
-            sec_refine: "Refine spec first",
+            sec_refine: "Review the Design Spec first",
+            sec_design_spec_depth: "Design Spec depth",
+            design_spec_depth_brief: "Brief",
+            design_spec_depth_brief_desc: "A short block list per page; no full page copy.",
+            design_spec_depth_complete: "Complete",
+            design_spec_depth_complete_desc: "Full page briefs with complete wording.",
+            design_spec_depth_locked: "Locked to Complete because split mode or Design Spec refinement is enabled.",
             sec_design_directions: "Coherent design directions",
-            design_directions_hint: "Each direction coordinates style, color, typography, icons, and generated-image rendering. You can fine-tune every field below.",
+            design_directions_hint: "The recommended complete direction is applied first. Choose another or fine-tune the projected fields below; use Restore to return an adjusted direction to its authored bundle.",
+            direction_active: "Applied",
+            direction_adjusted: "Adjusted",
+            direction_apply_hint: "Click to apply this complete direction.",
+            direction_restore: "Restore authored direction",
+            scheme_component_options: "Project-specific custom choices · select a card to edit",
             sec_template_application: "Template application",
-            template_application_hint: "The AI recommends how to apply the installed template to this deck. Revise the plan directly in natural language.",
-            placeholder_template_application: "Describe which template pages or prototypes to use, skip, repeat, or reorder; what must stay; and what may be replaced or reorganized.",
+            template_application_hint: "After reading every installed template SVG, the AI proposes one natural-language application plan. Edit it directly; this is not a mode selector.",
+            placeholder_template_application: "Name exact SVG files for page-specific rules; describe what to use, skip, repeat, or reorder, what stays fixed, and what may be replaced or reorganized.",
             sub_mode: "Narrative mode",
             sub_visual: "Visual style",
             sub_divergence: "Material divergence (how freely to reshape vs. stay close to the source)",
@@ -57,8 +91,9 @@
             placeholder_audience_outcome: "What should the audience know, understand, believe, decide, or do afterward?",
             core_message: "Core message / decision ask / action",
             placeholder_core_message: "Which claims, requests, or actions must land even if little else is remembered?",
-            delivery_context: "Delivery context",
-            placeholder_delivery_context: "e.g. 20-minute leadership review with a presenter; recording shared afterward.",
+            delivery_context: "Delivery context (name the primary)",
+            delivery_context_hint: "Distinguish presenter-led, reader-led, hybrid, or recorded/self-running. For hybrid use, state which mode leads and what secondary use must still work.",
+            placeholder_delivery_context: "e.g. Primary: presenter-led 20-minute leadership review. Secondary: reader-led approval copy shared afterward.",
             artifact_afterlife: "Artifact afterlife",
             placeholder_artifact_afterlife: "e.g. approval, review, audit, archive, hand-off, or reuse; leave blank when no later use is expected.",
             stage1_current_value_hint: "Editable fields contain recommendations. Keep, revise, or clear them; confirmation saves the current text exactly, including blank values.",
@@ -68,6 +103,7 @@
             ai_custom_candidate: "AI custom proposal",
             ai_custom_candidate_hint: "Always visible for comparison. It is not selected by default; select it to edit.",
             custom_behavior_required: "The selected AI custom proposal cannot be blank.",
+            custom_color_required: "Describe the custom color scheme before continuing.",
             design_system_required: "Choose a complete palette and typography system before continuing.",
             mode_behavior_placeholder: "Describe the act sequence, title voice, page rhythm, and presentation posture.",
             visual_style_behavior_placeholder: "Describe shape language, composition, decoration density, whitespace, typography character, and texture.",
@@ -75,10 +111,14 @@
             placeholder_audience: "Who is this deck for?",
             placeholder_pages: "e.g. 12-15",
             hex_override: "Custom HEX override:",
-            formula_policy: "Formula rendering policy",
             image_ai_path: "AI image source",
             image_strategy: "Generated image style",
-            image_strategy_empty: "No generated-image style candidates were provided.",
+            image_strategy_empty: "No preset style references are available. You can still use a custom style.",
+            image_strategy_required: "Choose a generated-image preset or describe a custom style.",
+            image_strategy_invalid: "The selected generated-image preset is not available.",
+            image_strategy_select_placeholder: "Choose a generated-image preset…",
+            image_strategy_recommended_group: "Recommended for this deck",
+            image_strategy_all_group: "All preset styles",
             image_strategy_rendering: "Rendering",
             image_strategy_visual: "Visual",
             image_strategy_mood: "Mood",
@@ -87,20 +127,34 @@
             image_strategy_custom_placeholder: "Describe the exact generated-image direction, subjects, composition, style cues, or things to avoid.",
             image_strategy_reference_hint: "Reference images show rendering only. Final AI images inherit the deck color scheme selected above.",
             image_strategy_no_reference: "No reference image for this custom choice.",
-            image_source_summary: "Confirmed image sources",
-            image_production_hint: "Image sources and rendering were confirmed in Stage 2. This stage only resolves the production path.",
+            image_source_summary: "Selected image sources",
+            image_production_hint: "Image sources and rendering are selected above. Resolve only the production path here.",
             image_usage_notes: "Additional image requirements",
             image_usage_notes_placeholder: "e.g. realistic handwashing scenes; avoid cartoon germs; keep product photos untouched.",
             image_usage_required: "Select at least one image usage option.",
             image_usage_none_exclusive: "No images cannot be combined with other image options.",
+            proactive_execution_hint: "These defaults apply only when you have not explicitly instructed otherwise. Your latest explicit instruction always takes priority.",
+            proactive_speaker_notes: "Proactively generate speaker notes",
+            proactive_speaker_notes_desc: "On by default. The agent generates speaker notes without a separate request.",
+            proactive_custom_animations: "Proactively create custom animations",
+            proactive_custom_animations_desc: "Off by default. Strategist motion suggestions remain available; turn this on to have the agent create custom animations without a separate request.",
+            proactive_narration_audio: "Proactively generate narration audio",
+            proactive_narration_audio_desc: "Off by default. This raw choice does not rewrite the speaker-notes toggle; the Strategist resolves narration's effective notes dependency in the Design Spec.",
             font_heading: "Heading",
             font_body: "Body",
+            font_selection: "Font selection",
+            primary_language_font: "Primary-language font",
+            english_font: "English font",
+            font_picker_hint: "Choosing a recommendation fills these selectors. Changing any font marks the typography as customized.",
+            other_installed_font: "Other installed font…",
+            other_font_placeholder: "Exact installed font name",
+            customized: "Customized",
             font_body_size: "Body baseline size",
             font_body_size_hint: "All type sizes derive from this body baseline.",
             body_size_unit_relation: "SVG px to PPT pt: 1px = 0.75pt.",
             body_size_pt_hint: "Approximately {pt} pt (1px = 0.75pt; saved as px).",
             role_size_pt_hint: "≈ {pt} pt",
-            body_size_hint_canvas: "This canvas suggests ~{lo}–{hi}px (scales with canvas height).",
+            body_size_hint_canvas: "This canvas suggests ~{lo}–{hi}px (from its effective canvas span).",
             body_size_hint_purpose: "This reading mode recommends {def}px — one fixed size, not a range.",
             body_size_hint_oor: "(Current value is outside the usual range for this canvas — check the unit is right and that it fits.)",
             delivery_purpose: "Reading mode",
@@ -110,7 +164,6 @@
             size_role_subtitle: "subtitle",
             size_role_annotation: "annotation",
             custom_typography: "Custom typography",
-            custom_typography_placeholder: "Type your font plan, e.g. Heading: Georgia + KaiTi; Body: Microsoft YaHei + Arial…",
             custom_color: "Custom color",
             custom_color_placeholder: "Describe your colors in words, e.g. deep navy primary, warm orange accent, white background — or paste HEX values…",
             role_background: "bg",
@@ -141,8 +194,8 @@
             preview_point_3_text: "The combination should stay readable at presentation scale.",
             mode_continuous_desc: "Generate the whole deck in one pass.",
             mode_split_desc: "Stop after the spec; resume SVG generation in a fresh window.",
-            refine_off_desc: "Spec is written in one go; the pipeline auto-proceeds.",
-            refine_on_desc: "Stop after the spec for review/revision before any generation.",
+            refine_off_desc: "Write the Design Spec and execution lock in sequence, then auto-proceed.",
+            refine_on_desc: "Stop after the Design Spec. Revise any part in chat; approval then creates the execution lock and continues generation.",
             off_default: "Off",
             on: "On",
             option_prefix: "Option",
@@ -152,19 +205,39 @@
             page_title: "PPT Master - デザイン確認",
             topbar_hint: "自由記述の質問に答えるか、提案を選択・調整して次へ進んでください。",
             stage_anchors: "ステージ 1 · コミュニケーション契約",
-            stage_design: "ステージ 2 · 全体方針とビジュアルシステム",
-            stage_images: "ステージ 3 · リソースと制作",
+            stage_final_plan: "ステージ 2 · 最終プランと制作",
             loading: "読み込み中…",
-            load_error: "recommendations.json を読み込めませんでした。起動前にAIが書き込む必要があります。",
+            load_error: "現在の推奨ステージを読み込めませんでした。起動前にAIが書き込む必要があります。",
             btn_confirm: "確定",
             btn_confirm_contract: "契約内容を確定して次へ →",
-            btn_confirm_solution: "全体方針を確定して次へ →",
+            btn_confirm_final_plan: "最終プランを確定 →",
             deriving: "選択内容をもとに後続の選択肢を生成しています…",
+            template_selection_required: "自由デザインまたはテンプレート利用を選んでください。テンプレート利用時は、1つ以上のワークスペースを選択してください。",
+            template_selection_conflict: "種類ごとにワークスペースを1件まで選択してください。",
             connection_lost: "確認ページのサーバー接続が中断されました。再試行しています。失敗が続く場合はチャットで確認してください。",
-            already_confirmed: "すでに一度確定済みです。再送信すると前回の選択を上書きします。",
             confirmed_title: "✓ 確定しました",
             confirmed_hint: "選択内容を保存しました。このページを閉じてチャットに戻ってください。",
             lang_toggle_title: "言語を切り替え",
+            sec_template_choice: "デザインの基準",
+            template_choice_hint: "この資料のデザインシステムをどう決めるか選択します。",
+            template_free_title: "現在の内容からデザインする",
+            template_free_desc: "再利用テンプレートを使わず、Strategist がこのプロジェクトからビジュアルシステムを組み立てます。",
+            template_use_title: "テンプレートを使用",
+            template_use_desc: "Brand、Style、Layout、Deck、または指定ワークスペースから1つ以上選択します。",
+            sec_template_library: "テンプレートの組み合わせ",
+            template_library_hint: "種類ごとにワークスペースを1件まで選択できます。4種類はすべて組み合わせ可能で、構造は Layout が Deck より優先されます。",
+            sec_template_explicit: "指定テンプレート",
+            template_explicit_hint: "この実行で指定された正確なワークスペースを1件まで選択でき、そこに含まれる種別はすべて適用されます。確認用に参照元パスを表示します。",
+            template_kind_brand: "Brand",
+            template_kind_style: "Style",
+            template_kind_layout: "Layout",
+            template_kind_deck: "Deck",
+            template_source_library: "ライブラリ",
+            template_source_explicit: "指定パス",
+            template_source_path: "参照元パス",
+            template_select_none: "なし",
+            template_none_registered: "登録済みテンプレートはありません",
+            template_none_explicit: "この実行で指定されたテンプレートはありません",
             sec_canvas: "キャンバス形式",
             sec_pages: "ページ数",
             sec_audience: "想定読者",
@@ -177,13 +250,25 @@
             sec_type: "タイポグラフィ",
             sec_images: "画像の使用",
             sec_image_production: "画像制作",
+            sec_proactive_execution: "能動的な実行",
             sec_mode: "生成モード",
-            sec_refine: "先に設計仕様を精査",
+            sec_refine: "先に設計仕様を確認",
+            sec_design_spec_depth: "設計仕様の詳細度",
+            design_spec_depth_brief: "簡潔",
+            design_spec_depth_brief_desc: "各ページを短いブロック一覧で記し、全文は書きません。",
+            design_spec_depth_complete: "完全",
+            design_spec_depth_complete_desc: "完全な文言を含む各ページの詳細なブリーフを記載します。",
+            design_spec_depth_locked: "分割モードまたは設計仕様のレビューが有効なため、「完全」に固定されています。",
             sec_design_directions: "統合デザイン方針",
-            design_directions_hint: "各案はスタイル、配色、書体、アイコン、生成画像のレンダリングを一体で提案します。下の各項目で微調整できます。",
+            design_directions_hint: "おすすめの全体案が最初に適用されています。別案を選ぶか、下の各項目を微調整できます。調整後は「元の案に戻す」で最初の組み合わせを復元できます。",
+            direction_active: "適用中",
+            direction_adjusted: "調整済み",
+            direction_apply_hint: "クリックすると、この全体案を適用します。",
+            direction_restore: "元の案に戻す",
+            scheme_component_options: "プロジェクト専用カスタム案 · カードを選んで編集",
             sec_template_application: "テンプレートの適用方法",
-            template_application_hint: "AIが現在の内容に合わせたテンプレートの使い方を提案します。自然言語で直接修正できます。",
-            placeholder_template_application: "使用・省略・反復・並べ替えするページやプロトタイプ、保持する要素、差し替え・再構成できる内容を記述します。",
+            template_application_hint: "AIがインストール済みテンプレートの全SVGを確認し、自然言語の適用方針を1段落で提案します。モード選択ではなく、文章を直接修正できます。",
+            placeholder_template_application: "ページ固有の規則は正確なSVGファイル名で示し、使用・省略・反復・並べ替え、固定する要素、差し替え・再構成できる内容を記述します。",
             sub_mode: "ナラティブモード",
             sub_visual: "ビジュアルスタイル",
             sub_divergence: "素材からの発散度（どこまで自由に再構成するか、原文に忠実か）",
@@ -195,8 +280,9 @@
             placeholder_audience_outcome: "終了後、聴衆は何を知り、理解し、信じ、決め、行動できる状態になるべきですか？",
             core_message: "中核メッセージ／意思決定の依頼／行動",
             placeholder_core_message: "ほかの内容が忘れられても、必ず残すべき主張・依頼・行動は何ですか？",
-            delivery_context: "利用状況",
-            placeholder_delivery_context: "例：発表者付きの20分経営レビュー。終了後に録画も共有。",
+            delivery_context: "利用状況（主モードを明記）",
+            delivery_context_hint: "発表者主導、読者主導、ハイブリッド、録画／自動再生を区別してください。ハイブリッドでは主モードと、維持すべき副用途を明記します。",
+            placeholder_delivery_context: "例：主は発表者付き20分の経営レビュー。副は会議後に単独で読む承認資料。",
             artifact_afterlife: "資料の利用後",
             placeholder_artifact_afterlife: "例：承認、レビュー、監査、保管、引き継ぎ、再利用。後続利用がなければ空欄で構いません。",
             stage1_current_value_hint: "編集可能な欄には提案が入っています。そのまま使う・修正する・空にすることができ、確定時の現在値を空欄も含めてそのまま保存します。",
@@ -206,6 +292,7 @@
             ai_custom_candidate: "AIカスタム案",
             ai_custom_candidate_hint: "比較できるよう常に全文を表示します。初期選択はされず、選択後に編集できます。",
             custom_behavior_required: "選択したAIカスタム案を空欄にはできません。",
+            custom_color_required: "続行する前に、カスタム配色の説明を入力してください。",
             design_system_required: "続行する前に、完全な配色と書体システムを選択してください。",
             mode_behavior_placeholder: "構成の流れ、タイトルの語り口、ページのリズム、表現姿勢を記述します。",
             visual_style_behavior_placeholder: "形状言語、構図、装飾密度、余白、書体の性格、質感を記述します。",
@@ -213,10 +300,14 @@
             placeholder_audience: "この資料は誰に向けたもの？",
             placeholder_pages: "例：12-15",
             hex_override: "カスタムHEXで上書き：",
-            formula_policy: "数式レンダリング方針",
             image_ai_path: "AI画像の生成元",
             image_strategy: "生成画像のスタイル",
-            image_strategy_empty: "生成画像スタイルの候補がまだありません。",
+            image_strategy_empty: "プリセットのスタイル見本を利用できません。カスタムスタイルは引き続き使用できます。",
+            image_strategy_required: "生成画像のプリセットを選ぶか、カスタムスタイルを記述してください。",
+            image_strategy_invalid: "選択した生成画像プリセットは利用できません。",
+            image_strategy_select_placeholder: "生成画像のプリセットを選択…",
+            image_strategy_recommended_group: "この資料へのおすすめ",
+            image_strategy_all_group: "すべてのプリセットスタイル",
             image_strategy_rendering: "レンダリング",
             image_strategy_visual: "ビジュアル",
             image_strategy_mood: "ムード",
@@ -225,20 +316,34 @@
             image_strategy_custom_placeholder: "生成画像の方向性、被写体、構図、スタイル要素、避けたい要素を具体的に入力してください。",
             image_strategy_reference_hint: "参照画像はレンダリングのみを示します。最終AI画像の色は上で選んだデッキ配色を継承します。",
             image_strategy_no_reference: "このカスタム選択には参照画像がありません。",
-            image_source_summary: "確定済みの画像ソース",
-            image_production_hint: "画像ソースとレンダリングはステージ2で確定済みです。ここでは制作経路だけを決めます。",
+            image_source_summary: "選択中の画像ソース",
+            image_production_hint: "画像ソースとレンダリングは上で選択済みです。ここでは制作経路だけを決めます。",
             image_usage_notes: "画像に関する補足要件",
             image_usage_notes_placeholder: "例：リアルな手洗いシーンを優先、漫画調の菌のイラストは避ける、製品写真はそのまま使う。",
             image_usage_required: "画像の使用方法を少なくとも1つ選択してください。",
             image_usage_none_exclusive: "「画像なし」は他の画像オプションと同時に選択できません。",
+            proactive_execution_hint: "これらの初期設定は、明示的な指示がない場合にのみ適用されます。最新の明示的な指示が常に優先されます。",
+            proactive_speaker_notes: "発表者ノートを能動的に生成",
+            proactive_speaker_notes_desc: "初期設定はオンです。個別の依頼がなくても発表者ノートを生成します。",
+            proactive_custom_animations: "カスタムアニメーションを能動的に作成",
+            proactive_custom_animations_desc: "初期設定はオフです。ストラテジストの動きの提案は維持され、オンにすると個別の依頼がなくてもカスタムアニメーションを作成します。",
+            proactive_narration_audio: "ナレーション音声を能動的に生成",
+            proactive_narration_audio_desc: "初期設定はオフです。この選択は発表者ノートの設定を書き換えません。ナレーションに必要なノートの有効状態は、ストラテジストが設計仕様で解決します。",
             font_heading: "見出し",
             font_body: "本文",
+            font_selection: "フォント選択",
+            primary_language_font: "主要言語のフォント",
+            english_font: "英語フォント",
+            font_picker_hint: "提案を選ぶと下の選択欄に反映されます。いずれかのフォントを変更するとカスタマイズ済みになります。",
+            other_installed_font: "その他のインストール済みフォント…",
+            other_font_placeholder: "インストール済みフォントの正確な名前",
+            customized: "カスタマイズ済み",
             font_body_size: "本文の基準サイズ",
             font_body_size_hint: "すべての文字サイズはこの本文基準から導出されます。",
             body_size_unit_relation: "SVG px と PPT pt の換算：1px = 0.75pt。",
             body_size_pt_hint: "約 {pt} pt（1px = 0.75pt 換算、保存は px）。",
             role_size_pt_hint: "約 {pt} pt",
-            body_size_hint_canvas: "このキャンバスの目安は約{lo}–{hi}px（キャンバスの高さに応じて変化）。",
+            body_size_hint_canvas: "このキャンバスの目安は約{lo}–{hi}px（有効キャンバス尺度から算出）。",
             body_size_hint_purpose: "この閲覧モードの推奨は{def}px — 範囲ではなく固定値です。",
             body_size_hint_oor: "（現在の値はこのキャンバスの通常範囲外です — 単位とサイズ感を確認してください。）",
             delivery_purpose: "閲覧モード",
@@ -248,7 +353,6 @@
             size_role_subtitle: "サブタイトル",
             size_role_annotation: "注釈",
             custom_typography: "カスタムタイポグラフィ",
-            custom_typography_placeholder: "フォント案を入力 — 例：見出し：Georgia + 游明朝 / 本文：游ゴシック + Arial…",
             custom_color: "カスタム配色",
             custom_color_placeholder: "配色を言葉で説明 — 例：濃紺をメインに暖色オレンジのアクセント、背景は白 — またはHEX値を貼り付け…",
             role_background: "背景",
@@ -279,8 +383,8 @@
             preview_point_3_text: "投影時にも読みやすい組み合わせかを判断します。",
             mode_continuous_desc: "デッキ全体を一気に生成します。",
             mode_split_desc: "設計仕様の作成後に停止し、別ウィンドウでSVG生成を再開します。",
-            refine_off_desc: "設計仕様を一度で書き上げ、パイプラインは自動で進みます。",
-            refine_on_desc: "設計仕様の作成後に停止し、生成前にレビュー・修正できます。",
+            refine_off_desc: "設計仕様と実行ロックを順番に作成し、そのまま自動で進みます。",
+            refine_on_desc: "設計仕様の作成後に停止します。チャットで任意の箇所を修正し、承認後に実行ロックを作成して生成を続けます。",
             off_default: "オフ",
             on: "オン",
             option_prefix: "案",
@@ -290,19 +394,39 @@
             page_title: "确认设计方案",
             topbar_hint: "回答开放问题，或选择并调整推荐项，然后继续。",
             stage_anchors: "第一阶段 · 沟通契约",
-            stage_design: "第二阶段 · 完整方案与视觉系统",
-            stage_images: "第三阶段 · 资源与生产执行",
+            stage_final_plan: "第二阶段 · 最终方案与制作",
             loading: "加载中…",
             load_error: "无法加载推荐文件，需在启动前写入。",
             btn_confirm: "确认",
             btn_confirm_contract: "确认沟通契约并继续 →",
-            btn_confirm_solution: "确认完整方案并继续 →",
+            btn_confirm_final_plan: "确认最终方案 →",
             deriving: "正在根据你的选择生成下游选项…",
+            template_selection_required: "请选择自由设计或使用模板；选择使用模板时，至少选择一个工作区。",
+            template_selection_conflict: "每种模板最多选择一个工作区。",
             connection_lost: "确认页服务连接中断，正在重试；如果持续失败，请回到聊天窗口走聊天确认。",
-            already_confirmed: "已确认过一次，重新提交会覆盖之前的选择。",
             confirmed_title: "✓ 已确认",
             confirmed_hint: "选择已保存，可关闭此页并回到聊天窗口。",
             lang_toggle_title: "切换语言",
+            sec_template_choice: "设计基础",
+            template_choice_hint: "选择这份演示文稿如何建立设计系统。",
+            template_free_title: "根据当前内容从零设计",
+            template_free_desc: "不使用可复用模板工作区，由 Strategist 根据当前项目推导视觉系统。",
+            template_use_title: "使用模板",
+            template_use_desc: "选择一个或多个 Brand、Style、Layout、Deck 或指定工作区。",
+            sec_template_library: "模板组合",
+            template_library_hint: "每种模板最多选择一个工作区；四种模板均可组合，结构由 Layout 优先于 Deck。",
+            sec_template_explicit: "指定模板",
+            template_explicit_hint: "本次运行明确提供的精确工作区最多选择一个，它包含的每一类都会被采用；显示来源路径供你核对。",
+            template_kind_brand: "Brand",
+            template_kind_style: "Style",
+            template_kind_layout: "Layout",
+            template_kind_deck: "Deck",
+            template_source_library: "模板库",
+            template_source_explicit: "指定地址",
+            template_source_path: "来源路径",
+            template_select_none: "无",
+            template_none_registered: "暂无已注册模板",
+            template_none_explicit: "本次运行没有指定模板",
             sec_canvas: "画布格式",
             sec_pages: "页数",
             sec_audience: "目标受众",
@@ -315,13 +439,25 @@
             sec_type: "字体方案",
             sec_images: "图片使用",
             sec_image_production: "图片生产",
+            sec_proactive_execution: "主动执行",
             sec_mode: "生成模式",
-            sec_refine: "先精修设计规范",
+            sec_refine: "先审核设计规范",
+            sec_design_spec_depth: "设计规范深度",
+            design_spec_depth_brief: "简要",
+            design_spec_depth_brief_desc: "每页只写简短的内容块列表，不写整页文案。",
+            design_spec_depth_complete: "完整",
+            design_spec_depth_complete_desc: "写入包含完整文案的逐页简报。",
+            design_spec_depth_locked: "分段模式或设计规范审核已开启，因此固定为“完整”。",
             sec_design_directions: "成套设计方向",
-            design_directions_hint: "每套方向会一起协调风格、配色、字体、图标和生成图渲染；你仍可在下方逐项微调。",
+            design_directions_hint: "AI 最倾向的成套方案已默认应用；你可以改选其他方案，或在下方微调各项。调整后可用“恢复原方案”还原整套预设。",
+            direction_active: "已应用",
+            direction_adjusted: "已调整",
+            direction_apply_hint: "点击应用这套完整方案。",
+            direction_restore: "恢复原方案",
+            scheme_component_options: "项目专属自定义方案 · 选中卡片后可编辑",
             sec_template_application: "模板应用方式",
-            template_application_hint: "AI 会根据当前内容推荐如何使用已安装模板；你可以直接用自然语言修改。",
-            placeholder_template_application: "说明使用、跳过、重复或重排哪些模板页面/原型，哪些内容必须保留，哪些可以替换或重组。",
+            template_application_hint: "AI 会先阅读已安装模板的全部 SVG，再给出一段自然语言应用方案；这不是模式选择，你可以直接修改文字。",
+            placeholder_template_application: "页面级规则请写明精确 SVG 文件名；说明使用、跳过、重复或重排哪些原型，哪些内容固定，哪些可以替换或重组。",
             sub_mode: "叙事模式",
             sub_visual: "视觉风格",
             sub_divergence: "材料发散度（多大程度重塑，还是贴近源材料）",
@@ -333,8 +469,9 @@
             placeholder_audience_outcome: "结束后，受众应该知道、理解、相信、决定或采取什么行动？",
             core_message: "核心信息 / 决策请求 / 行动",
             placeholder_core_message: "即使其他内容没有被记住，受众至少需要接住哪些主张、请求或行动？",
-            delivery_context: "使用情境",
-            placeholder_delivery_context: "例如：管理层现场评审 20 分钟，有主讲；会后分享录屏。",
+            delivery_context: "传递场景（明确主要模式）",
+            delivery_context_hint: "区分演讲者主导、读者主导、混合、录制/自动播放；混合场景要说明哪一种主导，以及还要兼顾什么次要用途。",
+            placeholder_delivery_context: "例如：主要为有主讲的 20 分钟管理层现场评审；次要为会后独立阅读的审批材料。",
             artifact_afterlife: "演示后的成果用途",
             placeholder_artifact_afterlife: "例如：审批、评审、审计、留档、交接或复用；没有后续用途时可留空。",
             stage1_current_value_hint: "可编辑字段中是推荐内容。你可以保留、修改或清空；确认时会按当前内容原样保存，空白也会保持为空。",
@@ -344,6 +481,7 @@
             ai_custom_candidate: "AI 自定义方案",
             ai_custom_candidate_hint: "始终展示完整内容用于比较；默认不选中，选择后可编辑。",
             custom_behavior_required: "已选择的 AI 自定义方案不能为空。",
+            custom_color_required: "请先填写自定义配色说明，再继续确认。",
             design_system_required: "请先选择完整的配色与字体方案，再继续确认。",
             mode_behavior_placeholder: "描述叙事阶段、标题语气、页面节奏和表达姿态。",
             visual_style_behavior_placeholder: "描述形状语言、构图、装饰密度、留白、字体气质和纹理。",
@@ -351,10 +489,14 @@
             placeholder_audience: "这份演示文稿面向谁？",
             placeholder_pages: "如：12-15",
             hex_override: "自定义色值覆盖：",
-            formula_policy: "公式渲染策略",
             image_ai_path: "生成配图来源",
             image_strategy: "生成图风格",
-            image_strategy_empty: "还没有提供生成图风格候选。",
+            image_strategy_empty: "当前没有可用的预设风格参考，仍可使用自定义风格。",
+            image_strategy_required: "请选择一种生成图预设，或填写自定义风格。",
+            image_strategy_invalid: "所选生成图预设当前不可用。",
+            image_strategy_select_placeholder: "选择生成图预设…",
+            image_strategy_recommended_group: "本项目推荐",
+            image_strategy_all_group: "全部预设风格",
             image_strategy_rendering: "渲染风格",
             image_strategy_visual: "视觉",
             image_strategy_mood: "情绪",
@@ -363,20 +505,34 @@
             image_strategy_custom_placeholder: "描述生成图的具体方向、主体、构图、风格关键词或需要避免的内容。",
             image_strategy_reference_hint: "参考图只展示渲染风格；最终 AI 图片直接继承上方已选的整套 PPT 配色。",
             image_strategy_no_reference: "自定义选择没有参考图。",
-            image_source_summary: "已确认的图片来源",
-            image_production_hint: "图片来源和渲染方向已在第二阶段确认；这里仅决定实际生产路径。",
+            image_source_summary: "已选图片来源",
+            image_production_hint: "图片来源和渲染方向已在上方选择；这里仅决定实际生产路径。",
             image_usage_notes: "图片补充要求",
             image_usage_notes_placeholder: "例如：优先真实洗手场景；不要卡通病菌；产品照片保持原样。",
             image_usage_required: "请至少选择一种图片使用方式。",
             image_usage_none_exclusive: "「不使用图片」不能和其它图片选项同时选择。",
+            proactive_execution_hint: "这些默认开关只在你没有明确要求时生效；你最新的明确指令始终优先。",
+            proactive_speaker_notes: "主动生成演讲者备注",
+            proactive_speaker_notes_desc: "默认开启。无需另行要求，Agent 也会生成演讲者备注。",
+            proactive_custom_animations: "主动生成自定义动画",
+            proactive_custom_animations_desc: "默认关闭。策略师的动画建议仍会保留；开启后，Agent 可在没有另行要求时实际制作自定义动画。",
+            proactive_narration_audio: "主动生成旁白音频",
+            proactive_narration_audio_desc: "默认关闭。这里保留原始选择，不改写演讲者备注开关；策略师会在设计规范中解析旁白所需的最终备注状态。",
             font_heading: "标题",
             font_body: "正文",
+            font_selection: "字体选择",
+            primary_language_font: "主要语言字体",
+            english_font: "英文字体",
+            font_picker_hint: "选择推荐方案会同步下方字体；修改任一下拉或手动字体后会标记为已自定义。",
+            other_installed_font: "其他已安装字体…",
+            other_font_placeholder: "输入精确的已安装字体名称",
+            customized: "已自定义",
             font_body_size: "正文基准字号",
             font_body_size_hint: "所有字号按这个正文基准推导。",
             body_size_unit_relation: "SVG px 与 PPT pt 的换算：1px = 0.75pt。",
             body_size_pt_hint: "约 {pt} pt（按 1px = 0.75pt 换算；提交仍保存 px）。",
             role_size_pt_hint: "约 {pt} pt",
-            body_size_hint_canvas: "当前画布建议 ~{lo}–{hi}px（随画布高度缩放）。",
+            body_size_hint_canvas: "当前画布建议 ~{lo}–{hi}px（按有效画布跨度计算）。",
             body_size_hint_purpose: "该阅读模式推荐 {def}px（单一固定值，非区间）。",
             body_size_hint_oor: "（当前数值超出该画布的常用范围——请确认单位无误、是否合适。）",
             delivery_purpose: "阅读模式",
@@ -386,7 +542,6 @@
             size_role_subtitle: "副标题",
             size_role_annotation: "注释",
             custom_typography: "自定义字体方案",
-            custom_typography_placeholder: "输入字体方案，如：标题用楷体；正文用微软雅黑…",
             custom_color: "自定义配色",
             custom_color_placeholder: "用文字描述配色，如：深蓝主色、暖橙强调、白色背景——或直接粘贴 HEX 值…",
             role_background: "背景",
@@ -417,22 +572,216 @@
             preview_point_3_text: "组合效果需要在演示场景下保持清晰可读。",
             mode_continuous_desc: "一次性连续生成整份演示文稿。",
             mode_split_desc: "写完设计规范后停止，另开窗口继续生成页面。",
-            refine_off_desc: "设计规范一次写完，流程自动继续。",
-            refine_on_desc: "写完设计规范后停下供你审阅或修改，再开始生成。",
+            refine_off_desc: "依次生成设计规范和执行锁，然后自动继续。",
+            refine_on_desc: "生成设计规范后暂停；你可在聊天中修改任何部分，明确确认后再生成执行锁并继续制作。",
             off_default: "关",
             on: "开",
             option_prefix: "方案",
             error_retry: "出错，请重试"
+        },
+        "zh-TW": {
+            page_title: "確認設計方案",
+            topbar_hint: "回答開放問題，或選擇並調整推薦項，然後繼續。",
+            stage_anchors: "第一階段 · 溝通契約",
+            stage_final_plan: "第二階段 · 最終方案與製作",
+            loading: "載入中…",
+            load_error: "無法載入推薦檔案，需在啟動前寫入。",
+            btn_confirm: "確認",
+            btn_confirm_contract: "確認溝通契約並繼續 →",
+            btn_confirm_final_plan: "確認最終方案 →",
+            deriving: "正在根據你的選擇生成下游選項…",
+            template_selection_required: "請選擇自由設計或使用範本；選擇使用範本時，至少選擇一個工作區。",
+            template_selection_conflict: "每種範本最多選擇一個工作區。",
+            connection_lost: "確認頁服務連線中斷，正在重試；如果持續失敗，請回到聊天視窗走聊天確認。",
+            confirmed_title: "✓ 已確認",
+            confirmed_hint: "選擇已儲存，可關閉此頁並回到聊天視窗。",
+            lang_toggle_title: "切換語言",
+            sec_template_choice: "設計基礎",
+            template_choice_hint: "選擇這份簡報如何建立設計系統。",
+            template_free_title: "根據目前內容從零設計",
+            template_free_desc: "不使用可重複使用的範本工作區，由 Strategist 根據目前專案推導視覺系統。",
+            template_use_title: "使用範本",
+            template_use_desc: "選擇一個或多個 Brand、Style、Layout、Deck 或指定工作區。",
+            sec_template_library: "範本組合",
+            template_library_hint: "每種範本最多選擇一個工作區；四種範本均可組合，結構由 Layout 優先於 Deck。",
+            sec_template_explicit: "指定範本",
+            template_explicit_hint: "本次執行明確提供的精確工作區最多選擇一個，它包含的每一類都會被採用；顯示來源路徑供你核對。",
+            template_kind_brand: "Brand",
+            template_kind_style: "Style",
+            template_kind_layout: "Layout",
+            template_kind_deck: "Deck",
+            template_source_library: "範本庫",
+            template_source_explicit: "指定地址",
+            template_source_path: "來源路徑",
+            template_select_none: "無",
+            template_none_registered: "尚無已註冊範本",
+            template_none_explicit: "本次執行沒有指定範本",
+            sec_canvas: "畫布格式",
+            sec_pages: "頁數",
+            sec_audience: "目標受眾",
+            sec_communication: "這份簡報要完成什麼",
+            sec_delivery: "如何使用、之後留下什麼",
+            sec_narrative: "敘事方向",
+            sec_visual: "視覺方向",
+            sec_color: "色彩方案",
+            sec_icons: "圖示使用",
+            sec_type: "字型方案",
+            sec_images: "圖片使用",
+            sec_image_production: "圖片產製",
+            sec_proactive_execution: "主動執行",
+            sec_mode: "生成模式",
+            sec_refine: "先審閱設計規範",
+            sec_design_spec_depth: "設計規範深度",
+            design_spec_depth_brief: "簡要",
+            design_spec_depth_brief_desc: "每頁只寫簡短的內容區塊清單，不寫整頁文案。",
+            design_spec_depth_complete: "完整",
+            design_spec_depth_complete_desc: "寫入包含完整文案的逐頁簡報。",
+            design_spec_depth_locked: "分段模式或設計規範審閱已開啟，因此固定為「完整」。",
+            sec_design_directions: "成套設計方向",
+            design_directions_hint: "AI 最傾向的成套方案已預設套用；你可以改選其他方案，或在下方微調各項。調整後可用「還原原始方案」還原整套預設。",
+            direction_active: "已套用",
+            direction_adjusted: "已調整",
+            direction_apply_hint: "按一下即可套用這套完整方案。",
+            direction_restore: "還原原始方案",
+            scheme_component_options: "專案專屬自訂方案 · 選取卡片後可編輯",
+            sec_template_application: "範本套用方式",
+            template_application_hint: "AI 會先閱讀已安裝範本的全部 SVG，再提出一段自然語言套用方案；這不是模式選擇，你可以直接修改文字。",
+            placeholder_template_application: "頁面級規則請寫明精確 SVG 檔名；說明使用、略過、重複或重排哪些原型，哪些內容固定，哪些可以替換或重組。",
+            sub_mode: "敘事模式",
+            sub_visual: "視覺風格",
+            sub_divergence: "材料發散度（多大程度重塑，還是貼近源材料）",
+            placeholder_divergence: "用你自己的話寫，例如「嚴格貼著文件來」/「在源材料範圍內自由重組並展開」。留空則按平衡處理。",
+            communication_intent: "這份簡報需要完成什麼？",
+            communication_intent_hint: "開放回答，可按需組合：告知、解釋、說服、決策、對齊、教學、報告與問責、動員、留檔與交接。必要時說明主次或先後，不需要選擇標籤。",
+            placeholder_communication_intent: "例如：先報告進展並暴露風險，再推動管理階層決定下一階段投入。",
+            audience_outcome: "期望的受眾變化 / 成功條件",
+            placeholder_audience_outcome: "結束後，受眾應該知道、理解、相信、決定或採取什麼行動？",
+            core_message: "核心資訊 / 決策請求 / 行動",
+            placeholder_core_message: "即使其他內容沒有被記住，受眾至少需要接住哪些主張、請求或行動？",
+            delivery_context: "傳遞場景（明確主要模式）",
+            delivery_context_hint: "區分演講者主導、讀者主導、混合、錄製/自動播放；混合場景要說明哪一種主導，以及還要兼顧什麼次要用途。",
+            placeholder_delivery_context: "例如：主要為有主講的 20 分鐘管理階層現場評審；次要為會後獨立閱讀的簽核文件。",
+            artifact_afterlife: "簡報後的成果用途",
+            placeholder_artifact_afterlife: "例如：簽核、評審、稽核、留檔、交接或重複使用；沒有後續用途時可留空。",
+            stage1_current_value_hint: "可編輯欄位中是推薦內容。你可以保留、修改或清空；確認時會按目前內容原樣儲存，空白也會保持為空。",
+            content_divergence_locked_hint: "目前流程要求原文和頁面結構保持不變，因此該欄位已鎖定。",
+            custom: "自訂",
+            custom_placeholder: "輸入自訂內容…",
+            ai_custom_candidate: "AI 自訂方案",
+            ai_custom_candidate_hint: "始終展示完整內容用於比較；預設不選取，選擇後可編輯。",
+            custom_behavior_required: "已選擇的 AI 自訂方案不能為空。",
+            custom_color_required: "請先填寫自訂配色說明，再繼續確認。",
+            design_system_required: "請先選擇完整的配色與字型方案，再繼續確認。",
+            mode_behavior_placeholder: "描述敘事階段、標題語氣、頁面節奏和表達姿態。",
+            visual_style_behavior_placeholder: "描述形狀語言、構圖、裝飾密度、留白、字型氣質和紋理。",
+            recommended: "推薦",
+            placeholder_audience: "這份簡報面向誰？",
+            placeholder_pages: "如：12-15",
+            hex_override: "自訂色值覆蓋：",
+            image_ai_path: "生成配圖來源",
+            image_strategy: "生成圖風格",
+            image_strategy_empty: "目前沒有可用的預設風格參考，仍可使用自訂風格。",
+            image_strategy_required: "請選擇一種生成圖預設，或填寫自訂風格。",
+            image_strategy_invalid: "所選生成圖預設目前不可用。",
+            image_strategy_select_placeholder: "選擇生成圖預設…",
+            image_strategy_recommended_group: "本專案推薦",
+            image_strategy_all_group: "全部預設風格",
+            image_strategy_rendering: "渲染風格",
+            image_strategy_visual: "視覺",
+            image_strategy_mood: "情緒",
+            image_strategy_ai_custom: "AI 自訂方案",
+            image_strategy_ai_custom_desc: "一套全新或綜合多個已有風格的渲染方案；選擇後可以編輯。",
+            image_strategy_custom_placeholder: "描述生成圖的具體方向、主體、構圖、風格關鍵字或需要避免的內容。",
+            image_strategy_reference_hint: "參考圖只展示渲染風格；最終 AI 圖片直接繼承上方已選的整套 PPT 配色。",
+            image_strategy_no_reference: "自訂選擇沒有參考圖。",
+            image_source_summary: "已選圖片來源",
+            image_production_hint: "圖片來源和渲染方向已在上方選擇；這裡僅決定實際產製路徑。",
+            image_usage_notes: "圖片補充要求",
+            image_usage_notes_placeholder: "例如：優先真實洗手場景；不要卡通病菌；產品照片保持原樣。",
+            image_usage_required: "請至少選擇一種圖片使用方式。",
+            image_usage_none_exclusive: "「不使用圖片」不能和其他圖片選項同時選擇。",
+            proactive_execution_hint: "這些預設開關只在你沒有明確要求時生效；你最新的明確指令始終優先。",
+            proactive_speaker_notes: "主動生成演講者備註",
+            proactive_speaker_notes_desc: "預設開啟。無需另行要求，Agent 也會生成演講者備註。",
+            proactive_custom_animations: "主動生成自訂動畫",
+            proactive_custom_animations_desc: "預設關閉。策略師的動畫建議仍會保留；開啟後，Agent 可在沒有另行要求時實際製作自訂動畫。",
+            proactive_narration_audio: "主動生成旁白音訊",
+            proactive_narration_audio_desc: "預設關閉。這裡保留原始選擇，不改寫演講者備註開關；策略師會在設計規範中解析旁白所需的最終備註狀態。",
+            font_heading: "標題",
+            font_body: "正文",
+            font_selection: "字型選擇",
+            primary_language_font: "主要語言字型",
+            english_font: "英文字型",
+            font_picker_hint: "選擇推薦方案會同步下方字型；修改任一下拉或手動字型後會標記為已自訂。",
+            other_installed_font: "其他已安裝字型…",
+            other_font_placeholder: "輸入精確的已安裝字型名稱",
+            customized: "已自訂",
+            font_body_size: "正文基準字級",
+            font_body_size_hint: "所有字級按這個正文基準推導。",
+            body_size_unit_relation: "SVG px 與 PPT pt 的換算：1px = 0.75pt。",
+            body_size_pt_hint: "約 {pt} pt（按 1px = 0.75pt 換算；提交仍儲存 px）。",
+            role_size_pt_hint: "約 {pt} pt",
+            body_size_hint_canvas: "目前畫布建議 ~{lo}–{hi}px（依有效畫布跨距計算）。",
+            body_size_hint_purpose: "該閱讀模式推薦 {def}px（單一固定值，非區間）。",
+            body_size_hint_oor: "（目前數值超出該畫布的常用範圍——請確認單位無誤、是否合適。）",
+            delivery_purpose: "閱讀模式",
+            delivery_purpose_hint: "決定資訊主要由頁面還是講者承擔：近讀型用完整句、短段落和細節自洽；演講型一頁一意，以簡短主張和視覺證據為主。",
+            size_override: "逐角色字級覆蓋：",
+            size_role_title: "標題",
+            size_role_subtitle: "副標題",
+            size_role_annotation: "註解",
+            custom_typography: "自訂字型方案",
+            custom_color: "自訂配色",
+            custom_color_placeholder: "用文字描述配色，如：深藍主色、暖橙強調、白色背景——或直接貼上 HEX 值…",
+            role_background: "背景",
+            role_secondary_bg: "次級背景",
+            role_primary: "主色",
+            role_accent: "強調",
+            role_secondary_accent: "次強調",
+            role_body_text: "正文文字",
+            cjk: "中文",
+            latin: "西文",
+            sample_heading_cjk: "主題方案標題",
+            sample_heading_latin: "Presentation Title",
+            sample_body_cjk: "關鍵資訊摘要",
+            sample_body_latin: "Key message summary",
+            style_preview_label: "整體形象（配色 + 字型 + 圖示）",
+            style_preview_body: "· 僅大致形象，非實際版式",
+            no_icons: "無圖示",
+            preview_big_title: "大標題",
+            preview_section_title: "章節標題",
+            preview_latin_title: "Section Title",
+            preview_body_intro: "正文內容用於判斷基礎字級、行距和顏色對比。",
+            preview_latin_body: "Body text sample for checking Latin typography.",
+            preview_point_1_title: "正文內容",
+            preview_point_1_text: "這裡展示普通段落的密度和閱讀節奏。",
+            preview_point_2_title: "要點說明",
+            preview_point_2_text: "圖示和文字放在一起，判斷真實使用效果。",
+            preview_point_3_title: "結論建議",
+            preview_point_3_text: "組合效果需要在簡報場景下保持清晰可讀。",
+            mode_continuous_desc: "一次性連續生成整份簡報。",
+            mode_split_desc: "寫完設計規範後停止，另開視窗繼續生成頁面。",
+            refine_off_desc: "依次生成設計規範和執行鎖，然後自動繼續。",
+            refine_on_desc: "生成設計規範後暫停；你可在聊天中修改任何部分，明確確認後再生成執行鎖並繼續製作。",
+            off_default: "關",
+            on: "開",
+            option_prefix: "方案",
+            error_retry: "出錯，請重試"
         }
     };
 
     var LANG = (function () {
         try {
             var stored = window.localStorage.getItem("ppt_lang");
-            if (stored === "zh" || stored === "en" || stored === "ja") return stored;
+            if (stored === "zh" || stored === "en" || stored === "ja" ||
+                    stored === "zh-TW") return stored;
         } catch (e) { /* ignore */ }
         var nav = (navigator.language || navigator.userLanguage || "en").toLowerCase();
-        if (nav.indexOf("zh") === 0) return "zh";
+        if (nav.indexOf("zh") === 0) {
+            if (/\bhans\b/.test(nav)) return "zh";
+            if (/\bhant\b/.test(nav) || /\b(tw|hk|mo)\b/.test(nav)) return "zh-TW";
+            return "zh";
+        }
         if (nav.indexOf("ja") === 0) return "ja";
         return "en";
     })();
@@ -442,37 +791,50 @@
         return dict[key] != null ? dict[key] : key;
     }
 
-    // Fallback stays LANG-relative: zh/en users never see Japanese labels,
-    // ja pages fall back ja → en → zh.
-    var LANG_FALLBACK = { zh: ["zh", "en", "ja"], en: ["en", "zh", "ja"], ja: ["ja", "en", "zh"] };
+    // Preserve the existing locale order, then accept zh_tw-only candidate
+    // prose from any persisted UI language so browser and server validation agree.
+    // Entries are FIELD SUFFIXES, not BCP-47 tags: "zh-TW" data lives in
+    // `<base>_zh_tw` keys, so a hyphenless suffix is used here and in langField().
+    var LANG_FALLBACK = {
+        zh: ["zh", "en", "ja", "zh_tw"],
+        en: ["en", "zh", "ja", "zh_tw"],
+        ja: ["ja", "en", "zh", "zh_tw"],
+        "zh-TW": ["zh_tw", "zh", "en", "ja"]
+    };
+    // Suffix used to look up localized catalog/recommendation fields.
+    var LANG_FIELD = { "zh-TW": "zh_tw" };
+
+    function langField(lang) {
+        return LANG_FIELD[lang] || lang;
+    }
     var IMAGE_COMPARISON_LABELS = {
         rendering: {
-            "vector-illustration": { zh: "矢量插画", en: "Vector illustration", ja: "ベクターイラスト" },
-            flat: { zh: "扁平插画", en: "Flat illustration", ja: "フラットイラスト" },
-            "3d-isometric": { zh: "3D 等距", en: "3D isometric", ja: "3Dアイソメトリック" },
-            "digital-dashboard": { zh: "数字仪表盘", en: "Digital dashboard", ja: "デジタルダッシュボード" },
-            "corporate-photo": { zh: "企业摄影", en: "Corporate photo", ja: "企業写真" },
-            blueprint: { zh: "蓝图线稿", en: "Blueprint", ja: "ブループリント" },
-            editorial: { zh: "编辑杂志", en: "Editorial", ja: "エディトリアル" },
-            "sketch-notes": { zh: "手绘笔记", en: "Sketch notes", ja: "スケッチノート" },
-            "ink-notes": { zh: "墨线笔记", en: "Ink notes", ja: "インクノート" },
-            chalkboard: { zh: "粉笔黑板", en: "Chalkboard", ja: "チョークボード" },
-            watercolor: { zh: "水彩", en: "Watercolor", ja: "水彩" },
-            "warm-scene": { zh: "暖调场景", en: "Warm scene", ja: "暖色シーン" },
-            "screen-print": { zh: "丝网印刷", en: "Screen print", ja: "スクリーンプリント" },
-            "fantasy-animation": { zh: "幻想动画", en: "Fantasy animation", ja: "ファンタジーアニメ" },
-            "pixel-art": { zh: "像素艺术", en: "Pixel art", ja: "ピクセルアート" },
-            nature: { zh: "自然有机", en: "Nature", ja: "自然・オーガニック" },
-            "minimalist-swiss": { zh: "瑞士极简", en: "Minimalist Swiss", ja: "スイスミニマル" },
-            glassmorphism: { zh: "玻璃拟态", en: "Glassmorphism", ja: "グラスモーフィズム" },
-            "vintage-poster": { zh: "复古海报", en: "Vintage poster", ja: "ヴィンテージポスター" },
-            "paper-cut": { zh: "剪纸拼贴", en: "Paper cut", ja: "ペーパーカット" }
+            "vector-illustration": { zh: "矢量插画", zh_tw: "向量插畫", en: "Vector illustration", ja: "ベクターイラスト" },
+            flat: { zh: "扁平插画", zh_tw: "扁平插畫", en: "Flat illustration", ja: "フラットイラスト" },
+            "3d-isometric": { zh: "3D 等距", zh_tw: "3D 等距", en: "3D isometric", ja: "3Dアイソメトリック" },
+            "digital-dashboard": { zh: "数字仪表盘", zh_tw: "數位儀表板", en: "Digital dashboard", ja: "デジタルダッシュボード" },
+            "corporate-photo": { zh: "企业摄影", zh_tw: "企業攝影", en: "Corporate photo", ja: "企業写真" },
+            blueprint: { zh: "蓝图线稿", zh_tw: "藍圖線稿", en: "Blueprint", ja: "ブループリント" },
+            editorial: { zh: "编辑杂志", zh_tw: "編輯雜誌", en: "Editorial", ja: "エディトリアル" },
+            "sketch-notes": { zh: "手绘笔记", zh_tw: "手繪筆記", en: "Sketch notes", ja: "スケッチノート" },
+            "ink-notes": { zh: "墨线笔记", zh_tw: "墨線筆記", en: "Ink notes", ja: "インクノート" },
+            chalkboard: { zh: "粉笔黑板", zh_tw: "粉筆黑板", en: "Chalkboard", ja: "チョークボード" },
+            watercolor: { zh: "水彩", zh_tw: "水彩", en: "Watercolor", ja: "水彩" },
+            "warm-scene": { zh: "暖调场景", zh_tw: "暖調場景", en: "Warm scene", ja: "暖色シーン" },
+            "screen-print": { zh: "丝网印刷", zh_tw: "絲網印刷", en: "Screen print", ja: "スクリーンプリント" },
+            "fantasy-animation": { zh: "幻想动画", zh_tw: "幻想動畫", en: "Fantasy animation", ja: "ファンタジーアニメ" },
+            "pixel-art": { zh: "像素艺术", zh_tw: "像素藝術", en: "Pixel art", ja: "ピクセルアート" },
+            nature: { zh: "自然有机", zh_tw: "自然有機", en: "Nature", ja: "自然・オーガニック" },
+            "minimalist-swiss": { zh: "瑞士极简", zh_tw: "瑞士極簡", en: "Minimalist Swiss", ja: "スイスミニマル" },
+            glassmorphism: { zh: "玻璃拟态", zh_tw: "玻璃擬態", en: "Glassmorphism", ja: "グラスモーフィズム" },
+            "vintage-poster": { zh: "复古海报", zh_tw: "復古海報", en: "Vintage poster", ja: "ヴィンテージポスター" },
+            "paper-cut": { zh: "剪纸拼贴", zh_tw: "剪紙拼貼", en: "Paper cut", ja: "ペーパーカット" }
         }
     };
 
     function localized(obj, base) {
         if (!obj) return "";
-        var langKey = base + "_" + LANG;
+        var langKey = base + "_" + langField(LANG);
         if (obj[langKey] != null) return obj[langKey];
         var order = LANG_FALLBACK[LANG] || LANG_FALLBACK.en;
         var i;
@@ -526,13 +888,13 @@
     }
 
     function applyStaticTranslations() {
-        document.documentElement.setAttribute("lang", LANG === "zh" ? "zh-CN" : (LANG === "ja" ? "ja" : "en"));
+        document.documentElement.setAttribute("lang", LANG === "zh" ? "zh-CN" : (LANG === "zh-TW" ? "zh-TW" : (LANG === "ja" ? "ja" : "en")));
         document.querySelectorAll("[data-i18n]").forEach(function (node) {
             node.textContent = t(node.getAttribute("data-i18n"));
         });
     }
 
-    var LANG_NAMES = { zh: "中文", en: "English", ja: "日本語" };
+    var LANG_NAMES = { zh: "中文", en: "English", ja: "日本語", "zh-TW": "繁體中文" };
 
     function refreshLangToggle(toggleBtn) {
         // Custom dropdown (OS-independent): button shows the CURRENT language.
@@ -548,9 +910,25 @@
 
     // ---- state -----------------------------------------------------------
     var CAT = null;     // catalogs.json — finite option universe
-    var REC = null;     // recommendations.json — AI picks + candidates
+    var REC = null;     // current recommendation stage — AI picks + candidates
     var ICON_PREVIEWS = {};  // /api/icon-previews — real SVG samples from templates/icons
+    var AI_IMAGE_COMPARISON = {};  // /api/ai-image-comparison — preset rendering catalog
     var STATE = {};
+    var ACTIVE_DIRECTION_ID = "";
+    var ACTIVE_DIRECTION_BASELINE = "";
+    var ACTIVE_COMPONENT_DIRECTION_IDS = {};
+    var refreshDesignDirectionState = function () {};
+    var DIRECTION_COMPONENT_PAINTERS = [];
+
+    function refreshDirectionComponentStates() {
+        DIRECTION_COMPONENT_PAINTERS.forEach(function (paint) { paint(); });
+    }
+    var TEMPLATE_KINDS = ["brand", "style", "layout", "deck"];
+    var TEMPLATE_OPTIONS = null;
+    var TEMPLATE_CANDIDATES = [];
+    var TEMPLATE_SELECTED_KEYS = [];
+    var TEMPLATE_SELECTIONS = { brand: "", style: "", layout: "", deck: "", explicit: "" };
+    var TEMPLATE_MODE = "";
     var REC_ALIASES = {
         icons: {
             line: "tabler-outline",
@@ -572,6 +950,16 @@
         if (cls) node.className = cls;
         if (text != null) node.textContent = text;
         return node;
+    }
+
+    function fitTextareaToContent(input) {
+        if (!input) return;
+        window.requestAnimationFrame(function () {
+            if (!input.isConnected || input.offsetParent === null) return;
+            input.style.height = "auto";
+            var borderHeight = input.offsetHeight - input.clientHeight;
+            input.style.height = (input.scrollHeight + borderHeight) + "px";
+        });
     }
 
     function previewNode(kind, id) {
@@ -702,6 +1090,301 @@
         note.textContent = text;
     }
 
+    // ---- Stage 1 template selection --------------------------------------
+    function normalizeTemplateCandidates(raw, source, kind) {
+        if (!Array.isArray(raw)) return [];
+        return raw.filter(function (candidate) {
+            return candidate && candidate.key != null && String(candidate.key).trim();
+        }).map(function (candidate) {
+            var normalized = Object.assign({}, candidate);
+            normalized.key = String(candidate.key);
+            normalized.source = source;
+            if (kind) normalized.kind = kind;
+            return normalized;
+        });
+    }
+
+    function initTemplateOptions(data) {
+        var library = data && data.library && typeof data.library === "object"
+            ? data.library : {};
+        var defaultMode = data && data.default_mode;
+        if (defaultMode !== "free_design" && defaultMode !== "templates") {
+            throw new Error("template_options.default_mode must be free_design or templates");
+        }
+        var normalized = {
+            lang: data && data.lang,
+            default_mode: defaultMode,
+            library: {},
+            explicit: [],
+            preselected_keys: Array.isArray(data && data.preselected_keys)
+                ? data.preselected_keys.map(String) : []
+        };
+        TEMPLATE_CANDIDATES = [];
+        TEMPLATE_KINDS.forEach(function (kind) {
+            var candidates = normalizeTemplateCandidates(library[kind], "library", kind);
+            normalized.library[kind] = candidates;
+            TEMPLATE_CANDIDATES = TEMPLATE_CANDIDATES.concat(candidates);
+        });
+        normalized.explicit = normalizeTemplateCandidates(data && data.explicit, "explicit", "");
+        TEMPLATE_CANDIDATES = TEMPLATE_CANDIDATES.concat(normalized.explicit);
+        var candidatesByKey = Object.create(null);
+        TEMPLATE_CANDIDATES.forEach(function (candidate) {
+            if (candidatesByKey[candidate.key]) {
+                throw new Error("Duplicate template option key: " + candidate.key);
+            }
+            candidatesByKey[candidate.key] = candidate;
+        });
+        TEMPLATE_SELECTIONS = emptyTemplateSelections();
+        normalized.preselected_keys.filter(function (key, index, all) {
+            return all.indexOf(key) === index;
+        }).forEach(function (key) {
+            var candidate = candidatesByKey[key];
+            var slot = templateSelectionSlot(candidate);
+            if (!candidate || !slot) {
+                throw new Error("Invalid preselected template key: " + key);
+            }
+            var value = slot === "explicit" ? (candidate.workspace_root || "") : key;
+            if (TEMPLATE_SELECTIONS[slot] && TEMPLATE_SELECTIONS[slot] !== value) {
+                throw new Error("Multiple preselected templates for slot: " + slot);
+            }
+            TEMPLATE_SELECTIONS[slot] = value;
+        });
+        // Publish options before syncing: expanding an explicit root into its
+        // kinds reads TEMPLATE_OPTIONS, so a preselected root would otherwise
+        // resolve to zero keys on first load.
+        TEMPLATE_OPTIONS = normalized;
+        syncTemplateSelectionState();
+        TEMPLATE_MODE = normalized.default_mode;
+    }
+
+    function emptyTemplateSelections() {
+        return { brand: "", style: "", layout: "", deck: "", explicit: "" };
+    }
+
+    function templateSelectionSlot(candidate) {
+        if (!candidate) return "";
+        if (candidate.source === "explicit") return "explicit";
+        if (candidate.source === "library" && TEMPLATE_KINDS.indexOf(candidate.kind) >= 0) {
+            return candidate.kind;
+        }
+        return "";
+    }
+
+    function templateCandidateByKey(key) {
+        key = String(key || "");
+        for (var i = 0; i < TEMPLATE_CANDIDATES.length; i += 1) {
+            if (TEMPLATE_CANDIDATES[i].key === key) return TEMPLATE_CANDIDATES[i];
+        }
+        return null;
+    }
+
+    function explicitCandidatesForRoot(workspaceRoot) {
+        var root = String(workspaceRoot || "");
+        if (!root) return [];
+        return ((TEMPLATE_OPTIONS && TEMPLATE_OPTIONS.explicit) || [])
+            .filter(function (candidate) { return candidate.workspace_root === root; });
+    }
+
+    // One supplied path is one workspace, and its kinds compose rather than
+    // compete. Selecting that root therefore takes every kind it exposes.
+    function explicitRootOptions() {
+        var roots = [];
+        var seen = Object.create(null);
+        ((TEMPLATE_OPTIONS && TEMPLATE_OPTIONS.explicit) || []).forEach(function (candidate) {
+            var root = candidate.workspace_root || "";
+            if (!root || seen[root]) return;
+            seen[root] = true;
+            var kinds = explicitCandidatesForRoot(root).map(function (item) {
+                return templateKindLabel(item.kind);
+            });
+            roots.push({
+                key: root,
+                label: candidate.label || root,
+                summary: kinds.join(" + "),
+                workspace_root: root
+            });
+        });
+        return roots;
+    }
+
+    function syncTemplateSelectionState() {
+        TEMPLATE_SELECTED_KEYS = TEMPLATE_KINDS.map(function (kind) {
+            return TEMPLATE_SELECTIONS[kind];
+        });
+        explicitCandidatesForRoot(TEMPLATE_SELECTIONS.explicit).forEach(function (candidate) {
+            TEMPLATE_SELECTED_KEYS.push(candidate.key);
+        });
+        TEMPLATE_SELECTED_KEYS = TEMPLATE_SELECTED_KEYS.filter(Boolean);
+    }
+
+    function templateCandidateTitle(candidate) {
+        return localized(candidate, "label") || candidate.label || candidate.id || candidate.key;
+    }
+
+    function templateCandidateSummary(candidate) {
+        return localized(candidate, "summary") || candidate.summary || "";
+    }
+
+    function templateKindLabel(kind) {
+        return t("template_kind_" + kind);
+    }
+
+    function chooseFreeDesign() {
+        TEMPLATE_SELECTIONS = emptyTemplateSelections();
+        syncTemplateSelectionState();
+        TEMPLATE_MODE = "free_design";
+        updateTemplateSelectionControls();
+    }
+
+    function chooseTemplateMode() {
+        TEMPLATE_MODE = "templates";
+        updateTemplateSelectionControls();
+    }
+
+    function chooseTemplateForSlot(slot, key) {
+        TEMPLATE_SELECTIONS[slot] = String(key || "");
+        syncTemplateSelectionState();
+        TEMPLATE_MODE = "templates";
+        updateTemplateSelectionControls();
+    }
+
+    function templateOptionTitle(candidate) {
+        var details = [];
+        var summary = templateCandidateSummary(candidate);
+        if (summary) details.push(summary);
+        if (candidate.workspace_root) details.push(candidate.workspace_root);
+        return details.join(" · ");
+    }
+
+    function renderTemplateSelectField(slot, label, candidates) {
+        var field = el("div", "template-select-field template-select-field-" + slot);
+        var selectId = "template-select-" + slot;
+        var fieldLabel = el("label", "template-select-label", label);
+        fieldLabel.setAttribute("for", selectId);
+        field.appendChild(fieldLabel);
+
+        var select = el("select", "template-select");
+        select.id = selectId;
+        select.setAttribute("data-template-slot", slot);
+        var none = el("option", "", t("template_select_none"));
+        none.value = "";
+        select.appendChild(none);
+        candidates.forEach(function (candidate) {
+            var option = el("option", "", templateCandidateTitle(candidate));
+            option.value = candidate.key;
+            var title = templateOptionTitle(candidate);
+            if (title) option.title = title;
+            select.appendChild(option);
+        });
+        select.value = TEMPLATE_SELECTIONS[slot] || "";
+        select.disabled = !candidates.length;
+        select.addEventListener("change", function () {
+            chooseTemplateForSlot(slot, select.value);
+        });
+        field.appendChild(select);
+
+        if (slot === "explicit") {
+            field.appendChild(el(
+                "div",
+                "template-select-help",
+                candidates.length ? t("template_explicit_hint") : t("template_none_explicit")
+            ));
+            var path = el("div", "template-selected-path");
+            path.id = "template-explicit-path";
+            path.appendChild(el("span", "template-selected-path-label", t("template_source_path") + ":"));
+            var code = el("code", "template-selected-path-value");
+            code.id = "template-explicit-path-value";
+            path.appendChild(code);
+            field.appendChild(path);
+        }
+        return field;
+    }
+
+    function renderTemplateModeChoice(id, mode, titleKey, descKey, onSelect) {
+        var selected = TEMPLATE_MODE === mode;
+        var choice = el("button", "template-mode-choice" + (selected ? " selected" : ""));
+        choice.id = id;
+        choice.type = "button";
+        choice.setAttribute("aria-pressed", selected ? "true" : "false");
+        choice.appendChild(el("span", "template-choice-radio"));
+        var copy = el("span", "template-choice-copy");
+        copy.appendChild(el("span", "template-choice-title", t(titleKey)));
+        copy.appendChild(el("span", "template-choice-desc", t(descKey)));
+        choice.appendChild(copy);
+        choice.addEventListener("click", onSelect);
+        return choice;
+    }
+
+    function renderTemplateSelection(host) {
+        if (!TEMPLATE_OPTIONS) return;
+        var sec = section("T", "sec_template_choice", t("template_choice_hint"));
+        var choices = el("div", "template-mode-choices");
+        choices.appendChild(renderTemplateModeChoice(
+            "template-free-choice", "free_design", "template_free_title",
+            "template_free_desc", chooseFreeDesign
+        ));
+        var useChoice = renderTemplateModeChoice(
+            "template-use-choice", "templates", "template_use_title",
+            "template_use_desc", chooseTemplateMode
+        );
+        useChoice.setAttribute("aria-controls", "template-selector-panel");
+        choices.appendChild(useChoice);
+        sec.appendChild(choices);
+
+        var panel = el("div", "template-selector-panel");
+        panel.id = "template-selector-panel";
+        panel.appendChild(el("div", "template-selector-hint", t("template_library_hint")));
+        var grid = el("div", "template-select-grid");
+        TEMPLATE_KINDS.forEach(function (kind) {
+            var candidates = TEMPLATE_OPTIONS.library[kind] || [];
+            grid.appendChild(renderTemplateSelectField(kind, templateKindLabel(kind), candidates));
+        });
+        grid.appendChild(renderTemplateSelectField(
+            "explicit",
+            t("template_source_explicit"),
+            explicitRootOptions()
+        ));
+        panel.appendChild(grid);
+        sec.appendChild(panel);
+        host.appendChild(sec);
+        updateTemplateSelectionControls();
+    }
+
+    function updateTemplateExplicitPath() {
+        var path = document.getElementById("template-explicit-path");
+        var value = document.getElementById("template-explicit-path-value");
+        if (!path || !value) return;
+        var workspaceRoot = TEMPLATE_SELECTIONS.explicit || "";
+        path.hidden = !workspaceRoot;
+        value.textContent = workspaceRoot;
+        value.title = workspaceRoot;
+    }
+
+    function updateTemplateSelectionControls() {
+        var freeChoice = document.getElementById("template-free-choice");
+        var useChoice = document.getElementById("template-use-choice");
+        var selectorPanel = document.getElementById("template-selector-panel");
+        var freeSelected = TEMPLATE_MODE === "free_design";
+        var templatesSelected = TEMPLATE_MODE === "templates";
+        if (freeChoice) {
+            freeChoice.classList.toggle("selected", freeSelected);
+            freeChoice.setAttribute("aria-pressed", freeSelected ? "true" : "false");
+        }
+        if (useChoice) {
+            useChoice.classList.toggle("selected", templatesSelected);
+            useChoice.setAttribute("aria-pressed", templatesSelected ? "true" : "false");
+            useChoice.setAttribute("aria-expanded", templatesSelected ? "true" : "false");
+        }
+        if (selectorPanel) selectorPanel.hidden = !templatesSelected;
+        TEMPLATE_KINDS.concat(["explicit"]).forEach(function (slot) {
+            var select = document.getElementById("template-select-" + slot);
+            if (select) select.value = TEMPLATE_SELECTIONS[slot] || "";
+        });
+        updateTemplateExplicitPath();
+        var status = document.getElementById("confirm-status");
+        if (status) status.textContent = "";
+    }
+
     function normalizeRecId(field, value) {
         if (Array.isArray(value)) return normalizeRecId(field, value[0]);
         if (value == null || value === "") return value;
@@ -725,7 +1408,6 @@
         if (field === "icons") return REC.icons && REC.icons.value;
         if (field === "image_usage") return REC.images && REC.images.value;
         if (field === "image_ai_path") return REC.image_ai_path || (REC.images && REC.images.ai_path);
-        if (field === "formula_policy") return REC.typography && REC.typography.formula_policy && REC.typography.formula_policy.value;
         if (field === "generation_mode") return REC.generation_mode && REC.generation_mode.value;
         return REC[field] && REC[field].value;
     }
@@ -737,6 +1419,13 @@
 
     function recValue(field) {
         return (REC && REC.recommend && REC.recommend[field]) || legacyRecId(field);
+    }
+
+    function booleanRecommendation(field, fallback) {
+        if (!REC || !Object.prototype.hasOwnProperty.call(REC, field)) return fallback;
+        var spec = REC[field];
+        var value = spec && typeof spec === "object" ? spec.value : spec;
+        return typeof value === "boolean" ? value : fallback;
     }
 
     function recommendationFieldLocked(field) {
@@ -761,12 +1450,12 @@
     function enumField(parent, list, recommendedId, getVal, setVal, opts2) {
         list = list || [];
         opts2 = opts2 || {};
+        var disabled = opts2.disabled === true;
         var grouped = list.length && list[0] && list[0].items;
         var flat = grouped ? list.reduce(function (a, g) { return a.concat(g.items || []); }, []) : list;
         var ids = flat.map(function (o) { return o.id; });
-        // Optional personality spectrum: instead of a single ★ recommendation,
-        // the AI marks a few catalog ids (safe / shifted / bold) each with a
-        // temperament tag + a real-world analogy note. Replaces the single badge.
+        // Optional legacy spectrum: marks several catalog ids with localized
+        // tags and notes instead of one recommendation badge.
         var spectrum = (opts2.spectrum && opts2.spectrum.length) ? opts2.spectrum : null;
         var specById = {};
         if (spectrum) spectrum.forEach(function (s) {
@@ -779,7 +1468,7 @@
         var cur = getVal();
         var isCustom = cur != null && cur !== "" &&
             (cur === customSentinel || ids.indexOf(cur) === -1);
-        if (!allowCustom && isCustom) {
+        if (!allowCustom && isCustom && opts2.preserveCustom !== true) {
             // closed field with an out-of-catalog value → snap to recommended/first
             cur = ids.indexOf(recommendedId) >= 0 ? recommendedId : ids[0];
             setVal(cur);
@@ -788,6 +1477,7 @@
 
         var allChips = [];
         var customInput = el(aiCustom ? "textarea" : "input", "text-input custom-input");
+        setNaturalInputDirection(customInput);
         if (opts2.inputClass) customInput.classList.add(opts2.inputClass);
         if (aiCustom) customInput.rows = aiCustom.rows || 4;
         else customInput.type = "text";
@@ -843,7 +1533,13 @@
             }
             chip.appendChild(copy);
             if (!isCustom && o.id === cur) chip.classList.add("selected");
+            if (disabled) {
+                chip.setAttribute("aria-disabled", "true");
+                chip.style.cursor = "not-allowed";
+                chip.style.opacity = "0.65";
+            }
             chip.addEventListener("click", function () {
+                if (disabled) return;
                 deselect();
                 chip.classList.add("selected");
                 if (!aiCustom) customInput.style.display = "none";
@@ -942,6 +1638,7 @@
     function textField(parent, getVal, setVal, placeholderKey, numeric) {
         var input = el("input", numeric ? "num-input" : "text-input");
         input.type = "text";
+        if (!numeric) setNaturalInputDirection(input);
         input.value = getVal() || "";
         input.placeholder = t(placeholderKey);
         input.addEventListener("input", function () { setVal(input.value); });
@@ -950,6 +1647,7 @@
 
     function textareaField(parent, getVal, setVal, placeholderKey, rows) {
         var input = el("textarea", "text-input");
+        setNaturalInputDirection(input);
         input.rows = rows || 2;
         input.value = getVal() || "";
         input.placeholder = t(placeholderKey);
@@ -992,41 +1690,197 @@
         return collect(c);
     }
 
+    function recommendationLanguage() {
+        // `lang` controls the Confirm UI language; it is not evidence of the
+        // deck's content language. New staged files carry `primary_language`.
+        var raw = REC && (REC.primary_language || REC.content_language || REC.language);
+        if (raw && typeof raw === "object") {
+            raw = raw.value || raw.id || raw.code || "";
+        }
+        // The API is the single normalizer; the browser consumes its canonical
+        // value instead of maintaining a second alias table.
+        return String(raw || "und").trim().replace(/_/g, "-");
+    }
+
+    function isEnglishProject() {
+        return /^en(?:-|$)/i.test(recommendationLanguage());
+    }
+
+    function setEnglishLanguageAttributes(node) {
+        node.lang = "en";
+        node.dir = "ltr";
+    }
+
+    function setUiLanguageAttributes(node) {
+        node.lang = LANG === "zh" ? "zh-CN" : (LANG === "zh-TW" ? "zh-TW" : (LANG === "ja" ? "ja-JP" : "en-US"));
+        node.dir = "ltr";
+    }
+
+    function setNaturalInputDirection(node) {
+        node.dir = "auto";
+    }
+
+    function stringList(value) {
+        if (Array.isArray(value)) return value.map(String);
+        if (value == null || value === "") return [];
+        return [String(value)];
+    }
+
+    function normalizedFontToken(value) {
+        return String(value || "").trim().toLowerCase().replace(/[_\s]+/g, "-");
+    }
+
+    function fontScriptTokens(language) {
+        var parts = normalizedFontToken(language).split("-");
+        var base = parts[0];
+        if (!base || base === "und") return [];
+        var explicitScript = parts.filter(function (part) {
+            return /^[a-z]{4}$/.test(part);
+        })[0];
+        if (explicitScript) return [explicitScript];
+        if (base === "en") return ["latin", "latn", "english"];
+        if (base === "zh") {
+            if (parts.indexOf("cn") >= 0 || parts.indexOf("sg") >= 0) {
+                return ["han", "hans", "cjk", "chinese", "zh"];
+            }
+            if (parts.indexOf("tw") >= 0 || parts.indexOf("hk") >= 0 ||
+                    parts.indexOf("mo") >= 0) {
+                return ["han", "hant", "cjk", "chinese", "zh"];
+            }
+            return ["han", "hans", "cjk", "chinese", "zh"];
+        }
+        if (base === "ja") return ["han", "jpan", "kana", "hiragana", "katakana", "cjk", "japanese", "ja"];
+        if (base === "ko") return ["hangul", "kore", "han", "cjk", "korean", "ko"];
+        if (["ru", "uk", "bg", "sr", "mk"].indexOf(base) >= 0) return ["cyrl", "cyrillic"];
+        if (["ar", "fa", "ur"].indexOf(base) >= 0) return ["arab", "arabic"];
+        if (base === "he" || base === "iw") return ["hebr", "hebrew"];
+        if (base === "el") return ["grek", "greek"];
+        if (base === "th") return ["thai"];
+        if (base === "hi" || base === "mr" || base === "ne") return ["deva", "devanagari"];
+        // Most remaining presentation locales use Latin script. Locale metadata
+        // still wins before this fallback.
+        return ["latin", "latn"];
+    }
+
+    function fontSupportsLanguage(font, language) {
+        var target = normalizedFontToken(language);
+        var targetBase = target.split("-")[0];
+        var locales = stringList(font && font.locales).map(normalizedFontToken);
+        if (locales.some(function (locale) {
+            return locale === "*" || locale === target ||
+                (target !== targetBase && locale === targetBase);
+        })) return true;
+
+        var supportedScripts = stringList(font && font.scripts).map(normalizedFontToken);
+        var wantedScripts = fontScriptTokens(language);
+        if (supportedScripts.some(function (script) {
+            return wantedScripts.indexOf(script) >= 0;
+        })) return true;
+
+        // A catalog entry without language metadata remains usable. Once either
+        // metadata field is present, filtering follows it.
+        return !locales.length && !supportedScripts.length;
+    }
+
+    function fontCatalogEntries(field) {
+        var fonts = (CAT && Array.isArray(CAT.fonts)) ? CAT.fonts : [];
+        var language = field === "english" ? "en" : recommendationLanguage();
+        if (field === "primary" && language === "und") {
+            return fonts.filter(function (font) { return font && font.id; });
+        }
+        var matching = fonts.filter(function (font) {
+            return font && font.id && fontSupportsLanguage(font, language);
+        });
+        return matching;
+    }
+
+    function findFontCatalogEntry(id) {
+        var fonts = (CAT && Array.isArray(CAT.fonts)) ? CAT.fonts : [];
+        var target = String(id || "").trim().toLowerCase();
+        for (var i = 0; i < fonts.length; i += 1) {
+            if (String(fonts[i].id || "").trim().toLowerCase() === target) return fonts[i];
+        }
+        return null;
+    }
+
+    function derivedFontCss(font) {
+        var primary = findFontCatalogEntry(font && font.primary);
+        return String((primary && primary.css) || "sans-serif").trim() ||
+            "sans-serif";
+    }
+
+    function normalizedFontRole(font, samples) {
+        font = (font && typeof font === "object") ? Object.assign({}, font) : {};
+        samples = samples || {};
+        var primary = font.primary;
+        var english = font.english;
+        if (isEnglishProject()) {
+            primary = primary || font.latin || font.cjk || "";
+            english = "";
+        } else {
+            primary = primary || font.cjk || "";
+            english = english || font.latin || "";
+        }
+        font.primary = primary;
+        if (isEnglishProject()) delete font.english;
+        else font.english = english;
+        font.sample_primary = font.sample_primary ||
+            (isEnglishProject() ? font.sample_latin : font.sample_cjk) ||
+            samples.primary || "";
+        if (isEnglishProject()) {
+            delete font.sample_english;
+        } else {
+            font.sample_english = font.sample_english || font.sample_latin ||
+                samples.english || "";
+        }
+        delete font.cjk;
+        delete font.latin;
+        delete font.sample_cjk;
+        delete font.sample_latin;
+        if (!String(font.css || "").trim()) font.css = derivedFontCss(font);
+        return font;
+    }
+
     function normTypography(c) {
         c = c || {};
-        if (c.heading && typeof c.heading === "object" && c.body && typeof c.body === "object") {
-            return Object.assign({}, c, {
-                body_size: typographyBodySize(c),
-                heading: Object.assign({}, c.heading, {
-                    sample_cjk: c.heading.sample_cjk || c.sample_heading || "",
-                    sample_latin: c.heading.sample_latin || c.sample_heading_latin || ""
-                }),
-                body: Object.assign({}, c.body, {
-                    sample_cjk: c.body.sample_cjk || c.sample_body || "",
-                    sample_latin: c.body.sample_latin || c.sample_body_latin || ""
-                })
-            });
-        }
-        return {
-            name: c.name || "",
-            note: c.note || "",
-            custom: c.custom || "",
-            body_size: typographyBodySize(c),
-            heading: {
-                cjk: c.heading || "",
-                latin: c.heading_latin || "",
-                css: c.heading_css || "",
-                sample_cjk: c.sample_heading || "",
-                sample_latin: c.sample_heading_latin || ""
-            },
-            body: {
-                cjk: c.body || "",
-                latin: c.body_latin || "",
-                css: c.body_css || "",
-                sample_cjk: c.sample_body || "",
-                sample_latin: c.sample_body_latin || ""
-            }
+        var normalized = Object.assign({}, c);
+        var objectShape = c.heading && typeof c.heading === "object" &&
+            c.body && typeof c.body === "object";
+        var heading = objectShape ? c.heading : {
+            primary: isEnglishProject() ? (c.heading_latin || c.heading || "") : (c.heading || ""),
+            english: isEnglishProject() ? "" : (c.heading_latin || ""),
+            css: c.heading_css || ""
         };
+        var body = objectShape ? c.body : {
+            primary: isEnglishProject() ? (c.body_latin || c.body || "") : (c.body || ""),
+            english: isEnglishProject() ? "" : (c.body_latin || ""),
+            css: c.body_css || ""
+        };
+        normalized.name = c.name || "";
+        normalized.note = c.note || "";
+        normalized.custom = c.custom || "";
+        normalized.body_size = typographyBodySize(c);
+        normalized.heading = normalizedFontRole(heading, {
+            primary: isEnglishProject()
+                ? (c.sample_heading_latin || c.sample_heading || "")
+                : (c.sample_heading || ""),
+            english: c.sample_heading_latin || ""
+        });
+        normalized.body = normalizedFontRole(body, {
+            primary: isEnglishProject()
+                ? (c.sample_body_latin || c.sample_body || "")
+                : (c.sample_body || ""),
+            english: c.sample_body_latin || ""
+        });
+        delete normalized.heading_latin;
+        delete normalized.body_latin;
+        delete normalized.heading_css;
+        delete normalized.body_css;
+        delete normalized.sample_heading;
+        delete normalized.sample_heading_latin;
+        delete normalized.sample_body;
+        delete normalized.sample_body_latin;
+        return normalized;
     }
 
     function typographyBodySize(c) {
@@ -1049,16 +1903,79 @@
         return spec.candidates || spec.options || [];
     }
 
+    function selectedDesignDirectionIndex() {
+        var candidates = designDirectionCandidates();
+        var selected = Number(designDirectionSpec().selected);
+        if (!isFinite(selected) || selected < 0) selected = 0;
+        return Math.min(Math.floor(selected), Math.max(candidates.length - 1, 0));
+    }
+
+    function designDirectionId(candidate, index) {
+        var value = candidate && candidate.id;
+        return String(value || ("direction-" + (Number(index) + 1)));
+    }
+
     function selectedDesignDirection() {
         var candidates = designDirectionCandidates();
-        var selected = Number(designDirectionSpec().selected || 0);
-        if (!isFinite(selected) || selected < 0) selected = 0;
-        return candidates[Math.min(selected, Math.max(candidates.length - 1, 0))] || {};
+        return candidates[selectedDesignDirectionIndex()] || {};
     }
 
     function directionField(field) {
         var candidate = selectedDesignDirection();
         return candidate[field] != null ? candidate[field] : null;
+    }
+
+    function directionBehavior(candidate, field) {
+        return String(localized(candidate, field + "_behavior") ||
+            (candidate && candidate[field + "_behavior"]) || "");
+    }
+
+    function directionStateSignature(candidate) {
+        candidate = candidate || {};
+        var out = {};
+        if (candidate.mode) {
+            out.mode = STATE.mode || "";
+            out.mode_behavior = STATE.mode === "custom" ? (STATE.mode_behavior || "") : "";
+        }
+        if (candidate.visual_style) {
+            out.visual_style = STATE.visual_style || "";
+            out.visual_style_behavior = STATE.visual_style === "custom" ?
+                (STATE.visual_style_behavior || "") : "";
+        }
+        if (candidate.color) {
+            var palette = normPalette(STATE.color || {});
+            out.color = {
+                custom: (STATE.color && STATE.color.custom) || "",
+                palette: {}
+            };
+            PALETTE_ROLES.forEach(function (role) {
+                out.color.palette[role] = normHex(palette[role]) || "";
+            });
+        }
+        if (candidate.typography) {
+            var typography = normTypography(STATE.typography || {});
+            out.typography = {
+                heading: typography.heading || {},
+                body: typography.body || {},
+                body_size: String(typography.body_size || ""),
+                sizes: {}
+            };
+            ["title", "subtitle", "annotation"].forEach(function (role) {
+                out.typography.sizes[role] = String(
+                    (STATE.typography && STATE.typography.sizes && STATE.typography.sizes[role]) || ""
+                );
+            });
+        }
+        if (candidate.icons) out.icons = STATE.icons || "";
+        if (candidate.image_strategy) {
+            out.image_strategy = comparableImageStrategy(STATE.image_strategy || {});
+        }
+        return JSON.stringify(out);
+    }
+
+    function activeDirectionAdjusted(candidate, index) {
+        return designDirectionId(candidate, index) === ACTIVE_DIRECTION_ID &&
+            directionStateSignature(candidate) !== ACTIVE_DIRECTION_BASELINE;
     }
 
     function customCandidateSpec(field) {
@@ -1129,17 +2046,29 @@
         }).slice(0, 3);
     }
 
+    function imageStrategyCatalogCandidates() {
+        var items = AI_IMAGE_COMPARISON && AI_IMAGE_COMPARISON.rendering;
+        if (!Array.isArray(items)) return [];
+        return items.map(function (item) {
+            return item && item.id ? { rendering: item.id } : null;
+        }).filter(Boolean);
+    }
+
+    function imageStrategySelectableCandidates() {
+        var recommended = imageStrategyRecommendationCandidates();
+        var seen = {};
+        recommended.forEach(function (candidate) { seen[candidate.rendering] = true; });
+        return recommended.concat(imageStrategyCatalogCandidates().filter(function (candidate) {
+            return !seen[candidate.rendering];
+        }));
+    }
+
     function imageStrategyCustomCandidate() {
         var candidate = customCandidateSpec("image_strategy");
-        if (!customCandidateBehavior("image_strategy")) {
-            candidate = imageStrategyCandidates().filter(function (item) {
-                return item && item.rendering === "custom";
-            })[0] || {};
-        }
-        if (!candidate || typeof candidate !== "object") return null;
+        if (!customCandidateBehavior("image_strategy")) return null;
+        if (!candidate || typeof candidate !== "object") candidate = {};
         candidate = Object.assign({}, candidate, { rendering: "custom" });
-        var normalized = normalizedImageStrategy(candidate);
-        return String(normalized.behavior || "").trim() ? normalized : null;
+        return normalizedImageStrategy(candidate);
     }
 
     function normalizedImageStrategy(candidate) {
@@ -1153,6 +2082,29 @@
         var behavior = localized(candidate, "behavior") || candidate.behavior || candidate.custom || "";
         if (behavior) out.behavior = behavior;
         return out;
+    }
+
+    function comparableImageStrategy(candidate) {
+        var strategy = normalizedImageStrategy(candidate);
+        return {
+            rendering: strategy.rendering || "",
+            visual: strategy.visual || "",
+            mood: strategy.mood || "",
+            behavior: strategy.behavior || ""
+        };
+    }
+
+    function directionCardSummary(candidate) {
+        candidate = candidate || {};
+        var strategy = normalizedImageStrategy(candidate.image_strategy || {});
+        return String(
+            localized(candidate, "note") ||
+            directionBehavior(candidate, "visual_style") ||
+            directionBehavior(candidate, "mode") ||
+            strategy.visual ||
+            strategy.behavior ||
+            ""
+        );
     }
 
     function usesCustomImagePlanValue(value) {
@@ -1193,8 +2145,12 @@
     function imageStrategySelectedIndex() {
         var spec = imageStrategySpec();
         var direct = spec.candidates || spec.options || [];
-        var idx = direct.length ? (spec.selected || 0) : (designDirectionSpec().selected || 0);
-        return Math.min(idx, Math.max(imageStrategyRecommendationCandidates().length - 1, 0));
+        var idx = direct.length ? Number(spec.selected || 0) : selectedDesignDirectionIndex();
+        if (!isFinite(idx) || idx < 0) idx = 0;
+        return Math.min(
+            Math.floor(idx),
+            Math.max(imageStrategyRecommendationCandidates().length - 1, 0)
+        );
     }
 
     // ---- section renderers ----------------------------------------------
@@ -1270,7 +2226,7 @@
         labeledTextarea(sec, "delivery_context",
             function () { return STATE.delivery_context; },
             function (v) { STATE.delivery_context = v; },
-            "placeholder_delivery_context", null, 2);
+            "placeholder_delivery_context", "delivery_context_hint", 2);
         labeledTextarea(sec, "artifact_afterlife",
             function () { return STATE.artifact_afterlife; },
             function (v) { STATE.artifact_afterlife = v; },
@@ -1309,19 +2265,20 @@
         host.appendChild(sec);
     }
 
-    function applyDesignDirection(candidate) {
+    function applyDesignDirection(candidate, index, shouldRender) {
         candidate = candidate || {};
+        var directionId = designDirectionId(candidate, index);
         if (candidate.mode) {
             STATE.mode = candidate.mode;
-            if (candidate.mode === "custom" && candidate.mode_behavior) {
-                STATE.mode_behavior = candidate.mode_behavior;
-            }
+            STATE.mode_behavior = candidate.mode === "custom" ?
+                directionBehavior(candidate, "mode") : "";
+            ACTIVE_COMPONENT_DIRECTION_IDS.mode = directionId;
         }
         if (candidate.visual_style) {
             STATE.visual_style = candidate.visual_style;
-            if (candidate.visual_style === "custom" && candidate.visual_style_behavior) {
-                STATE.visual_style_behavior = candidate.visual_style_behavior;
-            }
+            STATE.visual_style_behavior = candidate.visual_style === "custom" ?
+                directionBehavior(candidate, "visual_style") : "";
+            ACTIVE_COMPONENT_DIRECTION_IDS.visual_style = directionId;
         }
         if (candidate.color) {
             STATE.color = {
@@ -1331,27 +2288,22 @@
         }
         if (candidate.typography) {
             var typography = normTypography(candidate.typography);
-            var previousTypography = STATE.typography || {};
-            STATE.typography = {
-                name: localized(typography, "name") || typography.name || "",
-                heading: typography.heading || {},
-                body: typography.body || {},
-                // A direction changes font character, not the already-visible
-                // reading-mode sizing state.
-                body_size: previousTypography.body_size ||
-                    defaultBodySizeForCanvas(STATE.canvas, STATE.delivery_purpose),
-                sizes: Object.assign({}, previousTypography.sizes || {})
-            };
+            resetTypographySizeOverrides();
+            STATE.typography = typography;
+            STATE.typography.name = localized(candidate.typography, "name") || typography.name || "";
+            STATE.typography.body_size = typography.body_size ||
+                defaultBodySizeForCanvas(STATE.canvas, STATE.delivery_purpose);
+            STATE.typography.sizes = Object.assign({}, typography.sizes || {});
+            syncUnpinnedTypographySizes(false);
         }
         if (candidate.icons) STATE.icons = normalizeRecId("icons", candidate.icons);
         if (candidate.image_strategy) {
             STATE.image_strategy = normalizedImageStrategy(candidate.image_strategy);
+            ACTIVE_COMPONENT_DIRECTION_IDS.image_strategy = directionId;
         }
-        if (candidate.image_usage) {
-            var usage = selectedImageUsageIds(candidate.image_usage);
-            if (usage.length) STATE.image_usage = usage;
-        }
-        renderAll();
+        ACTIVE_DIRECTION_ID = directionId;
+        ACTIVE_DIRECTION_BASELINE = directionStateSignature(candidate);
+        if (shouldRender !== false) renderAll();
     }
 
     function renderDesignDirections(host) {
@@ -1359,21 +2311,52 @@
         if (!candidates.length) return;
         var sec = section("B", "sec_design_directions", t("design_directions_hint"));
         var grid = el("div", "font-grid design-direction-grid");
+        var cardStates = [];
+        var recommendedIndex = selectedDesignDirectionIndex();
         candidates.forEach(function (candidate, idx) {
             var card = el("div", "font-card design-direction-card");
+            card.title = t("direction_apply_hint");
             var head = el("div", "font-card-head");
             head.appendChild(el("span", "font-card-name",
                 localized(candidate, "name") || (t("option_prefix") + " " + (idx + 1))));
+            if (idx === recommendedIndex) {
+                head.appendChild(el("span", "rec-badge", "★ " + t("recommended")));
+            }
+            var status = el("span", "rec-badge direction-status");
+            status.style.display = "none";
+            head.appendChild(status);
             card.appendChild(head);
+            var customVisual = candidate.visual_style === "custom";
             if (candidate.visual_style) {
                 var preview = el("div", "design-direction-preview");
-                appendVisualStyleImage(preview, candidate.visual_style);
+                if (customVisual) {
+                    preview.classList.add("design-direction-custom-preview");
+                    preview.appendChild(
+                        el("div", "design-direction-custom-label", t("custom"))
+                    );
+                    preview.appendChild(el(
+                        "div",
+                        "design-direction-custom-copy",
+                        directionCardSummary(candidate) || t("custom")
+                    ));
+                } else {
+                    appendVisualStyleImage(preview, candidate.visual_style);
+                }
                 card.appendChild(preview);
             }
             var meta = [];
-            if (candidate.visual_style) meta.push(humanizeId(candidate.visual_style));
+            if (candidate.mode && candidate.mode !== "custom") {
+                meta.push(directionComponentValueLabel(candidate, "mode"));
+            }
+            if (candidate.visual_style && !customVisual) {
+                meta.push(directionComponentValueLabel(candidate, "visual_style"));
+            }
+            var typographyName = candidate.typography &&
+                (localized(candidate.typography, "name") || candidate.typography.name);
+            if (typographyName) meta.push(typographyName);
             if (candidate.icons) meta.push(humanizeId(candidate.icons));
-            if (candidate.image_strategy && candidate.image_strategy.rendering) {
+            if (candidate.image_strategy && candidate.image_strategy.rendering &&
+                    candidate.image_strategy.rendering !== "custom") {
                 meta.push(comparisonValueLabel("rendering", candidate.image_strategy.rendering));
             }
             if (meta.length) card.appendChild(el("div", "font-card-meta", meta.join(" · ")));
@@ -1389,77 +2372,322 @@
             });
             if (swatches.childElementCount) card.appendChild(swatches);
             var note = localized(candidate, "note");
-            if (note) card.appendChild(el("div", "color-note", note));
-            card.addEventListener("click", function () { applyDesignDirection(candidate); });
+            if (note && !customVisual) card.appendChild(el("div", "color-note", note));
+            var restore = el("button", "direction-reset-button", t("direction_restore"));
+            restore.type = "button";
+            restore.hidden = true;
+            restore.addEventListener("click", function (event) {
+                event.stopPropagation();
+                applyDesignDirection(candidate, idx);
+            });
+            card.appendChild(restore);
+            card.addEventListener("click", function () {
+                if (designDirectionId(candidate, idx) === ACTIVE_DIRECTION_ID) return;
+                applyDesignDirection(candidate, idx);
+            });
+            cardStates.push({
+                candidate: candidate,
+                index: idx,
+                card: card,
+                status: status,
+                restore: restore
+            });
             grid.appendChild(card);
         });
+        refreshDesignDirectionState = function () {
+            cardStates.forEach(function (entry) {
+                var active = designDirectionId(entry.candidate, entry.index) === ACTIVE_DIRECTION_ID;
+                var adjusted = active && activeDirectionAdjusted(entry.candidate, entry.index);
+                entry.card.classList.toggle("selected", active && !adjusted);
+                entry.card.classList.toggle("adjusted", adjusted);
+                entry.status.style.display = active ? "inline-block" : "none";
+                entry.status.textContent = adjusted ? t("direction_adjusted") : t("direction_active");
+                entry.restore.hidden = !(active && adjusted);
+                entry.card.title = active ? "" : t("direction_apply_hint");
+            });
+        };
+        refreshDesignDirectionState();
         sec.appendChild(grid);
         host.appendChild(sec);
     }
 
+    function directionComponentMatchesAuthored(candidate, field) {
+        if (field === "mode") {
+            return STATE.mode === candidate.mode &&
+                (candidate.mode !== "custom" ||
+                    String(STATE.mode_behavior || "") === directionBehavior(candidate, "mode"));
+        }
+        if (field === "visual_style") {
+            return STATE.visual_style === candidate.visual_style &&
+                (candidate.visual_style !== "custom" ||
+                    String(STATE.visual_style_behavior || "") ===
+                        directionBehavior(candidate, "visual_style"));
+        }
+        if (field === "image_strategy") {
+            return JSON.stringify(comparableImageStrategy(STATE.image_strategy || {})) ===
+                JSON.stringify(comparableImageStrategy(candidate.image_strategy || {}));
+        }
+        return false;
+    }
+
+    function directionComponentSelected(candidate, field, index) {
+        var activeId = ACTIVE_COMPONENT_DIRECTION_IDS[field];
+        if (activeId) return activeId === designDirectionId(candidate, index);
+        return directionComponentMatchesAuthored(candidate, field);
+    }
+
+    function applyDirectionComponent(candidate, field, index) {
+        if (field === "mode") {
+            STATE.mode = candidate.mode;
+            STATE.mode_behavior = candidate.mode === "custom" ?
+                directionBehavior(candidate, "mode") : "";
+        } else if (field === "visual_style") {
+            STATE.visual_style = candidate.visual_style;
+            STATE.visual_style_behavior = candidate.visual_style === "custom" ?
+                directionBehavior(candidate, "visual_style") : "";
+        } else if (field === "image_strategy") {
+            STATE.image_strategy = normalizedImageStrategy(candidate.image_strategy || {});
+        }
+        ACTIVE_COMPONENT_DIRECTION_IDS[field] = designDirectionId(candidate, index);
+        renderAll();
+    }
+
+    function directionComponentIsCustom(candidate, field) {
+        if (field === "image_strategy") {
+            return candidate && candidate.image_strategy &&
+                candidate.image_strategy.rendering === "custom";
+        }
+        return candidate && candidate[field] === "custom";
+    }
+
+    function setDirectionComponentBehavior(field, value) {
+        if (field === "mode") {
+            STATE.mode = "custom";
+            STATE.mode_behavior = value;
+        } else if (field === "visual_style") {
+            STATE.visual_style = "custom";
+            STATE.visual_style_behavior = value;
+        } else if (field === "image_strategy") {
+            STATE.image_strategy = normalizedImageStrategy(STATE.image_strategy || {});
+            STATE.image_strategy.rendering = "custom";
+            STATE.image_strategy.behavior = value;
+        }
+    }
+
+    function directionComponentValueLabel(candidate, field) {
+        var value = candidate && candidate[field];
+        if (field === "image_strategy") {
+            value = value && value.rendering;
+            return comparisonValueLabel("rendering", value);
+        }
+        var catalog = field === "mode" ? CAT.modes : CAT.visual_styles;
+        var option = findCatalogOption(catalog, value);
+        return option ? optionLabel(option) : (value === "custom" ? t("custom") : humanizeId(value));
+    }
+
+    function directionComponentNote(candidate, field) {
+        if (field === "image_strategy") {
+            var strategy = normalizedImageStrategy(candidate.image_strategy || {});
+            return [strategy.visual, strategy.mood, strategy.behavior].filter(Boolean).join(" · ");
+        }
+        if (candidate[field] === "custom") return directionBehavior(candidate, field);
+        return localized(candidate, "note") || "";
+    }
+
+    function directionComponentEditableBehavior(candidate, field) {
+        if (field === "image_strategy") {
+            return normalizedImageStrategy(candidate.image_strategy || {}).behavior || "";
+        }
+        return directionBehavior(candidate, field);
+    }
+
+    function renderDirectionComponentCandidates(parent, field) {
+        var candidates = designDirectionCandidates().filter(function (candidate) {
+            return candidate && candidate[field];
+        });
+        if (!candidates.length) return;
+        var block = el("div", "subfield scheme-component-options");
+        block.appendChild(el("div", "subfield-label", t("scheme_component_options")));
+        var grid = el("div", "font-grid scheme-component-grid");
+        var entries = [];
+        candidates.forEach(function (candidate, index) {
+            var card = el("div", "font-card scheme-component-card");
+            card.dataset.candidateId = designDirectionId(candidate, index) + ":" + field;
+            var head = el("div", "font-card-head");
+            head.appendChild(el("span", "font-card-name",
+                localized(candidate, "name") || (t("option_prefix") + " " + (index + 1))));
+            head.appendChild(el("span", "font-card-meta",
+                directionComponentValueLabel(candidate, field)));
+            card.appendChild(head);
+            if (field === "visual_style" && candidate.visual_style !== "custom") {
+                var preview = el("div", "design-direction-preview");
+                appendVisualStyleImage(preview, candidate.visual_style);
+                card.appendChild(preview);
+            }
+            var note = directionComponentNote(candidate, field);
+            var noteNode = note ? el("div", "color-note", note) : null;
+            if (noteNode) card.appendChild(noteNode);
+            var editor = null;
+            if (directionComponentIsCustom(candidate, field)) {
+                editor = el("textarea", "text-input scheme-component-editor");
+                setNaturalInputDirection(editor);
+                editor.rows = 4;
+                editor.value = directionComponentEditableBehavior(candidate, field);
+                editor.placeholder = t(field === "mode" ? "mode_behavior_placeholder" :
+                    (field === "visual_style" ? "visual_style_behavior_placeholder" :
+                        "image_strategy_custom_placeholder"));
+                editor.style.display = "none";
+                editor.addEventListener("click", function (event) {
+                    event.stopPropagation();
+                });
+                editor.addEventListener("input", function () {
+                    setDirectionComponentBehavior(field, editor.value);
+                    if (field === "image_strategy") refreshImageStrategyPreview();
+                    refreshDesignDirectionState();
+                    refreshDirectionComponentStates();
+                });
+                card.appendChild(editor);
+            }
+            card.addEventListener("click", function () {
+                applyDirectionComponent(candidate, field, index);
+            });
+            entries.push({
+                candidate: candidate,
+                index: index,
+                card: card,
+                note: noteNode,
+                editor: editor
+            });
+            grid.appendChild(card);
+        });
+        var paint = function () {
+            entries.forEach(function (entry) {
+                var selected = directionComponentSelected(
+                    entry.candidate, field, entry.index
+                );
+                var adjusted = selected &&
+                    !directionComponentMatchesAuthored(entry.candidate, field);
+                entry.card.classList.toggle("selected", selected);
+                entry.card.classList.toggle("adjusted", adjusted);
+                if (entry.editor) {
+                    entry.editor.style.display = selected ? "block" : "none";
+                    if (selected && document.activeElement !== entry.editor) {
+                        var current = field === "mode" ? STATE.mode_behavior :
+                            (field === "visual_style" ? STATE.visual_style_behavior :
+                                ((STATE.image_strategy || {}).behavior || ""));
+                        entry.editor.value = current;
+                    }
+                    if (selected) fitTextareaToContent(entry.editor);
+                }
+                if (entry.note) entry.note.style.display = selected ? "none" : "block";
+            });
+        };
+        DIRECTION_COMPONENT_PAINTERS.push(paint);
+        paint();
+        block.appendChild(grid);
+        parent.appendChild(block);
+    }
+
+    function currentDirectionCustomCandidate(field, stateKey) {
+        if (STATE[field] !== "custom") return null;
+        return designDirectionCandidates().filter(function (candidate) {
+            return candidate && candidate[field] === "custom" &&
+                directionBehavior(candidate, field) === String(STATE[stateKey] || "");
+        })[0];
+    }
+
+    function renderCurrentDirectionCustomEditor(parent, field, stateKey, placeholderKey) {
+        if (STATE[field] !== "custom") return null;
+        if (ACTIVE_COMPONENT_DIRECTION_IDS[field]) return null;
+        var source = currentDirectionCustomCandidate(field, stateKey);
+        if (!source && customCandidateBehavior(field)) return null;
+        var block = el("div", "subfield direction-custom-editor");
+        var label = t("custom");
+        if (source && localized(source, "name")) {
+            label = localized(source, "name") + " · " + label;
+        }
+        block.appendChild(el("div", "subfield-label", label));
+        var input = el("textarea", "text-input custom-input");
+        setNaturalInputDirection(input);
+        input.rows = 4;
+        input.placeholder = t(placeholderKey);
+        input.value = STATE[stateKey] || "";
+        input.style.display = "block";
+        input.addEventListener("input", function () {
+            STATE[stateKey] = input.value;
+            refreshDesignDirectionState();
+            refreshDirectionComponentStates();
+        });
+        block.appendChild(input);
+        parent.appendChild(block);
+        return block;
+    }
+
     function renderNarrativeDirection(host) {
         var sec = section(4, "sec_narrative");
-        var custom = creativeCustomOptions("mode", "mode_behavior", "mode_behavior_placeholder");
+        renderDirectionComponentCandidates(sec, "mode");
+        var directionCustomEditor = null;
+        var custom = currentDirectionCustomCandidate("mode", "mode_behavior") ? null :
+            creativeCustomOptions("mode", "mode_behavior", "mode_behavior_placeholder");
         enumField(sec, CAT.modes, recOrFirst("mode", CAT.modes),
-            function () { return STATE.mode; }, function (v) { STATE.mode = v; },
+            function () { return STATE.mode; }, function (v) {
+                STATE.mode = v;
+                ACTIVE_COMPONENT_DIRECTION_IDS.mode = "";
+                if (v !== "custom") STATE.mode_behavior = "";
+                refreshDesignDirectionState();
+                refreshDirectionComponentStates();
+                if (directionCustomEditor) {
+                    directionCustomEditor.style.display = v === "custom" ? "block" : "none";
+                }
+            },
             {
                 allowCustom: !!custom,
                 customOnOwnRow: true,
                 customSentinel: "custom",
+                preserveCustom: true,
                 placeholder: t("mode_behavior_placeholder"),
                 aiCustom: custom
             });
+        directionCustomEditor = renderCurrentDirectionCustomEditor(
+            sec, "mode", "mode_behavior", "mode_behavior_placeholder"
+        );
         host.appendChild(sec);
-    }
-
-    function visualStyleRecommendationSpectrum() {
-        var raw = (REC && Array.isArray(REC.visual_style_spectrum)) ? REC.visual_style_spectrum : [];
-        if (!raw.length) {
-            raw = designDirectionCandidates().map(function (candidate) {
-                return {
-                    id: candidate && candidate.visual_style,
-                    tag_zh: candidate && candidate.name_zh,
-                    tag_en: candidate && candidate.name_en,
-                    tag_ja: candidate && candidate.name_ja,
-                    note_zh: candidate && candidate.note_zh,
-                    note_en: candidate && candidate.note_en,
-                    note_ja: candidate && candidate.note_ja
-                };
-            });
-        }
-        var spectrum = [];
-        var seen = {};
-        raw.some(function (item) {
-            var id = normalizeRecId("visual_style", item && item.id);
-            if (!id || seen[id]) return false;
-            seen[id] = true;
-            spectrum.push(Object.assign({}, item, { id: id }));
-            return spectrum.length === 3;
-        });
-        if (!spectrum.length) {
-            var fallbackId = recId("visual_style") || normalizeRecId("visual_style", directionField("visual_style"));
-            if (fallbackId) spectrum.push({ id: fallbackId });
-        }
-        return spectrum;
     }
 
     function renderVisualDirection(host) {
         var sec = section(5, "sec_visual");
-        var custom = creativeCustomOptions(
-            "visual_style", "visual_style_behavior", "visual_style_behavior_placeholder"
+        renderDirectionComponentCandidates(sec, "visual_style");
+        var directionCustomEditor = null;
+        var custom = currentDirectionCustomCandidate(
+            "visual_style", "visual_style_behavior"
+        ) ? null : creativeCustomOptions(
+                "visual_style", "visual_style_behavior", "visual_style_behavior_placeholder"
         );
         enumField(sec, CAT.visual_styles, recOrFirst("visual_style", CAT.visual_styles),
-            function () { return STATE.visual_style; }, function (v) { STATE.visual_style = v; },
+            function () { return STATE.visual_style; }, function (v) {
+                STATE.visual_style = v;
+                ACTIVE_COMPONENT_DIRECTION_IDS.visual_style = "";
+                if (v !== "custom") STATE.visual_style_behavior = "";
+                refreshDesignDirectionState();
+                refreshDirectionComponentStates();
+                if (directionCustomEditor) {
+                    directionCustomEditor.style.display = v === "custom" ? "block" : "none";
+                }
+            },
             {
                 allowCustom: !!custom,
                 customOnOwnRow: true,
                 customSentinel: "custom",
+                preserveCustom: true,
                 placeholder: t("visual_style_behavior_placeholder"),
                 aiCustom: custom,
-                spectrum: visualStyleRecommendationSpectrum(),
                 preview: "visual_style",
                 chipsClass: "visual-style-grid"
             });
+        directionCustomEditor = renderCurrentDirectionCustomEditor(
+            sec, "visual_style", "visual_style_behavior",
+            "visual_style_behavior_placeholder"
+        );
         host.appendChild(sec);
     }
 
@@ -1485,8 +2713,14 @@
     var refreshStylePreview = function () {};
     // Replaced when the selected generated-image preview mounts.
     var refreshImageStrategyPreview = function () {};
+    // Replaced when the final plan's image-production section mounts; image-use
+    // edits call it so the conditional AI path stays synchronized on the page.
+    var refreshImageProduction = function () {};
+    // Replaced when the Design Spec depth section mounts; generation/refinement
+    // edits call it so the forced-complete coupling stays synchronized.
+    var refreshDesignSpecDepth = function () {};
     // Replaced when the typography section mounts; the canvas section calls it so
-    // the body-size hint tracks the chosen canvas height.
+    // the body-size hint tracks the chosen canvas dimensions.
     var refreshBodySizeHint = function () {};
     // Replaced when the typography section mounts; body-size / reading-mode
     // changes call it so unpinned per-role values update locally.
@@ -1519,42 +2753,25 @@
         return Math.round(raw);
     }
 
-    // Canvas height (viewBox user units) parsed from a catalog `dim` like
+    // Canvas dimensions (viewBox user units) parsed from a catalog `dim` like
     // "1242×1660" or from a custom canvas string containing WxH; null if unknown.
-    function canvasHeight(canvasVal) {
+    function canvasDimensions(canvasVal) {
         var dim = null;
         (CAT.canvas || []).forEach(function (o) { if (o.id === canvasVal) dim = o.dim; });
         var m = String(dim || canvasVal || "").match(/(\d{2,5})\s*[×xX*]\s*(\d{2,5})/);
-        return m ? parseInt(m[2], 10) : null;
-    }
-
-    function bodySizeRatioBand(canvasVal) {
-        var dim = null;
-        (CAT.canvas || []).forEach(function (o) { if (o.id === canvasVal) dim = o.dim; });
-        var raw = String(dim || canvasVal || "");
-        var id = String(canvasVal || "").toLowerCase();
-        var isPpt = id === "ppt169" || id === "ppt43" ||
-            /1280\s*[×xX*]\s*720/.test(raw) ||
-            /1024\s*[×xX*]\s*768/.test(raw);
-        return isPpt ? { lo: 0.031, hi: 0.047 } : { lo: 0.025, hi: 0.033 };
+        return m ? { width: parseInt(m[1], 10), height: parseInt(m[2], 10) } : null;
     }
 
     // PPT canvases (16:9 / 4:3) take the fixed per-reading-mode body px;
-    // social / print canvases scale the body px by canvas height instead.
+    // other canvases use the canvas-owned effective-span rule below.
     function isPptCanvas(canvasVal) {
-        var dim = null;
-        (CAT.canvas || []).forEach(function (o) { if (o.id === canvasVal) dim = o.dim; });
-        var raw = String(dim || canvasVal || "");
         var id = String(canvasVal || "").toLowerCase();
-        return id === "ppt169" || id === "ppt43" ||
-            /1280\s*[×xX*]\s*720/.test(raw) ||
-            /1024\s*[×xX*]\s*768/.test(raw);
+        return id === "ppt169" || id === "ppt43";
     }
 
     // Body baseline in **px** per reading mode (legacy key:
-    // delivery_purpose; see strategist.md §g). The
-    // system is px-only — these are the SVG/execution px values, recalibrated for
-    // the 1280×720 PPT canvas. No pt layer, no conversion. `def` is the fixed
+    // delivery_purpose). The system is px-only — these mirror the registered-PPT
+    // values in references/canvas-formats.md. No pt layer, no conversion. `def` is the fixed
     // recommendation; lo/hi are a sanity envelope for the out-of-range flag only.
     function deliveryBodyPx(purposeId) {
         if (purposeId === "text") return { lo: 18, hi: 21, def: 20 };
@@ -1562,12 +2779,25 @@
         return { lo: 22, hi: 25, def: 24 }; // balanced — the default
     }
 
+    // Mirrors references/canvas-formats.md § "Typography Scale Start". The
+    // 3× short-side cap keeps extreme aspect ratios from inflating the scale;
+    // lo/hi remain advisory and def is the initial anchor, never a hard floor.
+    function bodySizeBandForCanvas(canvasVal, purposeId) {
+        if (isPptCanvas(canvasVal)) return deliveryBodyPx(purposeId);
+        var dims = canvasDimensions(canvasVal);
+        if (!dims) return { lo: 32, hi: 48, def: 40 }; // legacy invalid-custom fallback
+        var shortSide = Math.min(dims.width, dims.height);
+        var longSide = Math.max(dims.width, dims.height);
+        var span = Math.min(longSide, 3 * shortSide);
+        return {
+            lo: Math.round(span * 0.025),
+            hi: Math.round(span * 0.033),
+            def: Math.round(span * 0.029)
+        };
+    }
+
     function defaultBodySizeForCanvas(canvasVal, purposeId) {
-        if (isPptCanvas(canvasVal)) return deliveryBodyPx(purposeId).def;
-        var h = canvasHeight(canvasVal);
-        if (!h) return 40;
-        var band = bodySizeRatioBand(canvasVal);
-        return Math.round(h * (band.lo + band.hi) / 2);
+        return bodySizeBandForCanvas(canvasVal, purposeId).def;
     }
 
     // Resolve the only deterministic same-stage size dependency locally. The
@@ -1608,7 +2838,14 @@
 
     function normalizeTypographyForSubmit(payload) {
         if (!payload.typography || typeof payload.typography !== "object") return;
-        var typ = payload.typography;
+        var typ = normTypography(payload.typography);
+        payload.typography = typ;
+        if (isEnglishProject()) {
+            ["heading", "body"].forEach(function (role) {
+                delete typ[role].english;
+                delete typ[role].sample_english;
+            });
+        }
         var body = parseFloat(typ.body_size);
         if (!isFinite(body)) {
             // Cleared / invalid body field — fall back so role sizes never submit
@@ -1625,6 +2862,7 @@
                 if (isFinite(raw)) typ.sizes[role] = roundSize(raw);
             });
         }
+        if (typographyFamiliesComplete(typ)) delete typ.custom;
         // delivery_purpose is PPT-only; drop it on non-PPT canvases where it has
         // no meaning and was never shown.
         if (!isPptCanvas(payload.canvas)) delete payload.delivery_purpose;
@@ -1651,6 +2889,7 @@
             });
         }
         var customInput = el("textarea", "text-input custom-color-input");
+        setNaturalInputDirection(customInput);
         customInput.rows = 2;
         customInput.placeholder = t("custom_color_placeholder");
         customInput.style.display = "none";
@@ -1773,32 +3012,131 @@
         return primary + ", " + fallback;
     }
 
-    function sampleText(role, script) {
-        if (role === "heading") return t(script === "latin" ? "preview_latin_title" : "preview_big_title");
-        return t(script === "latin" ? "preview_latin_body" : "preview_body_intro");
+    function typographyFamiliesComplete(typography) {
+        typography = normTypography(typography || {});
+        return ["heading", "body"].every(function (role) {
+            var font = typography[role] || {};
+            var fields = isEnglishProject() ? ["primary", "css"] :
+                ["primary", "english", "css"];
+            return fields.every(function (field) {
+                return !!String(font[field] || "").trim();
+            });
+        });
+    }
+
+    function sampleText(role, field) {
+        // Keep comparison copy stable: choices change visual treatment, not content.
+        var useEnglish = field === "english" || isEnglishProject();
+        if (role === "heading") {
+            return t(useEnglish ? "preview_latin_title" : "preview_big_title");
+        }
+        return t(useEnglish ? "preview_latin_body" : "preview_body_intro");
     }
 
     function fontSample(box, slot, css, role) {
         var line = el("div", "font-sample-line");
-        var cjk = el("span", "fs-cjk", sampleText(role, "cjk"));
-        var lat = el("span", "fs-latin", sampleText(role, "latin"));
-        var cjkStack = previewFontStack(slot.cjk, css);
-        var latinStack = previewFontStack(slot.latin, css);
-        if (cjkStack) cjk.style.fontFamily = cjkStack;
-        if (latinStack) lat.style.fontFamily = latinStack;
-        if (cjkStack) cjk.title = cjkStack;
-        if (latinStack) lat.title = latinStack;
-        line.appendChild(cjk); line.appendChild(lat); box.appendChild(line);
+        var primary = el("span", "fs-primary", sampleText(role, "primary"));
+        setUiLanguageAttributes(primary);
+        var primaryStack = previewFontStack(slot.primary, css);
+        if (primaryStack) primary.style.fontFamily = primaryStack;
+        if (primaryStack) primary.title = primaryStack;
+        line.appendChild(primary);
+        if (!isEnglishProject()) {
+            var english = el("span", "fs-english", sampleText(role, "english"));
+            setEnglishLanguageAttributes(english);
+            var englishStack = previewFontStack(slot.english, css);
+            if (englishStack) english.style.fontFamily = englishStack;
+            if (englishStack) english.title = englishStack;
+            line.appendChild(english);
+        }
+        box.appendChild(line);
+    }
+
+    function fontChoiceLabel(font) {
+        var label = localized(font, "label") || font.id;
+        if (String(label).toLowerCase() === String(font.id).toLowerCase()) {
+            return String(font.id);
+        }
+        return label + " · " + font.id;
+    }
+
+    function typographyFieldLabel(field) {
+        if (field === "english") return t("english_font");
+        return t("primary_language_font");
+    }
+
+    function typographyChoiceConfigs() {
+        var configs = [];
+        ["heading", "body"].forEach(function (role) {
+            configs.push([role, "primary"]);
+            if (!isEnglishProject()) configs.push([role, "english"]);
+        });
+        return configs;
+    }
+
+    function typographySignature(typography) {
+        typography = normTypography(typography || {});
+        var fields = isEnglishProject() ? ["primary"] : ["primary", "english"];
+        var values = [];
+        ["heading", "body"].forEach(function (role) {
+            fields.forEach(function (field) {
+                values.push(String((typography[role] || {})[field] || "")
+                    .trim().toLowerCase());
+            });
+        });
+        return values.join("\u0000");
     }
 
     function renderTypography(host) {
-        var cands = typographyRecommendationCandidates();
+        var cands = typographyRecommendationCandidates().filter(typographyFamiliesComplete);
         var sec = section(7, "sec_type");
         var grid = el("div", "font-grid");
-        var customInput = el("textarea", "text-input custom-typography-input");
-        customInput.rows = 2;
-        customInput.placeholder = t("custom_typography_placeholder");
-        customInput.style.display = "none";
+        var customFields = el("div", "custom-typography-fields font-picker-fields");
+        var customInputs = {};
+        var customLegacyNote = el("div", "toggle-desc custom-typography-legacy");
+        var pickerHead = el("div", "font-picker-head");
+        pickerHead.appendChild(el("span", "subfield-label", t("font_selection")));
+        var customStatus = el("span", "font-custom-status", t("customized"));
+        pickerHead.appendChild(customStatus);
+        customFields.appendChild(pickerHead);
+        customFields.appendChild(el("div", "toggle-desc font-picker-hint", t("font_picker_hint")));
+        customFields.appendChild(customLegacyNote);
+
+        function syncCustomInputs() {
+            var typography = STATE.typography || {};
+            customLegacyNote.textContent = String(typography.custom || "").trim();
+            customLegacyNote.style.display = customLegacyNote.textContent ? "block" : "none";
+            customStatus.style.display = typography.name === "custom" ? "inline-flex" : "none";
+            typographyChoiceConfigs().forEach(function (config) {
+                var role = config[0], field = config[1];
+                var control = customInputs[role + "_" + field];
+                if (!control) return;
+                var value = String((typography[role] || {})[field] || "");
+                var matchingFont = control.options.filter(function (font) {
+                    return String(font.id).toLowerCase() === value.toLowerCase();
+                })[0];
+                control.select.value = matchingFont ? matchingFont.id : "__other__";
+                control.other.value = matchingFont ? "" : value;
+                control.other.style.display = matchingFont ? "none" : "block";
+            });
+        }
+
+        function markCustomTypography() {
+            if (!STATE.typography) {
+                STATE.typography = { name: "custom", heading: {}, body: {} };
+            }
+            STATE.typography.name = "custom";
+            grid.querySelectorAll(".font-card").forEach(function (card) {
+                card.classList.remove("selected");
+            });
+            customCard.classList.add("selected");
+            customStatus.style.display = "inline-flex";
+        }
+
+        function updateRoleCss(role) {
+            if (!STATE.typography[role]) STATE.typography[role] = {};
+            STATE.typography[role].css = derivedFontCss(STATE.typography[role]);
+        }
 
         function selectFont(idx) {
             var c = normTypography(cands[idx] || {});
@@ -1814,26 +3152,23 @@
                 sizes: Object.assign({}, prev.sizes || {})
             };
             if (sizeInput) sizeInput.value = STATE.typography.body_size || "";
-            customInput.style.display = "none";
             grid.querySelectorAll(".font-card").forEach(function (card, i) { card.classList.toggle("selected", i === idx); });
+            syncCustomInputs();
             refreshSizeInputs();   // fill any role with no value yet; never overwrites existing values
             refreshStylePreview();
         }
 
         function selectCustomTypography() {
             var prev = STATE.typography || {};
-            STATE.typography = {
-                name: "custom",
-                custom: customInput.value || "",
-                heading: {},
-                body: {},
-                body_size: prev.body_size || "",
-                sizes: Object.assign({}, prev.sizes || {})   // switching font family must not drop sizes
-            };
-            grid.querySelectorAll(".font-card").forEach(function (card) { card.classList.remove("selected"); });
-            customCard.classList.add("selected");
-            customInput.style.display = "block";
-            customInput.focus();
+            STATE.typography = normTypography(prev);
+            STATE.typography.name = "custom";
+            STATE.typography.body_size = prev.body_size || "";
+            // Switching font family must not drop any explicit size.
+            STATE.typography.sizes = Object.assign({}, prev.sizes || {});
+            markCustomTypography();
+            syncCustomInputs();
+            var firstControl = customInputs.heading_primary;
+            if (firstControl) firstControl.select.focus();
             refreshSizeInputs();
             refreshStylePreview();
         }
@@ -1844,8 +3179,13 @@
             var card = el("div", "font-card");
             var top = el("div", "font-card-head");
             top.appendChild(el("span", "font-card-name", localized(c, "name") || (t("option_prefix") + " " + (idx + 1))));
-            var meta = t("font_heading") + " " + t("cjk") + ":" + (head.cjk || "—") + " / " + t("latin") + ":" + (head.latin || "—")
-                + "  ·  " + t("font_body") + " " + t("cjk") + ":" + (body.cjk || "—") + " / " + t("latin") + ":" + (body.latin || "—");
+            var metaFields = isEnglishProject() ? ["primary"] : ["primary", "english"];
+            var meta = ["heading", "body"].map(function (role) {
+                var slot = role === "heading" ? head : body;
+                return t("font_" + role) + " " + metaFields.map(function (field) {
+                    return typographyFieldLabel(field) + ": " + (slot[field] || "—");
+                }).join(" / ");
+            }).join("  ·  ");
             top.appendChild(el("span", "font-card-meta", meta));
             card.appendChild(top);
             var hbox = el("div", "font-sample-heading-box"); fontSample(hbox, head, head.css, "heading"); card.appendChild(hbox);
@@ -1859,12 +3199,63 @@
         customCard.addEventListener("click", selectCustomTypography);
         grid.appendChild(customCard);
         sec.appendChild(grid);
-        customInput.addEventListener("input", function () {
-            if (!STATE.typography || STATE.typography.name !== "custom") selectCustomTypography();
-            STATE.typography.custom = customInput.value;
-            refreshStylePreview();
+        typographyChoiceConfigs().forEach(function (config) {
+            var role = config[0], fieldName = config[1];
+            var field = el("label", "custom-typography-field");
+            field.appendChild(el("span", "hex-cell-label",
+                t("font_" + role) + " · " + typographyFieldLabel(fieldName)));
+            var options = fontCatalogEntries(fieldName);
+            var select = el("select", "font-select");
+            options.forEach(function (font) {
+                var option = document.createElement("option");
+                option.value = font.id;
+                option.textContent = fontChoiceLabel(font);
+                select.appendChild(option);
+            });
+            var otherOption = document.createElement("option");
+            otherOption.value = "__other__";
+            otherOption.textContent = t("other_installed_font");
+            select.appendChild(otherOption);
+            var input = el("input", "text-input other-font-input");
+            input.type = "text";
+            input.placeholder = t("other_font_placeholder");
+            select.addEventListener("change", function () {
+                markCustomTypography();
+                if (!STATE.typography[role]) {
+                    STATE.typography[role] = { css: "sans-serif" };
+                }
+                if (select.value === "__other__") {
+                    input.value = "";
+                    input.style.display = "block";
+                    STATE.typography[role][fieldName] = "";
+                    input.focus();
+                } else {
+                    input.value = "";
+                    input.style.display = "none";
+                    STATE.typography[role][fieldName] = select.value;
+                }
+                updateRoleCss(role);
+                refreshStylePreview();
+            });
+            input.addEventListener("input", function () {
+                markCustomTypography();
+                if (!STATE.typography[role]) {
+                    STATE.typography[role] = { css: "sans-serif" };
+                }
+                STATE.typography[role][fieldName] = input.value;
+                updateRoleCss(role);
+                refreshStylePreview();
+            });
+            customInputs[role + "_" + fieldName] = {
+                select: select,
+                other: input,
+                options: options
+            };
+            field.appendChild(select);
+            field.appendChild(input);
+            customFields.appendChild(field);
         });
-        sec.appendChild(customInput);
+        sec.appendChild(customFields);
 
         var sizeField = el("div", "subfield");
         sizeField.appendChild(el("div", "subfield-label", t("font_body_size")));
@@ -1873,10 +3264,12 @@
         var sizeInput = el("input", "num-input font-size-input");
         sizeInput.type = "number";
         sizeInput.min = "8";
-        sizeInput.max = "96";
+        sizeInput.max = "256";
         sizeInput.step = "1";
         sizeInput.value = (STATE.typography && STATE.typography.body_size) || "";
-        sizeInput.placeholder = isPptCanvas(STATE.canvas) ? "20 / 24 / 32" : "40 / 48";
+        sizeInput.placeholder = isPptCanvas(STATE.canvas)
+            ? "20 / 24 / 32"
+            : String(bodySizeBandForCanvas(STATE.canvas, STATE.delivery_purpose).def);
         sizeInput.addEventListener("input", function () {
             if (!STATE.typography) STATE.typography = { name: "", heading: {}, body: {} };
             STATE.typography.body_size = sizeInput.value;
@@ -1890,7 +3283,7 @@
         var sizePtHint = el("div", "toggle-desc body-size-pt");
         var sizeHint = el("div", "toggle-desc body-size-hint");
         // PPT body is one fixed px value per reading mode (not a range); non-PPT
-        // canvases scale px to canvas height. A manually pinned value is never
+        // canvases use the canvas-owned effective span. A manually pinned value is never
         // overwritten by later reading-mode changes.
         // Everything is px — lo/hi are only a sanity envelope for the OOR flag.
         refreshBodySizeHint = function () {
@@ -1901,13 +3294,10 @@
                 lo = pb.lo; hi = pb.hi;
                 txt += " " + t("body_size_hint_purpose").replace("{def}", pb.def);
             } else {
-                var h = canvasHeight(STATE.canvas);
-                var band = bodySizeRatioBand(STATE.canvas);
-                if (h) {
-                    lo = Math.round(h * band.lo); hi = Math.round(h * band.hi);
-                    txt += " " + t("body_size_hint_canvas")
-                        .replace("{lo}", lo).replace("{hi}", hi);
-                }
+                var band = bodySizeBandForCanvas(STATE.canvas, STATE.delivery_purpose);
+                lo = band.lo; hi = band.hi;
+                txt += " " + t("body_size_hint_canvas")
+                    .replace("{lo}", lo).replace("{hi}", hi);
             }
             // Flag (hint only) a value far outside the
             // canvas's usual px range, so an accidental extreme value is visible
@@ -1951,7 +3341,7 @@
             wrap.appendChild(el("div", "hex-cell-label", t("size_role_" + role)));
             var inputLine = el("div", "role-size-line");
             var inp = document.createElement("input");
-            inp.type = "number"; inp.min = "6"; inp.max = "200"; inp.step = "1";
+            inp.type = "number"; inp.min = "6"; inp.max = "512"; inp.step = "1";
             inp.addEventListener("input", function () {
                 if (!STATE.typography) STATE.typography = { name: "", heading: {}, body: {} };
                 if (!STATE.typography.sizes) STATE.typography.sizes = {};
@@ -1978,7 +3368,7 @@
             if (!STATE.typography.sizes) STATE.typography.sizes = {};
             sizeInput.value = STATE.typography.body_size || "";
             var bodyVal = parseFloat(STATE.typography.body_size) ||
-                (isPptCanvas(STATE.canvas) ? deliveryBodyPx(STATE.delivery_purpose).def : 40);
+                defaultBodySizeForCanvas(STATE.canvas, STATE.delivery_purpose);
             SIZE_ROLES.forEach(function (role) {
                 var cur = STATE.typography.sizes[role];
                 var hasVal = cur !== undefined && cur !== null && cur !== "";
@@ -1991,23 +3381,34 @@
 
         host.appendChild(sec);
 
-        var selIdx = -1;
-        if (STATE.typography && STATE.typography.name) cands.forEach(function (c, i) {
-            if ((localized(c, "name") || c.name) === STATE.typography.name) selIdx = i;
+        var nameMatch = -1;
+        var signatureMatch = -1;
+        var stateSignature = typographySignature(STATE.typography || {});
+        if (STATE.typography && STATE.typography.name !== "custom") cands.forEach(function (c, i) {
+            var sameName = [localized(c, "name"), c.name_zh, c.name_zh_tw, c.name_en, c.name_ja]
+                .some(function (name) { return name === STATE.typography.name; });
+            if (!sameName && c.name && typeof c.name === "object") {
+                sameName = Object.keys(c.name).some(function (key) {
+                    return c.name[key] === STATE.typography.name;
+                });
+            }
+            if (sameName && nameMatch < 0) nameMatch = i;
+            if (typographySignature(c) === stateSignature && signatureMatch < 0) signatureMatch = i;
         });
+        // Names preserve the selected candidate when several recommendations share
+        // one font stack. Signature matching is only a first-match legacy fallback.
+        var selIdx = nameMatch >= 0 ? nameMatch : signatureMatch;
         if (selIdx >= 0) selectFont(selIdx);
         else if (STATE.typography && STATE.typography.name === "custom") {
-            customInput.value = STATE.typography.custom || "";
+            ["heading", "body"].forEach(function (role) {
+                if (!STATE.typography[role]) STATE.typography[role] = {};
+                if (!STATE.typography[role].css) updateRoleCss(role);
+            });
             customCard.classList.add("selected");
-            customInput.style.display = "block";
+            syncCustomInputs();
+        } else {
+            syncCustomInputs();
         }
-    }
-
-    function renderFormulaPolicy(host) {
-        var sec = section("F", "formula_policy");
-        enumField(sec, CAT.formula_policy, recOrFirst("formula_policy", CAT.formula_policy),
-            function () { return STATE.formula_policy; }, function (v) { STATE.formula_policy = v; });
-        host.appendChild(sec);
     }
 
     // Combined color + typography + icon preview — not a separate confirmation, just a
@@ -2026,15 +3427,17 @@
         var card = el("div", "style-preview-card");
         var textcol = el("div", "sp-textcol");
         var title = el("div", "sp-title");
-        var titleCjk = el("span", "sp-title-cjk");
-        var titleLat = el("span", "sp-title-lat");
-        title.appendChild(titleCjk); title.appendChild(titleLat);
+        var titlePrimary = el("span", "sp-title-primary");
+        var titleEnglish = el("span", "sp-title-english");
+        title.appendChild(titlePrimary); title.appendChild(titleEnglish);
         var bodyRow = el("div", "sp-body");
         var accentBar = el("span", "sp-accent-bar");
         var bodyWrap = el("div", "sp-body-wrap");
-        var bodyCjk = el("span", "sp-body-cjk");
-        var bodyLat = el("span", "sp-body-lat");
-        bodyWrap.appendChild(bodyCjk); bodyWrap.appendChild(bodyLat);
+        var bodyPrimary = el("span", "sp-body-primary");
+        var bodyEnglish = el("span", "sp-body-english");
+        setEnglishLanguageAttributes(titleEnglish);
+        setEnglishLanguageAttributes(bodyEnglish);
+        bodyWrap.appendChild(bodyPrimary); bodyWrap.appendChild(bodyEnglish);
         bodyRow.appendChild(accentBar); bodyRow.appendChild(bodyWrap);
         textcol.appendChild(title); textcol.appendChild(bodyRow);
         var content = el("div", "sp-content");
@@ -2060,35 +3463,41 @@
             var sacc = hexOr(pal.secondary_accent, acc);
             var txt = hexOr(pal.body_text, "#1d2430");
             // body_size is px everywhere — preview it directly, no conversion.
-            var rawSize = parseFloat(typ.body_size) || (isPptCanvas(STATE.canvas) ? 24 : 18);
+            var rawSize = parseFloat(typ.body_size) ||
+                defaultBodySizeForCanvas(STATE.canvas, STATE.delivery_purpose);
             var bodyPx = Math.max(12, Math.min(34, rawSize));
-            var headStack = previewFontStack(head.cjk, head.css);
-            var headLatStack = previewFontStack(head.latin, head.css);
-            var bodyStack = previewFontStack(body.cjk, body.css);
-            var bodyLatStack = previewFontStack(body.latin, body.css);
+            var headPrimaryStack = previewFontStack(head.primary, head.css);
+            var headEnglishStack = previewFontStack(head.english, head.css);
+            var bodyPrimaryStack = previewFontStack(body.primary, body.css);
+            var bodyEnglishStack = previewFontStack(body.english, body.css);
 
             card.style.background = bg;
-            titleCjk.textContent = t("preview_big_title");
-            titleLat.textContent = t("preview_section_title");
+            titlePrimary.textContent = sampleText("heading", "primary");
+            setUiLanguageAttributes(titlePrimary);
+            titleEnglish.textContent = sampleText("heading", "english");
             title.style.color = pri;
             title.style.fontSize = Math.round(bodyPx * 1.7) + "px";
-            titleCjk.style.fontFamily = headStack || "";
-            titleLat.style.fontFamily = headLatStack || "";
-            // CJK and Latin previewed with their own stacks (mirrors the title
-            // and the per-card font samples) so each script's font is visible.
-            bodyCjk.textContent = t("preview_body_intro");
-            bodyLat.textContent = "";
+            titlePrimary.style.fontFamily = headPrimaryStack || "";
+            titleEnglish.style.fontFamily = headEnglishStack || "";
+            bodyPrimary.textContent = sampleText("body", "primary");
+            setUiLanguageAttributes(bodyPrimary);
+            bodyEnglish.textContent = sampleText("body", "english");
             bodyWrap.style.color = txt;
             bodyWrap.style.fontSize = bodyPx + "px";
-            bodyCjk.style.fontFamily = bodyStack || "";
-            bodyLat.style.fontFamily = bodyLatStack || "";
+            bodyPrimary.style.fontFamily = bodyPrimaryStack || "";
+            bodyEnglish.style.fontFamily = bodyEnglishStack || "";
+            titleEnglish.style.display = isEnglishProject() ? "none" : "";
+            bodyEnglish.style.display = isEnglishProject() ? "none" : "";
             accentBar.style.background = acc;
             content.style.color = txt;
+            content.style.fontFamily = bodyPrimaryStack || "";
             content.innerHTML = stylePreviewContentMarkup(STATE.icons);
+            setUiLanguageAttributes(content);
             chip.style.background = sbg;
             chipDot.style.background = sacc;
             chipLabel.textContent = t("role_secondary_bg");
             chipLabel.style.color = txt;
+            chipLabel.style.fontFamily = bodyPrimaryStack || "";
         }
         refreshStylePreview = paint;
         paint();
@@ -2119,8 +3528,13 @@
             visual.innerHTML = "";
             var row = appendImageStrategyPreviews(visual, strategy);
             visual.classList.toggle("image-strategy-preview-empty", !row);
-            if (!row) visual.appendChild(el("div", "toggle-desc", t("image_strategy_no_reference")));
-            title.textContent = strategy.name || t("image_strategy_ai_custom");
+            if (!row) visual.appendChild(el("div", "toggle-desc",
+                strategy.rendering === "custom" ? t("image_strategy_no_reference") :
+                    t("image_strategy_select_placeholder")));
+            title.textContent = strategy.name ||
+                (strategy.rendering === "custom" ? t("image_strategy_ai_custom") :
+                    (strategy.rendering ? comparisonValueLabel("rendering", strategy.rendering) :
+                        t("image_strategy_select_placeholder")));
             var parts = [];
             if (strategy.rendering) {
                 parts.push(t("image_strategy_rendering") + ": " +
@@ -2186,6 +3600,7 @@
         var usageNote = el("div", "subfield");
         usageNote.appendChild(el("div", "subfield-label", t("image_usage_notes")));
         var usageNoteInput = el("textarea", "text-input image-usage-notes-input");
+        setNaturalInputDirection(usageNoteInput);
         usageNoteInput.placeholder = t("image_usage_notes_placeholder");
         usageNoteInput.value = STATE.image_notes || "";
         usageNoteInput.addEventListener("input", function () { STATE.image_notes = usageNoteInput.value; });
@@ -2194,56 +3609,82 @@
         var strategySub = el("div", "subfield image-strategy-subfield");
         strategySub.appendChild(el("div", "subfield-label", t("image_strategy")));
         strategySub.appendChild(el("div", "toggle-desc", t("image_strategy_reference_hint")));
-        var strategyGrid = el("div", "font-grid image-strategy-grid");
-        var strategyCands = imageStrategyRecommendationCandidates();
+        renderDirectionComponentCandidates(strategySub, "image_strategy");
+        var recommendedStrategies = imageStrategyRecommendationCandidates();
+        var strategyCands = imageStrategySelectableCandidates();
+        var hasRecommendedStrategies = recommendedStrategies.length > 0;
         var customStrategy = STATE.image_strategy_custom || imageStrategyCustomCandidate();
+        var presetPicker = el("div", "image-strategy-picker");
+        var presetSelect = el("select", "font-select image-strategy-select");
         var customCard = null;
+        var currentCustomEditor = null;
         var syncCustomStrategy = function () {};
         var selectCustomImageStrategy = function () {};
 
-        function markStrategyCard(selectedCard) {
-            strategyGrid.querySelectorAll(".font-card").forEach(function (card) {
-                card.classList.toggle("selected", card === selectedCard);
-            });
-        }
-
-        function selectImageStrategy(idx, selectedCard) {
+        function selectImageStrategy(idx) {
+            if (!strategyCands[idx]) return;
             STATE.image_strategy = normalizedImageStrategy(strategyCands[idx]);
-            markStrategyCard(selectedCard || strategyGrid.querySelector('[data-strategy-index="' + idx + '"]'));
+            ACTIVE_COMPONENT_DIRECTION_IDS.image_strategy = "";
+            presetSelect.value = String(idx);
+            if (customCard) customCard.classList.remove("selected");
+            if (currentCustomEditor) currentCustomEditor.style.display = "none";
             syncCustomStrategy(false);
             refreshImageStrategyPreview();
+            refreshDesignDirectionState();
+            refreshDirectionComponentStates();
         }
 
         function imageStrategyCandidateIndex(strategy) {
             if (!strategy) return -1;
+            var normalized = JSON.stringify(comparableImageStrategy(strategy));
             for (var i = 0; i < strategyCands.length; i += 1) {
-                if (strategyCands[i] && strategyCands[i].rendering === strategy.rendering) return i;
+                if (JSON.stringify(comparableImageStrategy(strategyCands[i])) === normalized) return i;
+            }
+            for (var fallback = 0; fallback < strategyCands.length; fallback += 1) {
+                if (strategyCands[fallback] &&
+                        strategyCands[fallback].rendering === strategy.rendering) return fallback;
             }
             return -1;
         }
 
-        strategyCands.forEach(function (candidate, idx) {
-            var card = el("div", "font-card");
-            card.setAttribute("data-strategy-index", String(idx));
-            var top = el("div", "font-card-head");
-            top.appendChild(el("span", "font-card-name",
-                localized(candidate, "name") || (t("option_prefix") + " " + (idx + 1))));
-            if (candidate.rendering) {
-                top.appendChild(el("span", "font-card-meta",
-                    t("image_strategy_rendering") + ": " + comparisonValueLabel("rendering", candidate.rendering)));
+        function strategyOptionLabel(candidate, idx) {
+            var renderingLabel = comparisonValueLabel("rendering", candidate.rendering);
+            var candidateName = localized(candidate, "name") || renderingLabel ||
+                (t("option_prefix") + " " + (idx + 1));
+            return candidateName !== renderingLabel ?
+                candidateName + " · " + renderingLabel : candidateName;
+        }
+
+        function appendStrategyOptions(label, start, end) {
+            if (start >= end) return;
+            var group = document.createElement("optgroup");
+            group.label = label;
+            for (var idx = start; idx < end; idx += 1) {
+                var option = document.createElement("option");
+                option.value = String(idx);
+                option.textContent = strategyOptionLabel(strategyCands[idx], idx);
+                group.appendChild(option);
             }
-            card.appendChild(top);
-            appendImageStrategyPreviews(card, candidate);
-            [
-                ["image_strategy_visual", localized(candidate, "visual")],
-                ["image_strategy_mood", localized(candidate, "mood")]
-            ].forEach(function (row) {
-                if (row[1]) card.appendChild(el("div", "color-note", t(row[0]) + "：" + row[1]));
-            });
-            card.addEventListener("click", function () { selectImageStrategy(idx, card); });
-            strategyGrid.appendChild(card);
+            presetSelect.appendChild(group);
+        }
+
+        var placeholderOption = document.createElement("option");
+        placeholderOption.value = "";
+        placeholderOption.textContent = t("image_strategy_select_placeholder");
+        placeholderOption.disabled = true;
+        placeholderOption.selected = true;
+        presetSelect.appendChild(placeholderOption);
+        appendStrategyOptions(t("image_strategy_recommended_group"), 0, recommendedStrategies.length);
+        appendStrategyOptions(t("image_strategy_all_group"), recommendedStrategies.length, strategyCands.length);
+        presetSelect.disabled = !strategyCands.length;
+        presetSelect.addEventListener("change", function () {
+            selectImageStrategy(parseInt(presetSelect.value, 10));
         });
-        if (!strategyCands.length) strategyGrid.appendChild(el("div", "toggle-desc", t("image_strategy_empty")));
+        presetPicker.appendChild(presetSelect);
+        if (!strategyCands.length) {
+            presetPicker.appendChild(el("div", "toggle-desc", t("image_strategy_empty")));
+        }
+        strategySub.appendChild(presetPicker);
 
         if (customStrategy) {
             customStrategy = normalizedImageStrategy(customStrategy);
@@ -2260,9 +3701,11 @@
             ].forEach(function (row) {
                 if (row[1]) customCard.appendChild(el("div", "color-note", t(row[0]) + "：" + row[1]));
             });
-            var customCopy = el("div", "ai-custom-candidate-copy", customStrategy.behavior);
+            var customCopy = el("div", "ai-custom-candidate-copy",
+                customStrategy.behavior || t("image_strategy_custom_placeholder"));
             customCard.appendChild(customCopy);
             var customInput = el("textarea", "text-input image-strategy-custom-input");
+            setNaturalInputDirection(customInput);
             customInput.rows = 4;
             customInput.placeholder = t("image_strategy_custom_placeholder");
             customInput.value = customStrategy.behavior;
@@ -2270,7 +3713,7 @@
             customCard.appendChild(customInput);
 
             syncCustomStrategy = function (selected) {
-                customCopy.textContent = customStrategy.behavior || "";
+                customCopy.textContent = customStrategy.behavior || t("image_strategy_custom_placeholder");
                 customCopy.style.display = selected ? "none" : "block";
                 customInput.style.display = selected ? "block" : "none";
                 if (selected && customInput.value !== customStrategy.behavior) {
@@ -2280,9 +3723,13 @@
 
             selectCustomImageStrategy = function () {
                 STATE.image_strategy = normalizedImageStrategy(customStrategy);
-                markStrategyCard(customCard);
+                ACTIVE_COMPONENT_DIRECTION_IDS.image_strategy = "";
+                presetSelect.value = "";
+                customCard.classList.add("selected");
                 syncCustomStrategy(true);
                 refreshImageStrategyPreview();
+                refreshDesignDirectionState();
+                refreshDirectionComponentStates();
             };
 
             customInput.addEventListener("click", function (event) { event.stopPropagation(); });
@@ -2296,9 +3743,28 @@
                 customInput.focus();
             });
             syncCustomStrategy(false);
-            strategyGrid.appendChild(customCard);
+            strategySub.appendChild(customCard);
         }
-        strategySub.appendChild(strategyGrid);
+
+        if (!customCard && !ACTIVE_COMPONENT_DIRECTION_IDS.image_strategy &&
+                STATE.image_strategy &&
+                STATE.image_strategy.rendering === "custom") {
+            var customEditorField = el("div", "subfield image-strategy-current-custom");
+            customEditorField.appendChild(el("div", "subfield-label", t("custom")));
+            currentCustomEditor = el("textarea", "text-input image-strategy-custom-input");
+            setNaturalInputDirection(currentCustomEditor);
+            currentCustomEditor.rows = 4;
+            currentCustomEditor.placeholder = t("image_strategy_custom_placeholder");
+            currentCustomEditor.value = STATE.image_strategy.behavior || "";
+            currentCustomEditor.addEventListener("input", function () {
+                STATE.image_strategy.behavior = currentCustomEditor.value;
+                refreshImageStrategyPreview();
+                refreshDesignDirectionState();
+                refreshDirectionComponentStates();
+            });
+            customEditorField.appendChild(currentCustomEditor);
+            strategySub.appendChild(customEditorField);
+        }
 
         var recommendedIds = selectedImageUsageIds(recValue("image_usage"));
         if (!recommendedIds.length) recommendedIds = [defaultImageUsageId()];
@@ -2326,6 +3792,7 @@
             }
             STATE.image_usage = current;
             refreshUsageChips();
+            refreshImageProduction();
         }
         (CAT.image_usage || []).forEach(function (option) {
             var label = optionLabel(option);
@@ -2345,14 +3812,19 @@
         sec.appendChild(usageNote);
         sec.appendChild(strategySub);
 
+        var currentStrategyIndex = imageStrategyCandidateIndex(STATE.image_strategy);
         if (STATE.image_strategy && STATE.image_strategy.rendering === "custom" && customCard) {
             selectCustomImageStrategy();
-        } else if (STATE.image_strategy && imageStrategyCandidateIndex(STATE.image_strategy) >= 0) {
-            selectImageStrategy(imageStrategyCandidateIndex(STATE.image_strategy));
-        } else if (strategyCands.length) {
+        } else if (STATE.image_strategy && STATE.image_strategy.rendering === "custom") {
+            presetSelect.value = "";
+        } else if (currentStrategyIndex >= 0) {
+            presetSelect.value = String(currentStrategyIndex);
+            if (customCard) customCard.classList.remove("selected");
+            syncCustomStrategy(false);
+        } else if ((!STATE.image_strategy || !STATE.image_strategy.rendering) &&
+                needsGeneratedImagesForUsage(STATE.image_usage) &&
+                hasRecommendedStrategies && strategyCands.length) {
             selectImageStrategy(imageStrategySelectedIndex());
-        } else if (customCard) {
-            selectCustomImageStrategy();
         }
         refreshUsageChips();
         host.appendChild(sec);
@@ -2360,23 +3832,29 @@
 
     function renderImageProduction(host) {
         var sec = section("P", "sec_image_production", t("image_production_hint"));
-        var summary = el("div", "subfield");
-        summary.appendChild(el("div", "subfield-label", t("image_source_summary")));
-        var chips = el("div", "chips locked-summary-chips");
-        (STATE.image_usage || []).forEach(function (id) {
-            var option = findCatalogOption(CAT.image_usage, id);
-            chips.appendChild(el("div", "chip selected locked-summary-chip",
-                option ? optionLabel(option) : humanizeId(id)));
-        });
-        summary.appendChild(chips);
-        sec.appendChild(summary);
-        if (needsGeneratedImagesForUsage(STATE.image_usage)) {
-            var pathField = el("div", "subfield");
-            pathField.appendChild(el("div", "subfield-label", t("image_ai_path")));
-            enumField(pathField, CAT.image_ai_path, recOrFirst("image_ai_path", CAT.image_ai_path),
-                function () { return STATE.image_ai_path; }, function (value) { STATE.image_ai_path = value; });
-            sec.appendChild(pathField);
-        }
+        var body = el("div", "image-production-body");
+        sec.appendChild(body);
+        refreshImageProduction = function () {
+            body.innerHTML = "";
+            var summary = el("div", "subfield");
+            summary.appendChild(el("div", "subfield-label", t("image_source_summary")));
+            var chips = el("div", "chips locked-summary-chips");
+            (STATE.image_usage || []).forEach(function (id) {
+                var option = findCatalogOption(CAT.image_usage, id);
+                chips.appendChild(el("div", "chip selected locked-summary-chip",
+                    option ? optionLabel(option) : humanizeId(id)));
+            });
+            summary.appendChild(chips);
+            body.appendChild(summary);
+            if (needsGeneratedImagesForUsage(STATE.image_usage)) {
+                var pathField = el("div", "subfield");
+                pathField.appendChild(el("div", "subfield-label", t("image_ai_path")));
+                enumField(pathField, CAT.image_ai_path, recOrFirst("image_ai_path", CAT.image_ai_path),
+                    function () { return STATE.image_ai_path; }, function (value) { STATE.image_ai_path = value; });
+                body.appendChild(pathField);
+            }
+        };
+        refreshImageProduction();
         host.appendChild(sec);
     }
 
@@ -2386,8 +3864,50 @@
             setSectionNote(sec, STATE.generation_mode === "split" ? t("mode_split_desc") : t("mode_continuous_desc"));
         }
         enumField(sec, CAT.generation_mode, recOrFirst("generation_mode", CAT.generation_mode),
-            function () { return STATE.generation_mode; }, function (v) { STATE.generation_mode = v; refresh(); });
+            function () { return STATE.generation_mode; }, function (v) {
+                STATE.generation_mode = v;
+                refresh();
+                refreshDesignSpecDepth();
+            });
         refresh();
+        host.appendChild(sec);
+    }
+
+    function renderProactiveExecution(host) {
+        var sec = section("A", "sec_proactive_execution", t("proactive_execution_hint"));
+        var opts = [{ id: "off", label: t("off_default") }, { id: "on", label: t("on") }];
+
+        function addToggle(labelKey, descKey, stateKey, fallback) {
+            var field = el("div", "subfield");
+            field.appendChild(el("div", "subfield-label", t(labelKey)));
+            field.appendChild(el("div", "toggle-desc", t(descKey)));
+            var recommended = booleanRecommendation(stateKey, fallback);
+            enumField(field, opts, recommended ? "on" : "off",
+                function () { return STATE[stateKey] ? "on" : "off"; },
+                function (value) {
+                    STATE[stateKey] = value === "on";
+                });
+            sec.appendChild(field);
+        }
+
+        addToggle(
+            "proactive_speaker_notes",
+            "proactive_speaker_notes_desc",
+            "proactive_speaker_notes",
+            true
+        );
+        addToggle(
+            "proactive_custom_animations",
+            "proactive_custom_animations_desc",
+            "proactive_custom_animations",
+            false
+        );
+        addToggle(
+            "proactive_narration_audio",
+            "proactive_narration_audio_desc",
+            "proactive_narration_audio",
+            false
+        );
         host.appendChild(sec);
     }
 
@@ -2399,30 +3919,71 @@
         }
         enumField(sec, opts, STATE.refine_spec ? "on" : "off",
             function () { return STATE.refine_spec ? "on" : "off"; },
-            function (v) { STATE.refine_spec = (v === "on"); refresh(); });
+            function (v) {
+                STATE.refine_spec = (v === "on");
+                refresh();
+                refreshDesignSpecDepth();
+            });
         refresh();
         host.appendChild(sec);
     }
 
-    // Stage of the staged confirm flow:
-    // 1 = communication contract, 2 = complete deck direction,
-    // 3 = resources + production execution,
-    // "all" = legacy single-pass (recommendations.json carried no stage).
+    function designSpecDepthCatalog() {
+        if (CAT.design_spec_depth && CAT.design_spec_depth.length) {
+            return CAT.design_spec_depth;
+        }
+        return [
+            {
+                id: "brief",
+                label: t("design_spec_depth_brief"),
+                desc: t("design_spec_depth_brief_desc")
+            },
+            {
+                id: "complete",
+                label: t("design_spec_depth_complete"),
+                desc: t("design_spec_depth_complete_desc")
+            }
+        ];
+    }
+
+    function renderDesignSpecDepth(host) {
+        var sec = section("D", "sec_design_spec_depth");
+        var body = el("div", "design-spec-depth-body");
+        var recommended = REC.design_spec_depth && REC.design_spec_depth.value;
+        if (recommended !== "brief" && recommended !== "complete") recommended = "brief";
+        sec.appendChild(body);
+        refreshDesignSpecDepth = function () {
+            var locked = STATE.generation_mode === "split" || STATE.refine_spec;
+            if (locked) STATE.design_spec_depth = "complete";
+            body.innerHTML = "";
+            enumField(
+                body,
+                designSpecDepthCatalog(),
+                locked ? null : recommended,
+                function () { return STATE.design_spec_depth; },
+                function (value) { STATE.design_spec_depth = value; },
+                { disabled: locked }
+            );
+            setSectionNote(sec, locked ? t("design_spec_depth_locked") : "");
+        };
+        refreshDesignSpecDepth();
+        host.appendChild(sec);
+    }
+
+    // Two-stage confirmation: communication contract, then complete final plan.
     var STAGE = 1;
 
     function stageNumber(data) {
-        var raw = data && data.stage != null ? data.stage : (data && data.tier);
+        var raw = data && data.stage;
         raw = String(raw == null ? "" : raw).toLowerCase();
-        if (raw === "1" || raw === "stage1" || raw === "tier1") return 1;
-        if (raw === "2" || raw === "stage2" || raw === "tier2") return 2;
-        if (raw === "3" || raw === "stage3" || raw === "tier3") return 3;
-        return "all";
+        if (raw === "stage1") return 1;
+        if (raw === "stage2") return 2;
+        return 0;
     }
 
     function stageTitle(stage) {
         if (stage === 1) return t("stage_anchors");
-        if (stage === 2) return t("stage_design");
-        if (stage === 3) return t("stage_images");
+        if (stage === 2) return t("stage_final_plan");
         return t("page_title");
     }
 
@@ -2439,16 +4000,21 @@
         // write to now-detached nodes until renderStylePreview remounts them.
         refreshStylePreview = function () {};
         refreshImageStrategyPreview = function () {};
+        refreshImageProduction = function () {};
+        refreshDesignSpecDepth = function () {};
         refreshBodySizeHint = function () {};
         refreshSizeInputs = function () {};
+        DIRECTION_COMPONENT_PAINTERS = [];
         var previewHost = document.getElementById("topbar-preview");
         if (previewHost) previewHost.innerHTML = "";
         if (stage === 1) {
-            // Scene and communication intent come first; no design tool is
-            // selected before the contract exists.
+            // Stage 1 closes the communication contract and its design basis in
+            // one submission. Detailed template controls stay hidden until the
+            // user explicitly chooses template-backed design.
             renderCommunication(host);
             renderDelivery(host);
             renderCanvas(host);
+            renderTemplateSelection(host);
         } else if (stage === 2) {
             if (previewHost) renderStylePreview(previewHost);
             if (previewHost) renderImageStrategyPreview(previewHost);
@@ -2466,37 +4032,20 @@
             renderTypography(styleGroup);
             host.appendChild(styleGroup);
             renderImageDirection(host);
-        } else if (stage === 3) {
-            if (previewHost) renderStylePreview(previewHost);
-            if (previewHost) renderImageStrategyPreview(previewHost);
-            // Stage 3 contains production mechanics only. It summarizes the
-            // confirmed image source but does not reopen aesthetic decisions.
             renderImageProduction(host);
-            renderFormulaPolicy(host);
+            renderProactiveExecution(host);
             renderMode(host);
             renderRefine(host);
-        } else {
-            // Legacy single-pass: show every section on one page.
-            if (previewHost) renderStylePreview(previewHost);
-            renderCommunication(host);
-            renderDelivery(host);
-            renderCanvas(host);
-            renderTemplateApplication(host);
-            renderDesignDirections(host);
-            renderNarrativeDirection(host);
-            renderVisualDirection(host);
-            renderReadingMode(host);
-            renderPages(host);
-            var legacyStyleGroup = el("div", "style-group");
-            renderColor(legacyStyleGroup);
-            renderIcons(legacyStyleGroup);
-            renderTypography(legacyStyleGroup);
-            host.appendChild(legacyStyleGroup);
-            renderImageDirection(host);
-            renderImageProduction(host);
-            renderFormulaPolicy(host);
-            renderMode(host);
-            renderRefine(host);
+            renderDesignSpecDepth(host);
+            var refreshDirectionIndicators = function () {
+                window.setTimeout(function () {
+                    refreshDesignDirectionState();
+                    refreshDirectionComponentStates();
+                }, 0);
+            };
+            host.oninput = refreshDirectionIndicators;
+            host.onchange = refreshDirectionIndicators;
+            host.onclick = refreshDirectionIndicators;
         }
         updateActionBar(stage);
     }
@@ -2506,10 +4055,8 @@
     function updateActionBar(stage) {
         var btn = document.getElementById("btn-confirm");
         btn.disabled = false;
-        // Stage 1/2 both confirm the current values before advancing. Stage 3
-        // and legacy single-pass submit the final result.
         if (stage === 1) btn.textContent = t("btn_confirm_contract");
-        else if (stage === 2) btn.textContent = t("btn_confirm_solution");
+        else if (stage === 2) btn.textContent = t("btn_confirm_final_plan");
         else btn.textContent = t("btn_confirm");
     }
 
@@ -2539,6 +4086,7 @@
     }
 
     function initStage1State() {
+        STATE.primary_language = recommendationLanguage();
         STATE.canvas = pick("canvas", CAT.canvas);
         STATE.audience = (REC.audience && REC.audience.value) || "";
         STATE.communication_intent = (REC.communication_intent && REC.communication_intent.value) || "";
@@ -2550,10 +4098,24 @@
     }
 
     // Stage-2 fields are (re-)read from the recommendations. At boot they come from
-    // whatever recommendations.json carried; after a stage-1 confirm enterStage()
-    // calls this again with the newly authored candidates. Stage-1 STATE is preserved
+    // the active stage file; after a stage-1 confirm enterStage() calls this again
+    // with the newly authored candidates. Stage-1 STATE is preserved
     // across the single-session transition — this never resets the contract.
     function initStage2State() {
+        [
+            "audience",
+            "communication_intent",
+            "audience_outcome",
+            "core_message",
+            "delivery_context",
+            "artifact_afterlife",
+            "content_divergence"
+        ].forEach(function (field) {
+            var value = recValue(field);
+            if (value && typeof value === "object") value = value.value;
+            if (value != null) STATE[field] = String(value);
+        });
+        STATE.primary_language = recommendationLanguage();
         resetTypographySizeOverrides();
         var templateApplication = templateApplicationRecommendation();
         if (templateApplication != null) {
@@ -2570,7 +4132,7 @@
         initCreativeSelection("visual_style", CAT.visual_styles, "visual_style_behavior");
         var cc = colorRecommendationCandidates();
         var csel = (REC.color && REC.color.selected != null) ? REC.color.selected :
-            (designDirectionSpec().selected || 0);
+            selectedDesignDirectionIndex();
         var c0 = cc[Math.min(csel, Math.max(cc.length - 1, 0))] || {};
         STATE.color = {
             name: localized(c0, "name") || c0.name || "",
@@ -2581,7 +4143,7 @@
 
         var tc = typographyRecommendationCandidates();
         var tsel = (REC.typography && REC.typography.selected != null) ? REC.typography.selected :
-            (designDirectionSpec().selected || 0);
+            selectedDesignDirectionIndex();
         var t0 = normTypography(tc[Math.min(tsel, Math.max(tc.length - 1, 0))] || {});
         STATE.typography = {
             name: localized(t0, "name") || t0.name || "",
@@ -2590,18 +4152,18 @@
             body_size: t0.body_size || typographyBodySize(REC.typography),
             sizes: Object.assign({}, t0.sizes || {})
         };
+        if (t0.custom) STATE.typography.custom = t0.custom;
 
         // Guarantee a body baseline even when a candidate omitted body_size, on
-        // any canvas (PPT → px default by purpose, non-PPT → px from canvas height),
+        // any canvas (PPT → px default by purpose, non-PPT → px from effective span),
         // so role sizes never derive from an empty anchor.
         if (STATE.typography && !STATE.typography.body_size) {
             STATE.typography.body_size = defaultBodySizeForCanvas(STATE.canvas, STATE.delivery_purpose);
         }
-        // A freshly authored Stage 2 starts from one deterministic reading-mode
-        // baseline. Stage 3 carries the confirmed Stage-2 values and must not
-        // normalize them again.
-        if (stageNumber(REC) === 2) syncUnpinnedTypographySizes(true);
-        var rawImageUsage = recValue("image_usage") || directionField("image_usage");
+        // Preserve an authored positive candidate anchor; derive only the roles
+        // that remain unpinned. A user reading-mode change may reset it later.
+        if (stageNumber(REC) === 2) syncUnpinnedTypographySizes(false);
+        var rawImageUsage = recValue("image_usage");
         STATE.image_usage = selectedImageUsageIds(rawImageUsage);
         if (!STATE.image_usage.length) {
             STATE.image_usage = [defaultImageUsageId()];
@@ -2611,33 +4173,39 @@
         var strategyCandidates = imageStrategyRecommendationCandidates();
         var directionStrategy = directionField("image_strategy");
         var customStrategyRecommended = recId("image_strategy") === "custom";
-        if ((customStrategyRecommended ||
-                (directionStrategy && directionStrategy.rendering === "custom")) &&
-                STATE.image_strategy_custom) {
+        if (customStrategyRecommended && STATE.image_strategy_custom) {
             STATE.image_strategy = normalizedImageStrategy(STATE.image_strategy_custom);
+        } else if (directionStrategy) {
+            STATE.image_strategy = normalizedImageStrategy(directionStrategy);
         } else if (strategyCandidates.length) {
             STATE.image_strategy = normalizedImageStrategy(
                 strategyCandidates[imageStrategySelectedIndex()] || strategyCandidates[0]
             );
-        } else if (directionStrategy) {
-            STATE.image_strategy = normalizedImageStrategy(directionStrategy);
-        } else if (STATE.image_strategy_custom) {
-            STATE.image_strategy = normalizedImageStrategy(STATE.image_strategy_custom);
+        }
+        var directions = designDirectionCandidates();
+        if (directions.length) {
+            var selected = selectedDesignDirectionIndex();
+            applyDesignDirection(directions[selected], selected, false);
         }
     }
 
-    function initStage3State() {
-        STATE.formula_policy = pick("formula_policy", CAT.formula_policy);
+    function initProductionState() {
         STATE.image_ai_path = pick("image_ai_path", CAT.image_ai_path);
+        STATE.proactive_speaker_notes = booleanRecommendation("proactive_speaker_notes", true);
+        STATE.proactive_custom_animations = booleanRecommendation("proactive_custom_animations", false);
+        STATE.proactive_narration_audio = booleanRecommendation("proactive_narration_audio", false);
 
         STATE.generation_mode = pick("generation_mode", CAT.generation_mode);
         STATE.refine_spec = !!((REC.refine_spec && REC.refine_spec.value) || (REC.recommend && REC.recommend.refine_spec));
+        var designSpecDepth = REC.design_spec_depth && REC.design_spec_depth.value;
+        STATE.design_spec_depth = designSpecDepth === "complete" ? "complete" : "brief";
+        if (STATE.generation_mode === "split" || STATE.refine_spec) {
+            STATE.design_spec_depth = "complete";
+        }
     }
 
     function initState() {
         initStage1State();
-        initStage2State();
-        initStage3State();
     }
 
     // ---- confirm + close -------------------------------------------------
@@ -2650,7 +4218,7 @@
 
     // ---- staged submit + next-stage transitions -------------------------
     function communicationPayload() {
-        return {
+        var payload = {
             canvas: STATE.canvas,
             audience: STATE.audience,
             communication_intent: STATE.communication_intent,
@@ -2660,11 +4228,20 @@
             artifact_afterlife: STATE.artifact_afterlife,
             content_divergence: STATE.content_divergence
         };
+        if (STATE.primary_language && STATE.primary_language !== "und") {
+            payload.primary_language = STATE.primary_language;
+        }
+        return payload;
     }
 
     function stage1Payload() {
         var payload = communicationPayload();
         payload.stage = "stage1";
+        payload.template_selection = {
+            mode: TEMPLATE_MODE,
+            selection_keys: TEMPLATE_MODE === "templates"
+                ? TEMPLATE_SELECTED_KEYS.slice() : []
+        };
         return payload;
     }
 
@@ -2698,6 +4275,24 @@
         return !!valid;
     }
 
+    function imageStrategyValid(payload) {
+        if (!needsGeneratedImagesForUsage(payload.image_usage)) return true;
+        var imageStrategy = payload.image_strategy || {};
+        var rendering = String(imageStrategy.rendering || "").trim();
+        if (!rendering) {
+            document.getElementById("confirm-status").textContent = t("image_strategy_required");
+            return false;
+        }
+        var presetIds = imageStrategyCatalogCandidates().map(function (candidate) {
+            return candidate.rendering;
+        });
+        if (rendering !== "custom" && presetIds.length && presetIds.indexOf(rendering) < 0) {
+            document.getElementById("confirm-status").textContent = t("image_strategy_invalid");
+            return false;
+        }
+        return true;
+    }
+
     function positiveNumber(value) {
         var number = parseFloat(value);
         return isFinite(number) && number > 0;
@@ -2712,51 +4307,21 @@
         var customPalette = color.name === "custom" && String(color.custom || "").trim();
 
         var typography = payload.typography || {};
-        var completeFontRole = function (role) {
-            var font = typography[role] || {};
-            return ["cjk", "latin", "css"].every(function (field) {
-                return !!String(font[field] || "").trim();
-            });
-        };
-        var completeFamilies = completeFontRole("heading") && completeFontRole("body");
-        var customFamilies = typography.name === "custom" &&
-            String(typography.custom || "").trim();
+        var completeFamilies = typographyFamiliesComplete(typography);
         var sizes = typography.sizes || {};
         var completeSizes = positiveNumber(typography.body_size) &&
             ["title", "subtitle", "annotation"].every(function (role) {
                 return positiveNumber(sizes[role]);
             });
         var valid = (completePalette || customPalette) &&
-            (completeFamilies || customFamilies) && completeSizes;
+            completeFamilies && completeSizes;
         if (!valid) {
-            document.getElementById("confirm-status").textContent = t("design_system_required");
+            var message = color.name === "custom" && !customPalette
+                ? t("custom_color_required")
+                : t("design_system_required");
+            document.getElementById("confirm-status").textContent = message;
         }
         return !!valid;
-    }
-
-    function stage2Payload() {
-        var payload = communicationPayload();
-        payload.stage = "stage2";
-        if (Object.prototype.hasOwnProperty.call(STATE, "template_application")) {
-            payload.template_application = STATE.template_application;
-        }
-        payload.mode = STATE.mode;
-        payload.mode_behavior = STATE.mode_behavior;
-        payload.visual_style = STATE.visual_style;
-        payload.visual_style_behavior = STATE.visual_style_behavior;
-        payload.page_count = STATE.page_count;
-        // Reading mode keeps the legacy delivery_purpose key for compatibility.
-        if (isPptCanvas(STATE.canvas)) payload.delivery_purpose = STATE.delivery_purpose;
-        payload.color = JSON.parse(JSON.stringify(STATE.color || {}));
-        payload.icons = STATE.icons;
-        payload.typography = JSON.parse(JSON.stringify(STATE.typography || {}));
-        normalizeTypographyForSubmit(payload);
-        payload.image_usage = selectedImageUsageIds(STATE.image_usage);
-        if (String(STATE.image_notes || "").trim()) payload.image_notes = STATE.image_notes;
-        if (needsGeneratedImagesForUsage(payload.image_usage)) {
-            payload.image_strategy = normalizedImageStrategy(STATE.image_strategy);
-        }
-        return normalizeCreativePayload(payload);
     }
 
     function submitStage(payload, nextStage) {
@@ -2789,16 +4354,37 @@
         return true;
     }
 
+    function templateSelectionValid() {
+        var valid = TEMPLATE_MODE === "free_design" ||
+            (TEMPLATE_MODE === "templates" && TEMPLATE_SELECTED_KEYS.length > 0);
+        if (!valid) {
+            document.getElementById("confirm-status").textContent =
+                t("template_selection_required");
+            return false;
+        }
+        if (TEMPLATE_MODE === "templates") {
+            var seenKinds = Object.create(null);
+            for (var i = 0; i < TEMPLATE_SELECTED_KEYS.length; i += 1) {
+                var candidate = templateCandidateByKey(TEMPLATE_SELECTED_KEYS[i]);
+                if (!candidate) continue;
+                if (seenKinds[candidate.kind]) {
+                    document.getElementById("confirm-status").textContent =
+                        t("template_selection_conflict");
+                    return false;
+                }
+                seenKinds[candidate.kind] = true;
+            }
+        }
+        return true;
+    }
+
     function submitStage1() {
+        if (!templateSelectionValid()) return;
         submitStage(stage1Payload(), 2);
     }
 
     function submitStage2() {
-        var payload = stage2Payload();
-        if (!imageUsageValid(payload.image_usage)) return;
-        if (!designSystemValid(payload)) return;
-        if (!customSelectionsValid(payload)) return;
-        submitStage(payload, 3);
+        confirm();
     }
 
     function showDeriving() {
@@ -2809,9 +4395,9 @@
         l.style.display = "block";
     }
 
-    // Poll session state first. It is derived from recommendations.json and
-    // result.json, so a recovered server can tell the existing page exactly when
-    // the next once-authored stage is ready.
+    // Poll session state first. It is derived from recommendation stage files
+    // and result.json, so a recovered server can tell the existing page exactly when
+    // the next stage is ready.
     function pollForStage(nextStage) {
         fetchJson("/api/session", "session")
             .then(function (session) {
@@ -2837,8 +4423,10 @@
 
     function enterStage(data, stage) {
         REC = data;
-        if (stage >= 2) initStage2State();
-        if (stage >= 3) initStage3State();
+        if (stage === 2) {
+            initStage2State();
+            initProductionState();
+        }
         STAGE = stage;
         document.getElementById("loading").style.display = "none";
         document.getElementById("sections").style.display = "block";
@@ -2862,6 +4450,7 @@
             payload.image_strategy = normalizedImageStrategy(payload.image_strategy);
         }
         normalizeCreativePayload(payload);
+        if (!imageStrategyValid(payload)) return;
         if (!designSystemValid(payload)) return;
         if (!customSelectionsValid(payload)) return;
         btn.disabled = true;
@@ -2921,6 +4510,50 @@
             .catch(function () { return {}; });
     }
 
+    function loadAiImageComparison() {
+        return fetchJson("/api/ai-image-comparison", "AI image comparison")
+            .catch(function () { return {}; });
+    }
+
+    function applyServerLanguage(data) {
+        var requested = data && data.lang;
+        if (requested !== "zh" && requested !== "en" && requested !== "ja" &&
+                requested !== "zh-TW") return;
+        var hasStored = false;
+        try { hasStored = !!window.localStorage.getItem("ppt_lang"); } catch (e) { /* ignore */ }
+        if (hasStored) return;
+        LANG = requested;
+        applyStaticTranslations();
+        var toggleBtn = document.getElementById("btn-lang-toggle");
+        if (toggleBtn) refreshLangToggle(toggleBtn);
+    }
+
+    function loadStrategistUi(forceStage) {
+        return Promise.all([
+            loadCatalogs(),
+            fetchJson("/api/recommendations", "recommendations"),
+            loadIconPreviews(),
+            loadAiImageComparison()
+        ]).then(function (res) {
+            CAT = res[0];
+            REC = res[1];
+            ICON_PREVIEWS = res[2] || {};
+            AI_IMAGE_COMPARISON = res[3] || {};
+            applyServerLanguage(REC);
+            var activeStage = forceStage || stageNumber(REC);
+            if (activeStage === 1) {
+                if (!REC.template_options || typeof REC.template_options !== "object" ||
+                        Array.isArray(REC.template_options)) {
+                    throw new Error("Stage 1 recommendations must include template_options");
+                }
+                initTemplateOptions(REC.template_options);
+            }
+            initState();
+            enterStage(REC, activeStage);
+            return REC;
+        });
+    }
+
     function boot() {
         applyStaticTranslations();
         var toggleBtn = document.getElementById("btn-lang-toggle");
@@ -2937,13 +4570,15 @@
         var chooseLang = function (v) {
             setMenuOpen(false);
             toggleBtn.focus();
-            if (v !== "ja" && v !== "en" && v !== "zh") return;
+            if (v !== "ja" && v !== "en" && v !== "zh" && v !== "zh-TW") return;
             if (v === LANG) return;
             LANG = v;
             try { window.localStorage.setItem("ppt_lang", LANG); } catch (e2) { /* ignore */ }
             applyStaticTranslations();
             refreshLangToggle(toggleBtn);
-            if (REC && CAT) renderAll();   // STATE persists → selections preserved
+            if (REC && CAT) {
+                renderAll();   // STATE persists → selections preserved
+            }
         };
         toggleBtn.addEventListener("click", function (e) {
             e.stopPropagation();
@@ -3003,31 +4638,21 @@
             else confirm();
         });
 
-        Promise.all([
-            loadCatalogs(),
-            fetchJson("/api/recommendations", "recommendations"),
-            loadIconPreviews()
-        ]).then(function (res) {
-            CAT = res[0];
-            REC = res[1];
-            ICON_PREVIEWS = res[2] || {};
-            if (REC.lang === "zh" || REC.lang === "en" || REC.lang === "ja") {
-                var hasStored = false;
-                try { hasStored = !!window.localStorage.getItem("ppt_lang"); } catch (e) { /* ignore */ }
-                if (!hasStored) { LANG = REC.lang; applyStaticTranslations(); refreshLangToggle(toggleBtn); }
+        // Session remains the first network read so completed runs can close
+        // cleanly. Active runs always load the current Strategist stage; Stage 1
+        // carries its template catalog inside the recommendation payload.
+        fetchJson("/api/session", "session").catch(function () {
+            return { phase: "strategist" };
+        }).then(function (session) {
+            if (session && session.status === "done") {
+                document.getElementById("loading").style.display = "none";
+                showConfirmedOverlay();
+                return null;
             }
-            initState();
-            // stage 1 / 2 / 3 from the recommendations; absent → legacy single-pass.
-            STAGE = stageNumber(REC);
-            document.getElementById("loading").style.display = "none";
-            document.getElementById("sections").style.display = "block";
-            document.getElementById("actionbar").style.display = "flex";
-            renderAll();
-            if (REC._already_confirmed) {
-                document.getElementById("confirm-status").textContent = t("already_confirmed");
-            }
-        }).catch(function (err) {
-            showError(t("load_error") + " " + (err && err.message ? err.message : ""));
+            return loadStrategistUi().catch(function (err) {
+                showError(t("load_error") + " " + (err && err.message ? err.message : ""));
+                return null;
+            });
         });
     }
 

@@ -10,11 +10,11 @@ A **rendering** is a visual style family: line quality, texture, depth, material
 
 ## 1. Catalog (20 renderings)
 
-Each rendering has its own file with: style paragraph, line / texture / depth notes, deck HEX usage, and a fewshot prompt snippet. A preset lock reads that one file. A catalog-based `custom` reads every preset named in `image_rendering_references`; a novel `custom` may omit references. Never glob the directory.
+Each rendering keeps its own authoritative file with: style paragraph, line / texture / depth notes, deck HEX usage, and a fewshot prompt snippet. Read this index alone while choosing a direction. Only after a preset or custom bases are fixed may the active role read the selected sibling files: one file for a preset, every exact `image_rendering_references` file for a catalog-based custom, and none for a novel custom. Never glob the directory or read an unselected sibling. Whether AI imagery is recommended remains a separate source decision; Image_Generator follows the same selected-only rule.
 
 ### 1.1 Modern / commercial (the corporate-PPT main field)
 
-| Rendering | One-liner | Best for |
+| Rendering | One-liner | Typical image job |
 |---|---|---|
 | [`vector-illustration`](./vector-illustration.md) | Clean flat vector with bold shapes, no gradients | Consulting / SaaS / general professional decks |
 | [`flat`](./flat.md) | Modern geometric blocks, slightly more design-forward than vector | Brand / product showcase decks |
@@ -28,7 +28,7 @@ Each rendering has its own file with: style paragraph, line / texture / depth no
 
 ### 1.2 Hand-drawn / educational
 
-| Rendering | One-liner | Best for |
+| Rendering | One-liner | Typical image job |
 |---|---|---|
 | [`sketch-notes`](./sketch-notes.md) | Warm cream paper, black hand-drawn lines, pastel fills | Education / training / onboarding |
 | [`ink-notes`](./ink-notes.md) | Pure white, black ink, sparse semantic color | Methodology / Before-After / manifestos |
@@ -37,24 +37,24 @@ Each rendering has its own file with: style paragraph, line / texture / depth no
 
 ### 1.3 Narrative / atmospheric
 
-| Rendering | One-liner | Best for |
+| Rendering | One-liner | Typical image job |
 |---|---|---|
-| [`watercolor`](./watercolor.md) | Painterly soft edges, color bleeding | Lifestyle / travel / brand story |
+| [`watercolor`](./watercolor.md) | Painterly soft edges, color bleeding | Illustrative lifestyle / travel story / brand story |
 | [`warm-scene`](./warm-scene.md) | Golden-hour cinematic warmth | Personal growth / origin story |
 | [`screen-print`](./screen-print.md) | Halftone poster art, 2-5 flat colors | Cultural / media / cinematic covers |
-| [`vintage-poster`](./vintage-poster.md) | Mid-century modern poster, halftone + paper grain | Cultural / brand heritage / hospitality / anniversaries |
+| [`vintage-poster`](./vintage-poster.md) | Mid-century modern poster, halftone + paper grain | Cultural retrospective / brand heritage / historic hospitality identity / anniversaries |
 
 ### 1.4 Specialty
 
-| Rendering | One-liner | Best for |
+| Rendering | One-liner | Typical image job |
 |---|---|---|
 | [`fantasy-animation`](./fantasy-animation.md) | Ghibli/Disney hand-drawn warmth | Children / storybook / brand fable |
 | [`pixel-art`](./pixel-art.md) | 8-bit retro game aesthetic | Gaming / retro tech / nostalgic |
 | [`nature`](./nature.md) | Organic earthy illustration | Environment / wellness / sustainability |
 
-### 1.5 Escape hatch — `custom`
+### 1.5 Editable `custom` projection
 
-Whenever proposed image usage includes `ai`, Stage 2 authors one separate, visible custom rendering proposal in addition to the preset cards. It uses `rendering: custom` plus a complete behavior paragraph, remains initially unselected, and enters the confirmed contract only when the user chooses it. A template-backed proposal must honor inherited identity and the confirmed template-application plan.
+Every coordinated Stage-2 direction carries one complete `rendering: custom` candidate even when `recommend.image_usage` does not include `ai`. The UI keeps rendering controls hidden until the current source selection includes AI, then exposes the three already-authored project candidates without another backend recommendation. `custom` is not constrained by its relationship to the catalog: it may use catalog material in any way or none, including carrying one fitting preset treatment unchanged. The three complete directions are plainly different designs, but no single component is required to carry that difference: rendering treatments and bases may coincide when other components express it, while a different name, note, or reference count alone is never a difference. The 20 fixed renderings remain lower-level single-select alternatives. A template-backed proposal must honor inherited identity and the confirmed template-application plan.
 
 **Hard rule — `rendering_behavior` prose**:
 
@@ -62,51 +62,41 @@ Whenever proposed image usage includes `ai`, Stage 2 authors one separate, visib
 |---|---|
 | Length | One paragraph, 2-5 sentences |
 | Axes covered | line / texture / depth / material / mood (same as preset files) |
-| Catalog basis | When existing renderings are combined or borrowed, name every exact id and read every named file before synthesis |
+| Catalog basis | Freeze every exact id from this index, then read only those files before applying one basis or synthesizing several |
 
 ```yaml
 - image_rendering: custom
 - image_rendering_behavior: "Hand-screened poster aesthetic — slightly misregistered halftone overlays, 3 flat ink colors with visible dot pattern at 12% opacity, no gradients, no anti-aliased edges; reads as silkscreen print."
 ```
 
-**Hard rule**: the custom candidate is mandatory when AI images are proposed; selecting `custom` is a tail-case, not the default. See [`strategist-image.md`](../strategist-image.md) for the Stage-2 carrier and downstream lock behavior.
-
-Write `image_rendering_references` only when the custom direction actually uses catalog material. Keep the list exact: a blend of `screen-print` and `watercolor` reads both files and lists both ids. A genuinely new rendering with no catalog source omits the field and proceeds from its standalone behavior; never invent a reference merely to legitimize `custom`.
+Candidate authoring, the three-per-direction rule, and `image_rendering_references` projection are owned by [`strategist-image.md`](../strategist-image.md) §2.
 
 ---
 
-## 2. Auto-selection table — `design_spec` → rendering
+## 2. Selection Boundary
 
-Match `design_spec.md d` (mode + `visual_style`) against this table. First match wins. **No row matches** → use `custom` per §1.5 rather than force-fitting `vector-illustration`. (When the locked `visual_style` names a paired rendering, prefer that for aesthetic alignment.)
+**Reference — not a constraint**: Resolve the intended image jobs and visual
+style before choosing. Compare every catalog row through the image's required
+line quality, texture, depth, material, mood, documentary identity, and role in
+the page. A topic or industry keyword never selects the deck-wide rendering or
+turns a named real-world subject into an AI row. A paired visual-style
+rendering is one coherence candidate, not a default answer. When no preset
+describes the intended treatment, use `custom` per §1.5.
 
-| `d. Style` signal | Recommended rendering | Alternates |
-|---|---|---|
-| Strategic / MBB / board | `editorial` or `vector-illustration` | `blueprint`, `minimalist-swiss` |
-| Corporate report / analysis | `vector-illustration` | `flat`, `digital-dashboard` |
-| High-end consulting / luxury / 高端 / design-firm | `minimalist-swiss` | `editorial`, `vector-illustration` |
-| Tech / SaaS / AI / system / architecture | `3d-isometric`, `blueprint`, or `digital-dashboard` | `flat`, `vector-illustration` |
-| Modern SaaS / fintech / health-tech / premium app | `glassmorphism` | `digital-dashboard`, `flat` |
-| Product launch / brand / marketing | `flat`, `3d-isometric`, or `corporate-photo` | `vector-illustration` |
-| Education / training / onboarding / 教学 | `sketch-notes` | `vector-illustration` (if school is corporate), `paper-cut` |
-| Children / story / storybook / 儿童 | `fantasy-animation` | `paper-cut`, `watercolor`, `sketch-notes` |
-| Cultural / folk / festival / 文化 / 节日 | `paper-cut` | `vintage-poster`, `screen-print` |
-| Methodology / Before-After / manifesto / 方法论 | `ink-notes` | `editorial` |
-| Government / formal / official report | `editorial` or `corporate-photo` | `vector-illustration` |
-| Finance / data journalism / 财经 | `editorial` or `digital-dashboard` | `vector-illustration` |
-| Personal story / 个人成长 / lifestyle | `watercolor`, `warm-scene` | `corporate-photo`, `paper-cut` |
-| Cultural / media / opinion / cinematic | `screen-print`, `vintage-poster` | `editorial`, `warm-scene` |
-| Brand heritage / hospitality / 老字号 / 周年 | `vintage-poster` | `screen-print`, `editorial` |
-| Gaming / retro / 8-bit / 复古 | `pixel-art` | `vintage-poster` |
-| Environment / wellness / 环保 / 户外 | `nature` | `watercolor`, `paper-cut` |
-| Classroom / blackboard / 课堂 | `chalkboard` | `sketch-notes` |
-| Team / company / product photo | `corporate-photo` | — |
+| Decision dimension | Evidence to compare |
+|---|---|
+| Subject identity | Documentary likeness, invented expression, metaphor, atmosphere, or abstract structure |
+| Mark language | Photographic detail, vector edges, hand-drawn line, halftone, pixel grid, or material contour |
+| Depth and material | Flat fields, layered paper, glass, isometric volume, wash, grain, or natural light |
+| Page role | Full composition, local illustration, reusable transparent element, or supporting visual cue |
+| Deck coherence | Fit with the resolved visual system and color roles without replacing the page's actual communication job |
 
 ---
 
 ## 3. How to use
 
-1. From `design_spec.md` extract `d. Style` mode + descriptor.
-2. Find the matching row above; pick the primary recommendation.
-3. For a preset, read `image-renderings/<chosen>.md`. For `custom`, read every file named in `image_rendering_references`, then synthesize them under the confirmed behavior; with no references, use the novel behavior directly. Apply the result when assembling prompts per [`image-generator.md`](../image-generator.md) §4.
+1. Read the resolved visual system and the deck's intended AI image jobs.
+2. Compare the complete catalog and choose the strongest whole-deck fit, or use a warranted `custom` treatment.
+3. For a preset, read `image-renderings/<chosen>.md`. For `custom`, read every file named in `image_rendering_references`: apply one basis under the confirmed behavior, or synthesize several by their stated contributions. With no references, use the behavior directly. Apply the result when assembling prompts per [`image-generator.md`](../image-generator.md) §4.
 
 **Lock for the whole deck.** Don't change rendering between images in the same deck.

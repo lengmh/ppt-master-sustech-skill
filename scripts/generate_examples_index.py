@@ -5,10 +5,13 @@ PPT Master - Examples Index Generator
 Automatically scans the examples directory and generates a README.md index file.
 
 Usage:
-    python3 scripts/generate_examples_index.py
-    python3 scripts/generate_examples_index.py examples
+    python3 scripts/generate_examples_index.py <examples_dir>
+
+The example projects live in the separate ppt-master-examples repository;
+pass the path to its examples/ directory.
 """
 
+import argparse
 import os
 import sys
 from collections import defaultdict
@@ -16,8 +19,6 @@ from datetime import datetime
 from pathlib import Path
 
 from console_encoding import configure_utf8_stdio
-
-configure_utf8_stdio()
 
 try:
     from project_utils import find_all_projects, get_project_info, CANVAS_FORMATS
@@ -177,8 +178,12 @@ def generate_examples_index(examples_dir: str = 'examples') -> str:
     content.append("Refer to existing project structures, or use the project management tool:\n")
     content.append("```bash")
     content.append(
-        "python3 scripts/project_manager.py init my_project --format ppt169")
+        "python3 scripts/project_manager.py init my_project")
     content.append("```\n")
+    content.append(
+        "Pass `--format <registered_format>` only when the canvas exactly "
+        "matches a registered format.\n"
+    )
 
     # Contribution guidelines
     content.append("## [Contribute] Contributing Example Projects\n")
@@ -187,7 +192,11 @@ def generate_examples_index(examples_dir: str = 'examples') -> str:
     content.append("1. Follow the standard project structure")
     content.append("2. Include a complete README.md and design specification")
     content.append("3. SVG files must comply with technical specifications")
-    content.append("4. Directory naming format: `{project_name}_{format}_{YYYYMMDD}`\n")
+    content.append(
+        "4. Directory naming format: `{project_name}_{YYYYMMDD}`, or "
+        "`{project_name}_{format}_{YYYYMMDD}` when initialized with a "
+        "registered `--format`\n"
+    )
 
     content.append("### Submission Process\n")
     content.append("1. Create a project under the `examples/` directory")
@@ -204,7 +213,7 @@ def generate_examples_index(examples_dir: str = 'examples') -> str:
     content.append(
         f"- [Role Definitions]({skill_link(skill_dir / 'references')})")
     content.append(
-        f"- [Chart Templates]({skill_link(skill_dir / 'templates' / 'charts' / 'README.md')})\n")
+        f"- [Visualization Templates]({skill_link(skill_dir / 'templates' / 'README.md')})\n")
 
     # Footer
     content.append("---\n")
@@ -214,16 +223,28 @@ def generate_examples_index(examples_dir: str = 'examples') -> str:
     return "\n".join(content)
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    """Build the examples-index CLI parser."""
+    parser = argparse.ArgumentParser(
+        description="Generate the PPT Master examples README index.",
+    )
+    parser.add_argument(
+        "examples_dir",
+        help="Path to the examples/ directory of the ppt-master-examples repository",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
     """Run the CLI entry point."""
-    examples_dir = 'examples'
-
-    if len(sys.argv) > 1:
-        if sys.argv[1] in {'-h', '--help', 'help'}:
-            print(__doc__)
-            sys.exit(0)
-
-        examples_dir = sys.argv[1]
+    parser = build_parser()
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    if raw_argv == ["help"]:
+        parser.print_help()
+        return 0
+    args = parser.parse_args(raw_argv)
+    configure_utf8_stdio()
+    examples_dir = args.examples_dir
 
     print("=" * 80)
     print("PPT Master - Examples Index Generator")
@@ -234,7 +255,7 @@ def main() -> None:
 
     if not content:
         print("\n[ERROR] Generation failed")
-        sys.exit(1)
+        return 1
 
     # Write to file
     output_file = Path(examples_dir) / 'README.md'
@@ -252,8 +273,10 @@ def main() -> None:
 
     except Exception as e:
         print(f"\n[ERROR] Failed to write file: {e}")
-        sys.exit(1)
+        return 1
+
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

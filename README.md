@@ -12,11 +12,11 @@
 </p>
 
 <p align="center">
-  <a href="VERSION"><img alt="version" src="https://img.shields.io/badge/version-r4.1.0--v0.4.0-0ea5e9?style=flat-square"></a>
+  <a href="VERSION"><img alt="version" src="https://img.shields.io/badge/version-r6.1.0--v0.4.0-0ea5e9?style=flat-square"></a>
   <a href="https://github.com/lengmh/ppt-master-sustech-skill/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/lengmh/ppt-master-sustech-skill?style=flat-square&label=stars&logo=github"></a>
   <a href="https://github.com/lengmh/ppt-master-sustech-skill/commits"><img alt="last commit" src="https://img.shields.io/github/last-commit/lengmh/ppt-master-sustech-skill?style=flat-square&label=last%20commit"></a>
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/lengmh/ppt-master-sustech-skill?style=flat-square&label=license"></a>
-  <a href="RELEASE_META.json"><img alt="upstream" src="https://img.shields.io/badge/upstream-ppt--master%20v4.1.0-f59e0b?style=flat-square"></a>
+  <a href="RELEASE_META.json"><img alt="upstream" src="https://img.shields.io/badge/upstream-ppt--master%20v6.1.0-f59e0b?style=flat-square"></a>
 </p>
 
 <p align="center">
@@ -37,8 +37,8 @@
 
 | 项目 | 信息 |
 |---|---|
-| 当前版本 | `r4.1.0-v0.4.0` |
-| 对应上游 | `hugohe3/ppt-master@v4.1.0` |
+| 当前版本 | `r6.1.0-v0.4.0` |
+| 对应上游 | `hugohe3/ppt-master@v6.1.0` |
 | 下载 | [GitHub Releases](https://github.com/lengmh/ppt-master-sustech-skill/releases) |
 
 ## 功能亮点
@@ -47,9 +47,9 @@
 - 通过 `design_spec.md` 和 `spec_lock.md` 固化设计方向与执行约束，减少多轮生成中的样式漂移。
 - 采用 SVG-first 页面构建流程，在保持视觉质量的同时导出可编辑 PPTX。
 - 可在浏览器中预览、直接编辑和标注页面，并分阶段确认设计方向、设计系统、图像策略与执行选项；确认界面包含日文文案。
-- 可分别处理 PPTX 模板填充、现有演示稿等比例美化，以及备注、音频、计时和转场增强。
+- 可通过 source-preserving Edit Native PPTX 路径填充或局部编辑现有演示稿，并处理备注、音频、计时和转场增强。
 - 可按需生成原生可编辑表格与图表，同时生成配套工作簿，并检查图表显示和负值配色等细节。
-- 提供 `brand / layout / deck` 三类模板工作区，便于复用和管理模板页、图片及图标资产。
+- 提供 `brand / style / layout / deck` 四类模板工作区，便于复用和管理模板页、图片及图标资产。
 - 提供 AI 图像生成与检索、风格预览、图标同步和切图工具，方便统一视觉素材。
 - 内置图表模板、演讲者备注、动画、LaTeX 公式渲染和导出辅助能力。
 - 内置 `ppt_text_normalize` Safe MVP，可使用 `scan` / `apply` 检查并规范 PPTX 文字样式。
@@ -57,10 +57,10 @@
 
 ## SUSTech 增强
 
-在上游 v4.1.0 基础上，本版本进一步提供：
+在上游 v6.1.0 基础上，本版本进一步提供：
 
 - 轻量 layout-quality 静态诊断，帮助发现页面溢出、对齐和间距问题。
-- 新建 Brand、Layout、Deck 模板以 `design_spec.md` 为唯一语义合同，保留旧 `brief_lock.json` 的读取与按需严格审计兼容。
+- 新建 Brand、Style、Layout、Deck 模板以 `design_spec.md` 为唯一语义合同，保留旧 `brief_lock.json` 的读取与按需严格审计兼容。
 - 内置 `sustech_academic_official` Deck，模板页与图片资产分层存放，便于复用和替换。
 - 基于 `presentation_core` 提供结构化 Layout 集合，覆盖常见演示页面组织方式。
 
@@ -85,7 +85,7 @@ RELEASE_META.json         # 版本来源与上游信息
 requirements.txt          # Python 依赖列表
 references/               # agent 角色参考与生成指引
 scripts/                  # 转换、渲染、预览、导出、模板等辅助脚本
-templates/                # brands / layouts / decks / charts / icons
+templates/                # brands / styles / layouts / decks / charts / icons
 workflows/                # generate-pptx、stages、profiles、governance、create-template 等流程
 docs/                     # 使用与设计文档
 ```

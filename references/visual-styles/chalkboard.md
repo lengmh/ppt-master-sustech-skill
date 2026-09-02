@@ -6,7 +6,7 @@ Classroom chalkboard — a dark slate field, soft chalk-stroke line work, powder
 
 ## 1. Shape & decoration
 
-- Shape language: chalk-stroke line work with slightly diffused, dry-medium edges; sketched boxes, brackets, arrows in chalk. Confident but never mechanical — the sketched boxes and arrows are `<path>` with non-aligned points; a primitive `<rect>` / `<line>` snaps the chalk back to mechanical.
+- Shape language: chalk-stroke line work with slightly diffused, dry-medium edges; sketched boxes, brackets, arrows in chalk. When a mark must read as hand-drawn chalk, use a `<path>` with non-aligned points rather than a pristine primitive. Functional native contours remain eligible; keep their paint, weight, and hierarchy inside the chalkboard system.
 - Composition geometry: one big chalk ring around the term that matters; a radial mind-map spreading from a central concept; a hand-drawn arc timeline sweeping the board; an oversized chalk bracket grouping half the page; a boxed corner note holding the takeaway.
 - Decoration: underlines and emphasis marks; a few sprinkled chalk stars / dots. Blackboard pedagogy — organized sections, a clear central focus.
 - Whitespace: the dark board reads as room; let chalk marks breathe rather than crowd.
@@ -15,7 +15,7 @@ Classroom chalkboard — a dark slate field, soft chalk-stroke line work, powder
 
 - Hand-lettered chalk character for titles; legible body. Dry, nostalgic, classroom-warm.
 
-> Families are chosen at confirmation `g`; this style asks for a hand-lettered chalk title *character*.
+> Families are chosen at confirmation `g`; this style asks for a hand-lettered chalk title *character*. This governs editable native text; decorative-lettering eligibility remains a separate carrier decision.
 
 ## 3. Using the deck's colors
 
@@ -34,4 +34,4 @@ Classroom chalkboard — a dark slate field, soft chalk-stroke line work, powder
 
 ## 6. Illustration propensity
 
-**core** — chalk-drawn marks and doodles are the classroom aesthetic; with no user steer, default to recommending a coherent spot-illustration family. Default *lean* only — heaviness and placement stay Strategist judgment, an explicit user request wins either way, and `image_usage: none` writes no illustration rows.
+**core** — when illustration is selected, chalk-drawn marks and doodles may lead the classroom aesthetic. Role, scale, reuse, and placement stay Strategist judgment; an explicit user request wins either way, and `image_usage: none` writes no illustration rows.

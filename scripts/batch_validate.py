@@ -5,10 +5,8 @@ PPT Master - Batch Project Validation Tool
 Checks the structural integrity and compliance of multiple projects at once.
 
 Usage:
-    python3 scripts/batch_validate.py examples
     python3 scripts/batch_validate.py projects
     python3 scripts/batch_validate.py --all
-    python3 scripts/batch_validate.py examples projects
 """
 
 import argparse
@@ -265,14 +263,12 @@ def build_parser() -> argparse.ArgumentParser:
         description="Validate one or more PPT Master project directories.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples:
-  python3 scripts/batch_validate.py examples
   python3 scripts/batch_validate.py projects
-  python3 scripts/batch_validate.py examples projects
   python3 scripts/batch_validate.py --all
 """,
     )
     parser.add_argument("directories", nargs="*", help="Directories to scan")
-    parser.add_argument("--all", action="store_true", help="Validate examples and projects")
+    parser.add_argument("--all", action="store_true", help="Validate the default projects directory")
     parser.add_argument("--export", action="store_true", help="Write a validation report")
     parser.add_argument(
         "--output",
@@ -290,13 +286,17 @@ def main(argv: list[str] | None = None) -> int:
     validator = BatchValidator()
 
     if args.all:
-        directories = ['examples', 'projects']
+        directories = ['projects']
     else:
         directories = args.directories
 
     if not directories:
         parser.print_help()
-        return 0
+        print(
+            "\n[ERROR] Provide at least one directory or pass --all.",
+            file=sys.stderr,
+        )
+        return 1
 
     # Validate each directory
     for directory in directories:
@@ -304,6 +304,13 @@ def main(argv: list[str] | None = None) -> int:
             validator.validate_directory(directory)
         else:
             print(f"[WARN] Skipping non-existent directory: {directory}\n")
+
+    if validator.summary['total'] == 0:
+        print(
+            "[ERROR] No projects were found in the requested directories.",
+            file=sys.stderr,
+        )
+        return 1
 
     # Print summary
     validator.print_summary()

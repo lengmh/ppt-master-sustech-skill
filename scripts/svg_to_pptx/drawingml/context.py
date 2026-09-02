@@ -14,6 +14,35 @@ if TYPE_CHECKING:
 AffineMatrix = tuple[float, float, float, float, float, float]
 IDENTITY_MATRIX: AffineMatrix = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
 
+TEXT_FLOW_PRESERVE = 'preserve'
+TEXT_FLOW_REFLOW = 'reflow'
+TEXT_FLOW_SPLIT = 'split'
+TEXT_FLOW_MODES = frozenset({
+    TEXT_FLOW_PRESERVE,
+    TEXT_FLOW_REFLOW,
+    TEXT_FLOW_SPLIT,
+})
+
+
+def resolve_text_flow(
+    text_flow: str | None = None,
+    merge_paragraphs: bool | None = None,
+) -> str:
+    """Resolve the public text-layout options to one internal mode."""
+    if text_flow is not None and merge_paragraphs is not None:
+        raise ValueError(
+            'text_flow and legacy merge_paragraphs cannot be used together'
+        )
+    if merge_paragraphs is not None:
+        return TEXT_FLOW_REFLOW if merge_paragraphs else TEXT_FLOW_SPLIT
+    resolved = TEXT_FLOW_PRESERVE if text_flow is None else text_flow
+    if resolved not in TEXT_FLOW_MODES:
+        choices = ', '.join(sorted(TEXT_FLOW_MODES))
+        raise ValueError(
+            f'unsupported text_flow {resolved!r}; expected one of: {choices}'
+        )
+    return resolved
+
 
 @dataclass
 class ShapeResult:
@@ -40,6 +69,8 @@ class ConvertContext:
     claimed_shape_ids: set[int] = field(default_factory=set)
     referenced_shape_ids: set[int] = field(default_factory=set)
     slide_num: int = 1
+    # Public presentation roster size, used to fail closed on #slide-N links.
+    slide_count: int | None = None
     translate_x: float = 0.0
     translate_y: float = 0.0
     scale_x: float = 1.0
@@ -55,6 +86,9 @@ class ConvertContext:
     content_type_overrides: dict[str, str] = field(default_factory=dict)
     rel_id_counter: int = 2  # rId1 reserved for slideLayout
     svg_dir: Path | None = None
+    # Explicit project boundary for deterministic resource resolution. Public
+    # conversion entry points require it; recursive child contexts retain it.
+    resource_root: Path | None = None
     inherited_styles: dict[str, str] = field(default_factory=dict)
     # Effective SVG font sizes keyed by element identity. Shared resolution
     # keeps relative sizes and em tracking identical across checker/exporter.
@@ -68,14 +102,14 @@ class ConvertContext:
     # Recursion depth — only the depth==0 (root) context records anim targets.
     depth: int = 0
     # Top-level <g id="..."> groups, recorded as (shape_id, svg_id) in z-order.
-    # Used by the PPTX builder to emit per-element entrance timing.
+    # Used by the PPTX builder to emit per-element object-animation timing.
     anim_targets: list = field(default_factory=list)
     # Explicit sidecar group ids may override the legacy chrome-name heuristic.
     # Explicit structural layer/role/placeholder markers remain non-animatable.
     animation_group_overrides: frozenset[str] = frozenset()
-    # Default-on flag: merge mergeable paragraph blocks into one editable
-    # text frame with multiple <a:p>. Disable it for strict line fidelity.
-    merge_paragraphs: bool = True
+    # Text-layout policy for positional tspans: preserve authored line breaks
+    # in one frame, reflow them, or split them into independent frames.
+    text_flow: str = TEXT_FLOW_PRESERVE
     # Explicit opt-in: replace marked chart/table fallback groups with editable
     # PowerPoint graphicFrames. Default stays off to preserve SVG output.
     native_objects_enabled: bool = False
@@ -95,6 +129,11 @@ class ConvertContext:
     # Optional project theme-color contract. Exact locked colors are promoted
     # to context-safe DrawingML scheme slots while local colors stay concrete.
     theme_color_spec: ThemeColorSpec | None = None
+    # Canonical BCP-47 content language from spec_lock.md. ``None`` preserves
+    # the legacy per-run script heuristic for older projects and lockless quick generation.
+    primary_language: str | None = None
+    # Reuse media relationships when the same image fills multiple text runs.
+    text_image_fill_cache: dict[tuple[str, str], str] = field(default_factory=dict)
 
     def next_id(self) -> int:
         """Allocate the next shape ID."""
@@ -211,6 +250,7 @@ class ConvertContext:
             claimed_shape_ids=self.claimed_shape_ids,
             referenced_shape_ids=self.referenced_shape_ids,
             slide_num=self.slide_num,
+            slide_count=self.slide_count,
             translate_x=self.translate_x + dx,
             translate_y=self.translate_y + dy,
             scale_x=self.scale_x * sx,
@@ -226,6 +266,7 @@ class ConvertContext:
             content_type_overrides=self.content_type_overrides,
             rel_id_counter=self.rel_id_counter,
             svg_dir=self.svg_dir,
+            resource_root=self.resource_root,
             inherited_styles=merged,
             text_font_sizes=self.text_font_sizes,
             text_letter_spacings=self.text_letter_spacings,
@@ -234,7 +275,7 @@ class ConvertContext:
             # anim_targets is intentionally a fresh list on the child;
             # only the root-level context's list is read by the builder.
             animation_group_overrides=self.animation_group_overrides,
-            merge_paragraphs=self.merge_paragraphs,
+            text_flow=self.text_flow,
             native_objects_enabled=self.native_objects_enabled,
             image_optimize=self.image_optimize,
             image_max_dimension=self.image_max_dimension,
@@ -244,6 +285,8 @@ class ConvertContext:
             trace_events=self.trace_events,
             theme_font_spec=self.theme_font_spec,
             theme_color_spec=self.theme_color_spec,
+            primary_language=self.primary_language,
+            text_image_fill_cache=self.text_image_fill_cache,
         )
 
     def sync_from_child(self, child_ctx: ConvertContext) -> None:

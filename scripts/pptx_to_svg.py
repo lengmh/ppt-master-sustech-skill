@@ -3,23 +3,33 @@
 
 Usage:
     python3 pptx_to_svg.py <pptx_file> [-o <output_dir>] [--embed-images]
-                                       [--media-subdir <name>] [--keep-hidden]
+                                       [--images-subdir <name>] [--keep-hidden]
                                        [--inheritance-mode {both,layered,flat}]
+                                       [--roundtrip]
                                        [--strict]
 
-Output structure (default --inheritance-mode both):
+Output structure (``--roundtrip``):
     <output_dir>/
-        svg/                    layered machine input: masters/layouts/slides
-        svg-flat/               self-contained visual preview slides
-        <media_subdir>/         (default: assets/)
-            image1.png
-            image2.png
-            ...
+        authoring-svg-flat/     sole editable SVG page source
+        icons/imported/         on-demand complex vector decorations
+        authoring-svg-flat_vector_asset_inventory.json
+                                extracted-decoration source mapping
+        animations.json         normalized transition/object-motion sidecar
+        images/                 raster/SVG/EMF/WMF picture resources
+        sounds/                 transition/object cue audio, when present
+        audio/                  source narration/media audio, when present
+        video/                  source video bytes, when present
+        notes/                  imported speaker notes, when present
+        native-payloads/        opaque source payloads, when present
+        analysis/               structure, manifests, and immutable SVG backing
+        validation/             conversion diagnostics
+        sources/source.pptx     immutable backing package in --roundtrip
 
 If -o is omitted, writes alongside the source file as <pptx_stem>_pptx_to_svg/.
 
-This is the reverse of svg_to_pptx.py: it reads OOXML directly and emits
-shape-level SVG without going through PowerPoint or PDF rendering.
+This is the semantic import counterpart to svg_to_pptx.py: it reads OOXML
+directly and emits declared SVG/native-marker subsets without claiming an
+arbitrary lossless PPTX round trip.
 """
 
 from __future__ import annotations
@@ -34,10 +44,24 @@ from zipfile import BadZipFile
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from console_encoding import configure_utf8_stdio
+from pptx_workspace import (
+    AUTHORING_SVG_FLAT_DIR,
+    CONVERSION_REPORT_PATH,
+    NATIVE_STRUCTURE_PATH,
+    SOURCE_PPTX_PATH,
+)
 from pptx_to_svg import convert_pptx_to_svg
 from pptx_to_svg.converter import ConvertOptions
 
 configure_utf8_stdio()
+
+
+def _diagnostic_preview(message: str, limit: int = 240) -> str:
+    """Return one compact CLI preview while the report retains full detail."""
+    compact = " ".join(message.split())
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 3].rstrip() + "..."
 
 
 def _reconstruction_only_graphics(result: object) -> list[tuple[int, str]]:
@@ -72,9 +96,14 @@ def parse_args() -> argparse.Namespace:
         help="Output directory (default: <pptx_stem>_pptx_to_svg beside source)",
     )
     parser.add_argument(
-        "--media-subdir",
-        default="assets",
-        help="Subdirectory for extracted media (default: assets)",
+        "--images-subdir",
+        default="images",
+        help="Subdirectory for extracted image resources (default: images)",
+    )
+    parser.add_argument(
+        "--sounds-subdir",
+        default="sounds",
+        help="Subdirectory for transition/object cue audio (default: sounds)",
     )
     parser.add_argument(
         "--embed-images",
@@ -94,7 +123,9 @@ def parse_args() -> argparse.Namespace:
             "How to render inheritance. 'both' (default) writes layered SVGs "
             "under svg/ and complete preview slides under svg-flat/. "
             "'layered' writes only svg/ plus inheritance.json. 'flat' writes "
-            "self-contained slides under svg/ for backward compatibility."
+            "self-contained slides under svg/. Round-trip import requires "
+            "'both' internally and publishes authoring-svg-flat/ as its sole "
+            "editable SVG source."
         ),
     )
     parser.add_argument(
@@ -103,6 +134,15 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Stop on the first unsupported/malformed source construct instead "
             "of the default tolerant conversion with diagnostics"
+        ),
+    )
+    parser.add_argument(
+        "--roundtrip",
+        action="store_true",
+        help=(
+            "Create the source-preserving SVG round-trip workspace, including "
+            "authoring-svg-flat/, semantic resources, and immutable analysis "
+            "backing. Requires --inheritance-mode both."
         ),
     )
     return parser.parse_args()
@@ -125,11 +165,13 @@ def main() -> int:
     )
 
     options = ConvertOptions(
-        media_subdir=args.media_subdir,
+        images_subdir=args.images_subdir,
+        sound_subdir=args.sounds_subdir,
         embed_images=args.embed_images,
         keep_hidden=args.keep_hidden,
         inheritance_mode=args.inheritance_mode,
         strict=args.strict,
+        roundtrip=args.roundtrip,
     )
 
     try:
@@ -150,7 +192,7 @@ def main() -> int:
     if result.diagnostics:
         print(
             f"Warning: {len(result.diagnostics)} source construct(s) were "
-            "normalized, omitted, or replaced; see conversion-report.json.",
+            "normalized, omitted, or replaced; see the validation report.",
             file=sys.stderr,
         )
         for item in result.diagnostics[:20]:
@@ -163,7 +205,8 @@ def main() -> int:
             if shape:
                 location = f"{location}, {shape}" if location else shape
             print(
-                f"  {location or 'package'}: {item.code}: {item.message}",
+                f"  {location or 'package'}: {item.code}: "
+                f"{_diagnostic_preview(item.message)}",
                 file=sys.stderr,
             )
         if len(result.diagnostics) > 20:
@@ -188,7 +231,12 @@ def main() -> int:
                 file=sys.stderr,
             )
     print(f"Output: {output_dir}")
-    print(f"Conversion report: {output_dir / 'conversion-report.json'}")
+    print(f"Animation config: {output_dir / 'animations.json'}")
+    print(f"Conversion report: {output_dir / CONVERSION_REPORT_PATH}")
+    if result.native_structure is not None:
+        print(f"Editable SVG source: {output_dir / AUTHORING_SVG_FLAT_DIR}")
+        print(f"Round-trip source: {output_dir / SOURCE_PPTX_PATH}")
+        print(f"Round-trip structure: {output_dir / NATIVE_STRUCTURE_PATH}")
     return 0
 
 

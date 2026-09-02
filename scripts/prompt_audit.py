@@ -991,11 +991,64 @@ def audit_authority_graph(
     return normalized, cycles, findings
 
 
-def _registry_ids(root: Path, config: dict[str, Any]) -> tuple[set[Any], str, list[Any]]:
+def _structured_registry_expected_order(config: dict[str, Any]) -> list[str]:
+    """Build the canonical browse order for one structured registry."""
+    prefix_counts = config.get("prefix_counts")
+    sequence_width = config.get("sequence_width")
+    if (
+        not isinstance(prefix_counts, dict)
+        or not prefix_counts
+        or not all(
+            isinstance(prefix, str)
+            and re.fullmatch(r"[PMAC][1-9]\d*", prefix)
+            and isinstance(count, int)
+            and count > 0
+            for prefix, count in prefix_counts.items()
+        )
+    ):
+        raise AuditError(
+            f"Registry {config.get('name')} needs positive prefix_counts"
+        )
+    if not isinstance(sequence_width, int) or sequence_width < 1:
+        raise AuditError(
+            f"Registry {config.get('name')} needs a positive sequence_width"
+        )
+    return [
+        f"{prefix}-{sequence:0{sequence_width}d}"
+        for prefix, count in prefix_counts.items()
+        for sequence in range(1, count + 1)
+    ]
+
+
+def _registry_ids(
+    root: Path,
+    config: dict[str, Any],
+) -> tuple[set[Any], str, list[Any], list[Any] | None]:
     kind = config.get("kind")
     source = config.get("source")
     if not isinstance(source, str) or not (root / source).is_file():
         raise AuditError(f"Registry has missing source: {source}")
+
+    if kind == "structured_markdown":
+        pattern = config.get("entry_pattern")
+        if not isinstance(pattern, str):
+            raise AuditError(f"Registry {config.get('name')} needs entry_pattern")
+        try:
+            regex = re.compile(pattern, re.MULTILINE)
+        except re.error as exc:
+            raise AuditError(f"Invalid registry entry_pattern: {exc}") from exc
+        if "id" not in regex.groupindex:
+            raise AuditError(
+                f"Registry {config.get('name')} entry_pattern needs an id group"
+            )
+        matched_ids = [
+            match.group("id")
+            for match in regex.finditer(_read_utf8(root / source))
+        ]
+        duplicates = sorted(
+            item for item, count in Counter(matched_ids).items() if count > 1
+        )
+        return set(matched_ids), source, duplicates, matched_ids
 
     if kind == "numbered_markdown":
         pattern = config.get("entry_pattern")
@@ -1012,7 +1065,7 @@ def _registry_ids(root: Path, config: dict[str, Any]) -> tuple[set[Any], str, li
         duplicates = sorted(
             item for item, count in Counter(matched_ids).items() if count > 1
         )
-        return set(matched_ids), source, duplicates
+        return set(matched_ids), source, duplicates, matched_ids
 
     if kind == "directory":
         pattern = config.get("glob")
@@ -1025,7 +1078,7 @@ def _registry_ids(root: Path, config: dict[str, Any]) -> tuple[set[Any], str, li
             for path in paths
             if not _matches_any(_relative_path(root, path), excludes)
         }
-        return ids, source, []
+        return ids, source, [], None
 
     if kind == "json_collection":
         key = config.get("key")
@@ -1040,9 +1093,9 @@ def _registry_ids(root: Path, config: dict[str, Any]) -> tuple[set[Any], str, li
                 raise AuditError(f"Registry key {key} is missing in {source}")
             value = value[part]
         if isinstance(value, dict):
-            return set(value), source, []
+            return set(value), source, [], None
         if isinstance(value, list):
-            return set(range(len(value))), source, []
+            return set(range(len(value))), source, [], None
         raise AuditError(f"Registry key {key} in {source} is not a collection")
 
     raise AuditError(f"Unsupported registry kind: {kind}")
@@ -1078,7 +1131,7 @@ def audit_registries(
         name = config.get("name")
         if not isinstance(name, str) or not name:
             raise AuditError("Every registry requires a name")
-        ids, source, duplicate_ids = _registry_ids(root, config)
+        ids, source, duplicate_ids, source_order = _registry_ids(root, config)
         if not ids:
             raise AuditError(f"Registry {name} has no entries")
         for duplicate_id in duplicate_ids:
@@ -1090,6 +1143,61 @@ def audit_registries(
                     path=source,
                 )
             )
+        expected_ids: set[str] | None = None
+        if config.get("kind") == "structured_markdown":
+            expected_order = _structured_registry_expected_order(config)
+            expected_ids = set(expected_order)
+            string_ids = {str(item) for item in ids}
+            missing_ids = sorted(expected_ids - string_ids)
+            extra_ids = sorted(string_ids - expected_ids)
+            if missing_ids:
+                findings.append(
+                    Finding(
+                        severity="error",
+                        code="REGISTRY_IDS_MISSING",
+                        message=(
+                            f"{name} is missing canonical ids: "
+                            + ", ".join(missing_ids)
+                        ),
+                        path=source,
+                    )
+                )
+            if (
+                not missing_ids
+                and not extra_ids
+                and not duplicate_ids
+                and source_order != expected_order
+            ):
+                mismatch = next(
+                    index
+                    for index, (actual, expected) in enumerate(
+                        zip(source_order or [], expected_order)
+                    )
+                    if actual != expected
+                )
+                findings.append(
+                    Finding(
+                        severity="error",
+                        code="REGISTRY_ID_ORDER",
+                        message=(
+                            f"{name} browse order expects {expected_order[mismatch]} "
+                            f"at position {mismatch + 1}; found {source_order[mismatch]}"
+                        ),
+                        path=source,
+                    )
+                )
+            if extra_ids:
+                findings.append(
+                    Finding(
+                        severity="error",
+                        code="REGISTRY_IDS_EXTRA",
+                        message=(
+                            f"{name} defines unexpected canonical ids: "
+                            + ", ".join(extra_ids)
+                        ),
+                        path=source,
+                    )
+                )
         index_labels: list[str] | None = None
         index_targets: list[str] | None = None
         if config.get("validate_index_links") is True:
@@ -1193,12 +1301,64 @@ def audit_registries(
                     record_count_claim(document.path, line_number, count)
 
         for paragraph in paragraphs:
-            if paragraph.path != source and not any(term in paragraph.normalized for term in terms):
+            registry_context = paragraph.path == source or any(
+                term in paragraph.normalized for term in terms
+            )
+            if registry_context:
+                for count in _registry_count_claims(paragraph, nouns):
+                    if (paragraph.path, count) not in line_claim_keys:
+                        record_count_claim(paragraph.path, paragraph.line, count)
+            kind = config.get("kind")
+            if kind == "structured_markdown":
+                canonical_ids = {str(item) for item in ids}
+                structured_pattern = re.compile(r"#([PMAC][1-9]\d*-\d+)\b")
+                for match in structured_pattern.finditer(paragraph.text):
+                    claimed_id = match.group(1)
+                    if claimed_id not in canonical_ids:
+                        findings.append(
+                            Finding(
+                                severity="error",
+                                code="REGISTRY_ID_MISSING",
+                                message=(
+                                    f"{name} references missing id #{claimed_id}"
+                                ),
+                                path=paragraph.path,
+                                line=paragraph.line,
+                            )
+                        )
+                legacy_named_pattern = re.compile(
+                    r"#(?P<id>"
+                    r"(?:single|canvas|multi|reveal|tone|depth|asset|continuity)_\d+"
+                    r")\b"
+                )
+                for match in legacy_named_pattern.finditer(paragraph.text):
+                    findings.append(
+                        Finding(
+                            severity="error",
+                            code="REGISTRY_ID_LEGACY",
+                            message=(
+                                f"{name} uses removed id #{match.group('id')}"
+                            ),
+                            path=paragraph.path,
+                            line=paragraph.line,
+                        )
+                    )
+                if registry_context:
+                    legacy_numeric_pattern = re.compile(r"#(?P<id>[1-9]\d*)\b")
+                    for match in legacy_numeric_pattern.finditer(paragraph.text):
+                        findings.append(
+                            Finding(
+                                severity="error",
+                                code="REGISTRY_ID_LEGACY",
+                                message=(
+                                    f"{name} uses removed id #{match.group('id')}"
+                                ),
+                                path=paragraph.path,
+                                line=paragraph.line,
+                            )
+                        )
                 continue
-            for count in _registry_count_claims(paragraph, nouns):
-                if (paragraph.path, count) not in line_claim_keys:
-                    record_count_claim(paragraph.path, paragraph.line, count)
-            if config.get("kind") != "numbered_markdown":
+            if not registry_context or kind != "numbered_markdown":
                 continue
             numeric_ids = {int(item) for item in ids}
             id_pattern = re.compile(r"#([1-9]\d*)\b")
@@ -1258,6 +1418,7 @@ def audit_registries(
                 "duplicate_ids": duplicate_ids,
                 "minimum_id": min(ids) if all(isinstance(item, int) for item in ids) else None,
                 "maximum_id": max(ids) if all(isinstance(item, int) for item in ids) else None,
+                "expected_entries": len(expected_ids) if expected_ids is not None else None,
                 "index_labels": index_labels,
                 "index_targets": index_targets,
                 "claims": sorted(claims, key=lambda item: (item["path"], item["line"])),
@@ -1415,7 +1576,7 @@ def run_audit(
             raise AuditError("Every registry requires a name")
         if registry_name in registry_members:
             raise AuditError(f"Duplicate registry name: {registry_name}")
-        members, _, _ = _registry_ids(root, registry_config)
+        members, _, _, _ = _registry_ids(root, registry_config)
         registry_members[registry_name] = members
 
     load_sets, load_findings, covered_paths = audit_load_sets(

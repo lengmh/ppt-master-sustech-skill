@@ -17,10 +17,12 @@
 | Reading Mode | [fill] |
 | Content Strategy | [fill] |
 | Design Style | [fill] |
-| Formula Policy | [fill] |
 | AI Image Acquisition Path | [fill or not applicable] |
 | Generation Mode | [fill] |
 | Spec Refinement | [fill] |
+| Speaker Notes | [fill enabled/disabled plus provenance] |
+| Custom Animations | [fill enabled/disabled plus provenance] |
+| Narration Audio | [fill enabled/disabled plus provenance] |
 | Created Date | {{CREATED_DATE}} |
 
 ## II. Canvas Specification
@@ -55,17 +57,14 @@
 
 ### Font Plan
 
-| Role | Chinese | English | Fallback tail |
-| --- | --- | --- | --- |
-| Title | [fill] | [fill] | [fill] |
-| Body | [fill] | [fill] | [fill] |
-| Emphasis | [fill] | [fill] | [fill] |
-| Code | [fill] | [fill] | [fill] |
+| Role | Character (Reference) | Primary | English if non-English | Fallback tail |
+| --- | --- | --- | --- | --- |
+| Title | [fill] | [fill] | [fill] | [fill] |
+| Body | [fill] | [fill] | [fill] | [fill] |
 
-- Title: [fill]
-- Body: [fill]
-- Emphasis: [fill or same as Body]
-- Code: [fill]
+- **Typography upgrade (Reference)**: [fill post-export substitution by role after target installation, or omit]
+- **Title stack**: [fill]
+- **Body stack**: [fill]
 
 ### Font Size Hierarchy
 
@@ -79,30 +78,18 @@
 
 ## V. Layout Principles
 
-### Page Structure
+### Deck-wide Direction
 
-- **Header area**: [fill]
-- **Content area**: [fill]
-- **Footer area**: [fill]
-
-### Spacing Specification
-
-| Element | Current Project |
-| --- | --- |
-| Safe margin | [fill] |
-| Content block gap | [fill] |
-| Icon-text gap | [fill] |
+- **Hierarchy direction**: [fill]
+- **Composition tendency**: [fill]
+- **Cross-page continuity**: [fill]
+- **Spacing posture**: [fill]
 
 ## VI. Icon Usage Specification
 
-| Purpose | Icon Path | Page |
-| --- | --- | --- |
-| [fill] | [fill] | [fill] |
-
-## VII. Visualization Reference List
-
-| Page | Template | Path | Summary-quote | Native-ready | Usage |
-| --- | --- | --- | --- | --- | --- |
+| Icon Path | Suitable Scenarios |
+| --- | --- |
+| [fill] | [fill] |
 
 ## VIII. Image Resource List
 
@@ -116,12 +103,14 @@
 #### Slide 01 - [fill]
 
 - **Audience move**: [fill]
-- **Layout**: [fill]
+- **Layout**: [non-binding macro composition direction]
 - **Title**: [fill]
 - **Core message**: [fill]
 - **Content**: [fill]
+- **Mathematical content**: [fill exact delimiter-free LaTeX expression body, or omit]
 
 ## X. Speaker Notes Requirements
 
+- **Generation**: [fill enabled or disabled]
 - **Filename**: match each SVG filename under `notes/`
 - **Content**: [fill]

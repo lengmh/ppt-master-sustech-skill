@@ -6,6 +6,7 @@ import math
 from xml.etree import ElementTree as ET
 
 from pptx_shapes import validate_ooxml_line_width
+from pptx_gradients import preserved_native_gradient_xml
 
 from .context import ConvertContext
 from .theme_colors import ThemeColorSpec, color_node_xml
@@ -14,9 +15,10 @@ from .utils import (
     px_to_emu, _f, _get_attr, parse_svg_length,
     combine_opacity, parse_inline_style, parse_opacity, parse_stop_style,
     classify_project_marker_shape,
+    is_project_radial_focus_point,
     matrix_multiply, parse_svg_color, parse_transform_matrix, resolve_url_id,
     parse_project_filter_params, project_filter_drawingml_coordinates,
-    parse_project_gradient_ratio,
+    parse_project_gradient_ratio, parse_project_linear_gradient_coordinate,
     parse_project_stroke_dasharray, parse_project_stroke_enum,
     quantize_ooxml_alpha, quantize_ooxml_unit_ratio,
 )
@@ -46,6 +48,9 @@ def build_gradient_fill(
     usage: str = "fill",
 ) -> str:
     """Build <a:gradFill> from SVG linearGradient or radialGradient element."""
+    native = preserved_native_gradient_xml(grad_elem)
+    if native is not None:
+        return native
     tag = grad_elem.tag.replace(f'{{{SVG_NS}}}', '')
 
     stops_xml = []
@@ -96,17 +101,18 @@ def build_gradient_fill(
     gs_list = '\n'.join(stops_xml)
 
     if tag == 'linearGradient':
-        def parse_grad_coord(val_str: str, default: float = 0.0) -> float:
-            val_str = val_str.strip()
-            if val_str.endswith('%'):
-                return float(val_str.rstrip('%')) / 100.0
-            v = float(val_str)
-            return v / 100.0 if v > 1.0 else v
-
-        x1 = parse_grad_coord(grad_elem.get('x1', '0'))
-        y1 = parse_grad_coord(grad_elem.get('y1', '0'))
-        x2 = parse_grad_coord(grad_elem.get('x2', '1'))
-        y2 = parse_grad_coord(grad_elem.get('y2', '1'))
+        x1 = parse_project_linear_gradient_coordinate(
+            grad_elem.get('x1', '0')
+        )
+        y1 = parse_project_linear_gradient_coordinate(
+            grad_elem.get('y1', '0')
+        )
+        x2 = parse_project_linear_gradient_coordinate(
+            grad_elem.get('x2', '1')
+        )
+        y2 = parse_project_linear_gradient_coordinate(
+            grad_elem.get('y2', '0')
+        )
 
         angle_rad = math.atan2(y2 - y1, x2 - x1)
         angle_deg = math.degrees(angle_rad)
@@ -118,10 +124,25 @@ def build_gradient_fill(
 </a:gradFill>'''
 
     elif tag == 'radialGradient':
+        focus_x = parse_project_gradient_ratio(
+            grad_elem.get('fx', grad_elem.get('cx', '0.5'))
+        )
+        focus_y = parse_project_gradient_ratio(
+            grad_elem.get('fy', grad_elem.get('cy', '0.5'))
+        )
+        if not is_project_radial_focus_point(focus_x, focus_y):
+            raise ValueError(
+                'Radial gradient effective focus must lie within the '
+                'canonical circle centered at 0.5,0.5 with radius 0.5'
+            )
+        focus_l = quantize_ooxml_unit_ratio(focus_x)
+        focus_t = quantize_ooxml_unit_ratio(focus_y)
+        focus_r = 100000 - focus_l
+        focus_b = 100000 - focus_t
         return f'''<a:gradFill>
 <a:gsLst>{gs_list}</a:gsLst>
 <a:path path="circle">
-<a:fillToRect l="50000" t="50000" r="50000" b="50000"/>
+<a:fillToRect l="{focus_l}" t="{focus_t}" r="{focus_r}" b="{focus_b}"/>
 </a:path>
 </a:gradFill>'''
 

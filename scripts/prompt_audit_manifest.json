@@ -19,29 +19,29 @@
     "exclude": [
       "templates/decks/*/design_spec.md"
     ],
-    "max_tokens": 365000
+    "max_tokens": 477026
   },
   "file_budgets": {
     "AGENTS.md": 2300,
-    "SKILL.md": 900,
-    "references/executor-base.md": 6900,
+    "SKILL.md": 1633,
+    "references/executor-base.md": 10643,
     "references/executor-structured.md": 5300,
     "references/executor-chart.md": 3100,
-    "references/executor-image.md": 900,
+    "references/executor-image.md": 1545,
     "references/executor-web-image.md": 500,
-    "references/executor-notes.md": 900,
+    "references/executor-notes.md": 902,
     "references/shared-standards.md": 250,
     "references/shared-standards-core.md": 10800,
     "references/svg-effects.md": 11600,
     "references/native-data-interface.md": 6200,
     "references/pptx-structure-interface.md": 4300,
     "references/strategist.md": 13250,
-    "references/strategist-image.md": 2100,
-    "references/strategist-template.md": 2100,
-    "templates/design_spec_reference.md": 2450,
-    "templates/spec_lock_reference.md": 2250,
+    "references/strategist-image.md": 2440,
+    "references/strategist-template.md": 2490,
+    "templates/design_spec_reference.md": 3340,
+    "templates/spec_lock_reference.md": 2548,
     "workflows/generate-pptx.md": 12450,
-    "workflows/stages/apply-template-workspace.md": 1800
+    "workflows/stages/apply-template-workspace.md": 2676
   },
   "load_sets": {
     "bootstrap.routing": {
@@ -67,6 +67,20 @@
         "templates/brands/README.md"
       ],
       "max_tokens": 40600
+    },
+    "route.create-template.style": {
+      "description": "Create Style path through the authored style-template contract.",
+      "scope": "cumulative",
+      "include": [
+        "bootstrap.routing"
+      ],
+      "files": [
+        "workflows/create-template.md",
+        "workflows/create-template/create-style.md",
+        "templates/README.md",
+        "templates/styles/README.md"
+      ],
+      "max_tokens": 30503
     },
     "route.create-template.deck": {
       "description": "Create Deck path through Template_Designer, SVG core, and the structured PPTX interface.",
@@ -104,27 +118,16 @@
       ],
       "max_tokens": 58200
     },
-    "route.enhance-native-pptx": {
-      "description": "Finished-PPTX native enhancement route.",
+    "route.edit-native-pptx": {
+      "description": "Edit Native PPTX route: fill, edit, restructure, or enhance an existing deck through the source-preserving round-trip workspace.",
       "scope": "cumulative",
       "include": [
         "bootstrap.routing"
       ],
       "files": [
-        "workflows/native-enhance-pptx.md"
+        "workflows/edit-native-pptx.md"
       ],
-      "max_tokens": 8200
-    },
-    "route.fill-native-pptx": {
-      "description": "Raw-PPTX native fill route.",
-      "scope": "cumulative",
-      "include": [
-        "bootstrap.routing"
-      ],
-      "files": [
-        "workflows/template-fill-pptx.md"
-      ],
-      "max_tokens": 10800
+      "max_tokens": 14000
     },
     "route.generate.planning": {
       "description": "Generate-PPTX planning through Strategist, including reference-first whole-document authoring and representative multi-source custom mode/style synthesis; schemas and optional scaffolds are tool-consumed.",
@@ -136,8 +139,11 @@
         "workflows/generate-pptx.md",
         "references/artifact-ownership.md",
         "references/strategist.md",
+        "references/confirm-surface.md",
         "templates/design_spec_reference.md",
         "templates/spec_lock_reference.md",
+        "templates/charts/chart-vocabulary.md",
+        "templates/tables/table-vocabulary.md",
         "references/modes/_index.md",
         "references/visual-styles/_index.md",
         "scripts/docs/confirm_ui.md",
@@ -161,7 +167,7 @@
           "registry": "visual-styles"
         }
       ],
-      "max_tokens": 62000
+      "max_tokens": 62508
     },
     "route.generate.planning-image": {
       "description": "Generate-PPTX planning context after a non-none image source is proposed or confirmed.",
@@ -171,7 +177,7 @@
         "stage.generate.strategist.image-layout"
       ],
       "files": [],
-      "max_tokens": 70000
+      "max_tokens": 71356
     },
     "route.generate.planning-formula": {
       "description": "Formula-only planning context with no non-formula image resource or layout catalog.",
@@ -181,7 +187,7 @@
         "stage.generate.strategist.image"
       ],
       "files": [],
-      "max_tokens": 64000
+      "max_tokens": 64948
     },
     "route.generate.planning-ai": {
       "description": "Generate-PPTX planning when AI image direction is available, including representative multi-source custom rendering synthesis.",
@@ -210,7 +216,7 @@
         "workflows/stages/apply-template-workspace.md",
         "templates/README.md"
       ],
-      "max_tokens": 3300
+      "max_tokens": 4104
     },
     "stage.generate.template.brand": {
       "description": "Conditional Brand workspace application with one selected Brand spec.",
@@ -226,7 +232,23 @@
           "load_event": "template-application"
         }
       ],
-      "max_tokens": 5200
+      "max_tokens": 5647
+    },
+    "stage.generate.template.style": {
+      "description": "Conditional Style workspace application with one selected Style spec.",
+      "scope": "incremental",
+      "include": [
+        "stage.generate.apply-template-workspace"
+      ],
+      "files": [
+        "templates/styles/README.md",
+        {
+          "glob": "templates/styles/*/templates/design_spec.md",
+          "select": 1,
+          "load_event": "template-application"
+        }
+      ],
+      "max_tokens": 7263
     },
     "stage.generate.template.layout": {
       "description": "Conditional Layout workspace application with one selected Layout spec.",
@@ -242,7 +264,7 @@
           "load_event": "template-application"
         }
       ],
-      "max_tokens": 6400
+      "max_tokens": 7055
     },
     "stage.generate.template.deck": {
       "description": "Conditional Deck workspace application with one selected Deck spec.",
@@ -258,7 +280,7 @@
           "load_event": "template-application"
         }
       ],
-      "max_tokens": 9000
+      "max_tokens": 9335
     },
     "stage.generate.template.brand-two": {
       "description": "Same-kind conflict path with two selected Brand specs.",
@@ -274,7 +296,7 @@
           "load_event": "template-application"
         }
       ],
-      "max_tokens": 6200
+      "max_tokens": 6582
     },
     "stage.generate.template.fusion-brand-layout-deck": {
       "description": "Maximum supported cross-kind fusion with one Brand, Layout, and Deck spec.",
@@ -313,7 +335,7 @@
         "stage.generate.executor.notes"
       ],
       "files": [],
-      "max_tokens": 80200
+      "max_tokens": 88422
     },
     "route.generate.flat-ai-two-types": {
       "description": "Generate-PPTX context with AI images, representative multi-source custom rendering, and two local types.",
@@ -326,7 +348,7 @@
         "stage.generate.image.ai-two-types"
       ],
       "files": [],
-      "max_tokens": 120400
+      "max_tokens": 125651
     },
     "route.generate.flat-in-hand-image": {
       "description": "Generate-PPTX context with provided, placeholder, or formula images and no acquisition role.",
@@ -338,7 +360,7 @@
         "stage.generate.executor.notes"
       ],
       "files": [],
-      "max_tokens": 93700
+      "max_tokens": 102686
     },
     "route.generate.flat-web-image": {
       "description": "Generate-PPTX context with web image acquisition.",
@@ -351,17 +373,7 @@
         "stage.generate.image.web"
       ],
       "files": [],
-      "max_tokens": 101000
-    },
-    "route.enhance-native-pptx.audio": {
-      "description": "Enhance Native PPTX with the shared narration-audio stage.",
-      "scope": "cumulative",
-      "include": [
-        "route.enhance-native-pptx",
-        "stage.shared.generate-audio"
-      ],
-      "files": [],
-      "max_tokens": 11000
+      "max_tokens": 109298
     },
     "route.generate.beautify-flat-no-image": {
       "description": "Generate-PPTX 1:1 beautify profile on the flat no-image path.",
@@ -371,7 +383,7 @@
         "profile.generate.beautify-pptx"
       ],
       "files": [],
-      "max_tokens": 87050
+      "max_tokens": 92861
     },
     "route.generate.flat-no-image-chart": {
       "description": "Default flat Generate-PPTX path with chart authoring, native-data replacement, and verification.",
@@ -384,7 +396,7 @@
         "stage.generate.verify-charts"
       ],
       "files": [],
-      "max_tokens": 104000
+      "max_tokens": 105407
     },
     "route.generate.brand-flat-no-image": {
       "description": "Brand-preset flat Generate-PPTX path without image acquisition.",
@@ -396,7 +408,7 @@
         "stage.generate.template.brand"
       ],
       "files": [],
-      "max_tokens": 87250
+      "max_tokens": 96559
     },
     "route.generate.deck-structured-no-image": {
       "description": "Deck-preset structured Generate-PPTX path without image acquisition.",
@@ -408,7 +420,7 @@
         "stage.generate.template.deck"
       ],
       "files": [],
-      "max_tokens": 100000
+      "max_tokens": 106291
     },
     "route.generate.layout-structured-no-image": {
       "description": "Layout-preset structured Generate-PPTX path without image acquisition.",
@@ -420,7 +432,7 @@
         "stage.generate.template.layout"
       ],
       "files": [],
-      "max_tokens": 97650
+      "max_tokens": 104011
     },
     "route.generate.topic-only-flat-no-image": {
       "description": "Topic research followed by the default flat no-image Generate-PPTX path.",
@@ -430,13 +442,14 @@
         "route.generate.flat-no-image"
       ],
       "files": [],
-      "max_tokens": 81600
+      "max_tokens": 90286
     },
     "stage.generate.executor.flat": {
       "description": "Incremental flat Executor core with representative multi-source custom mode/style execution.",
       "scope": "incremental",
       "files": [
         "references/executor-base.md",
+        "references/preset-shape-vocabulary.md",
         "references/shared-standards-core.md",
         "references/semantic-svg.md",
         {
@@ -461,6 +474,47 @@
         }
       ],
       "max_tokens": 36500
+    },
+    "stage.generate.executor.structure": {
+      "description": "Conditional topology and structure assembly rules.",
+      "scope": "incremental",
+      "files": [
+        "references/executor-structure.md",
+        "references/topology-assembly.md"
+      ],
+      "max_tokens": 3999
+    },
+    "stage.generate.executor.table": {
+      "description": "Conditional table authoring rules.",
+      "scope": "incremental",
+      "files": [
+        "references/executor-table.md"
+      ],
+      "max_tokens": 976
+    },
+    "stage.generate.executor.visualization": {
+      "description": "Conditional visualization authoring rules.",
+      "scope": "incremental",
+      "files": [
+        "references/executor-visualization.md"
+      ],
+      "max_tokens": 921
+    },
+    "stage.generate.executor.native-formula": {
+      "description": "Conditional native formula authoring rules.",
+      "scope": "incremental",
+      "files": [
+        "references/native-formula.md"
+      ],
+      "max_tokens": 1406
+    },
+    "stage.generate.executor.native-hyperlinks": {
+      "description": "Conditional native hyperlink authoring rules.",
+      "scope": "incremental",
+      "files": [
+        "references/native-hyperlinks.md"
+      ],
+      "max_tokens": 1006
     },
     "stage.generate.executor.structured": {
       "description": "Structured template execution layered on the flat/shared core.",
@@ -540,7 +594,7 @@
         "stage.generate.executor.image"
       ],
       "files": [],
-      "max_tokens": 57800
+      "max_tokens": 58748
     },
     "stage.generate.topic-research": {
       "description": "Gap-targeted factual intake stage.",
@@ -548,7 +602,7 @@
       "files": [
         "workflows/stages/topic-research.md"
       ],
-      "max_tokens": 1800
+      "max_tokens": 1864
     },
     "profile.generate.beautify-pptx": {
       "description": "Strict 1:1 wording, order, and page-count generation profile.",
@@ -557,6 +611,25 @@
         "workflows/profiles/beautify-pptx.md"
       ],
       "max_tokens": 6900
+    },
+    "profile.generate.quick": {
+      "description": "Explicit Quick Generate profile.",
+      "scope": "incremental",
+      "files": [
+        "workflows/profiles/quick-generate.md"
+      ],
+      "max_tokens": 8676
+    },
+    "profile.generate.image-to-pptx": {
+      "description": "Image-to-PPTX profile layered on Quick Generate.",
+      "scope": "incremental",
+      "include": [
+        "profile.generate.quick"
+      ],
+      "files": [
+        "workflows/profiles/image-to-pptx.md"
+      ],
+      "max_tokens": 11684
     },
     "stage.generate.refine-spec": {
       "description": "Explicit post-confirmation spec refinement runbook.",
@@ -596,7 +669,8 @@
       "description": "Live preview and annotation stage.",
       "scope": "incremental",
       "files": [
-        "workflows/stages/live-preview.md"
+        "workflows/stages/live-preview.md",
+        "scripts/docs/svg_editor.md"
       ],
       "max_tokens": 2900
     },
@@ -608,9 +682,11 @@
         "references/animations.md",
         "scripts/docs/pptx-animations.md",
         "scripts/docs/pptx-transitions.md",
-        "scripts/docs/svg-pipeline.md"
+        "scripts/docs/svg-pipeline.md",
+        "scripts/docs/video-motion-plan.md",
+        "templates/sounds/sound-vocabulary.md"
       ],
-      "max_tokens": 19000
+      "max_tokens": 44606
     },
     "stage.generate.animation-options": {
       "description": "Conditional deck-wide transition, auto-advance, and entrance-animation options.",
@@ -618,15 +694,16 @@
       "files": [
         "references/animations.md"
       ],
-      "max_tokens": 4500
+      "max_tokens": 6528
     },
     "stage.shared.generate-audio": {
       "description": "Shared narration-audio stage.",
       "scope": "incremental",
       "files": [
-        "workflows/stages/generate-audio.md"
+        "workflows/stages/generate-audio.md",
+        "scripts/docs/narration.md"
       ],
-      "max_tokens": 2800
+      "max_tokens": 6186
     },
     "governance.failure-recovery": {
       "description": "Global stop, retry, and resume policy.",
@@ -634,7 +711,7 @@
       "files": [
         "workflows/governance/failure-recovery.md"
       ],
-      "max_tokens": 2350
+      "max_tokens": 2639
     },
     "stage.shared.conversion-reference": {
       "description": "Conditional source-conversion and import compatibility reference.",
@@ -642,7 +719,15 @@
       "files": [
         "scripts/docs/conversion.md"
       ],
-      "max_tokens": 6200
+      "max_tokens": 7422
+    },
+    "stage.shared.video-design": {
+      "description": "Conditional video-design reference.",
+      "scope": "incremental",
+      "files": [
+        "references/video-design.md"
+      ],
+      "max_tokens": 2382
     },
     "stage.shared.troubleshooting": {
       "description": "Conditional troubleshooting reference for generation failures.",
@@ -656,9 +741,18 @@
       "description": "Conditional native-preset authoring reference for Create Layout/Create Deck.",
       "scope": "incremental",
       "files": [
-        "references/native-shape-authoring.md"
+        "references/native-shape-authoring.md",
+        "references/preset-shape-vocabulary.md"
       ],
-      "max_tokens": 2600
+      "max_tokens": 7179
+    },
+    "stage.create-template.template-tools": {
+      "description": "Conditional template tooling reference.",
+      "scope": "incremental",
+      "files": [
+        "scripts/docs/template-tools.md"
+      ],
+      "max_tokens": 2220
     },
     "route.generate.planning-template": {
       "description": "Generate-PPTX planning context after an explicit template workspace is installed.",
@@ -668,7 +762,7 @@
         "stage.generate.strategist.template"
       ],
       "files": [],
-      "max_tokens": 58650
+      "max_tokens": 64998
     },
     "route.generate.planning-template-ai": {
       "description": "Explicit template workspace plus confirmed AI-image planning.",
@@ -678,7 +772,7 @@
         "route.generate.planning-ai"
       ],
       "files": [],
-      "max_tokens": 70800
+      "max_tokens": 77783
     },
     "stage.generate.executor.chart": {
       "description": "Conditional chart/table page execution rules.",
@@ -694,7 +788,7 @@
       "files": [
         "references/strategist-image.md"
       ],
-      "max_tokens": 1950
+      "max_tokens": 2440
     },
     "stage.generate.strategist.image-layout": {
       "description": "Non-formula image planning plus the image-layout pattern catalog required for Section VIII rows.",
@@ -705,7 +799,7 @@
       "files": [
         "references/image-layout-patterns.md"
       ],
-      "max_tokens": 8000
+      "max_tokens": 8848
     },
     "stage.generate.strategist.template": {
       "description": "Conditional Strategist module for an explicitly installed template workspace.",
@@ -713,7 +807,7 @@
       "files": [
         "references/strategist-template.md"
       ],
-      "max_tokens": 2100
+      "max_tokens": 2490
     },
     "stage.generate.executor.native-data": {
       "description": "Conditional preset-pattern and native chart/table metadata interface.",
@@ -732,7 +826,7 @@
         "references/image-layout-spec.md",
         "references/svg-image-embedding.md"
       ],
-      "max_tokens": 11600
+      "max_tokens": 11824
     },
     "stage.generate.executor.web-image": {
       "description": "Conditional sourced-image attribution layered on image execution.",
@@ -743,7 +837,15 @@
       "files": [
         "references/executor-web-image.md"
       ],
-      "max_tokens": 12000
+      "max_tokens": 12194
+    },
+    "stage.generate.web-image-review": {
+      "description": "Conditional web-image review stage.",
+      "scope": "incremental",
+      "files": [
+        "workflows/stages/web-image-review.md"
+      ],
+      "max_tokens": 734
     },
     "stage.generate.executor.notes": {
       "description": "Post-SVG speaker-notes generation rules.",
@@ -751,7 +853,7 @@
       "files": [
         "references/executor-notes.md"
       ],
-      "max_tokens": 900
+      "max_tokens": 902
     },
     "stage.generate.executor.native-shape": {
       "description": "Conditional stock PowerPoint shape selection and fragment contract.",
@@ -759,7 +861,7 @@
       "files": [
         "references/native-shape-authoring.md"
       ],
-      "max_tokens": 2600
+      "max_tokens": 4737
     },
     "stage.shared.svg-effects": {
       "description": "Conditional advanced SVG paint, effects, transforms, and geometry for Generate Executor or Create Template.",
@@ -768,6 +870,14 @@
         "references/svg-effects.md"
       ],
       "max_tokens": 11600
+    },
+    "stage.shared.svg-contract": {
+      "description": "Conditional SVG contract reference.",
+      "scope": "incremental",
+      "files": [
+        "scripts/docs/svg-contract.md"
+      ],
+      "max_tokens": 13656
     }
   },
   "duplicates": {
@@ -780,15 +890,6 @@
     "max_exact_results": 100,
     "max_near_results": 100,
     "accepted": [
-      {
-        "kind": "exact",
-        "fingerprint": "7c36a9231d14",
-        "paths": [
-          "templates/decks/README.md",
-          "templates/layouts/README.md"
-        ],
-        "reason": "Shared boilerplate between sibling template-kind docs; kept in lockstep on purpose."
-      },
       {
         "kind": "exact",
         "fingerprint": "d886e9fcb8dc",
@@ -905,9 +1006,24 @@
   "registries": [
     {
       "name": "image-layout-patterns",
-      "kind": "numbered_markdown",
+      "kind": "structured_markdown",
       "source": "references/image-layout-patterns.md",
-      "entry_pattern": "^(?P<id>\\d+)\\.\\s+\\*\\*",
+      "entry_pattern": "^-\\s+\\*\\*#(?P<id>[PMAC][1-9][0-9]*-[0-9]+)\\s+·\\s+",
+      "sequence_width": 2,
+      "prefix_counts": {
+        "P1": 13,
+        "P2": 10,
+        "P3": 24,
+        "M1": 12,
+        "M2": 9,
+        "M3": 7,
+        "A1": 4,
+        "A2": 4,
+        "A3": 3,
+        "C1": 1,
+        "C2": 2,
+        "C3": 1
+      },
       "reference_terms": [
         "image-layout-patterns",
         "image-text layout patterns"
@@ -1112,6 +1228,42 @@
       {
         "glob": "scripts/docs/chart-recall.md",
         "reason": "Maintainer command contract; Strategist core carries the complete runtime recall procedure."
+      },
+      {
+        "glob": "scripts/docs/advanced-image-motion-smoke.md",
+        "reason": "Maintainer smoke-test procedure; never loaded by generation roles."
+      },
+      {
+        "glob": "scripts/docs/mask-gradient-smoke.md",
+        "reason": "Maintainer smoke-test procedure; never loaded by generation roles."
+      },
+      {
+        "glob": "scripts/docs/multilingual-text-smoke.md",
+        "reason": "Maintainer smoke-test procedure; never loaded by generation roles."
+      },
+      {
+        "glob": "scripts/docs/visualization-recall.md",
+        "reason": "Optional deterministic maintainer diagnostic; it is not the runtime capability-discovery gate."
+      },
+      {
+        "glob": "templates/VISUALIZATION_TEMPLATE_AUTHORING.md",
+        "reason": "Maintainer-only visualization-library authoring guide; never loaded by generation roles."
+      },
+      {
+        "glob": "templates/icons/THIRD_PARTY_NOTICES.md",
+        "reason": "Third-party attribution notice; never loaded by generation roles."
+      },
+      {
+        "glob": "templates/sounds/README.md",
+        "reason": "Sound-library inventory; runtime selection reads sound-vocabulary.md directly."
+      },
+      {
+        "glob": "templates/sounds/THIRD_PARTY_NOTICES.md",
+        "reason": "Third-party attribution notice; never loaded by generation roles."
+      },
+      {
+        "glob": "templates/tables/README.md",
+        "reason": "Table-library maintainer/index overview; runtime planning reads table-vocabulary.md directly."
       },
       {
         "glob": "templates/scaffolds/*.md",

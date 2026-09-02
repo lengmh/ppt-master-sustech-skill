@@ -24,7 +24,8 @@ Strategy:
   preserveAspectRatio="none".
 - With srcRect, or with a single oversized tile that covers the frame -> wrap
   the <image> in a nested <svg viewBox> in the unit rectangle [0,1] x [0,1],
-  so cropping is expressed as the visible viewBox region.
+  with overflow hidden so cropping is expressed identically in browsers and
+  PowerPoint.
 - Repeating tile fills still use the legacy plain-image fallback; a repeated
   pattern cannot be represented by the project's native picture-crop subset.
 - Image bytes are written through the result; the slide assembler decides
@@ -36,6 +37,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import io
+import math
 import mimetypes
 import shutil
 import subprocess
@@ -54,6 +56,15 @@ from .emu_units import NS, Xfrm, emu_to_px, fmt_num, format_ooxml_alpha
 from .ooxml_loader import OoxmlPackage, PartRef, blip_embed_relationship_ids
 
 
+@dataclass(frozen=True)
+class PictureDiagnostic:
+    """Recoverable loss while converting one DrawingML picture."""
+
+    code: str
+    message: str
+    fallback: str
+
+
 @dataclass
 class PictureResult:
     """Resolved picture: SVG element string + extracted media bytes."""
@@ -62,10 +73,16 @@ class PictureResult:
     # Map of {filename: bytes} that the assembler should emit alongside
     # the SVG. Filename is the basename inside the package's media dir.
     media: dict[str, bytes] = field(default_factory=dict)
+    diagnostics: tuple[PictureDiagnostic, ...] = ()
+    external_linked: bool = False
 
 
 class MediaResolutionError(RuntimeError):
     """Raised when a PPTX media relationship cannot be reproduced as SVG."""
+
+
+class LinkedImageResolutionError(MediaResolutionError):
+    """Raised when an external linked image has no embedded preview."""
 
 
 def convert_blip_fill(
@@ -74,9 +91,10 @@ def convert_blip_fill(
     slide_part: PartRef,
     pkg: OoxmlPackage,
     *,
-    media_subdir: str = "assets",
+    media_subdir: str = "images",
     embed_inline: bool = False,
     asset_name_map: dict[str, str] | None = None,
+    strict: bool = False,
 ) -> PictureResult:
     """Convert an <a:blipFill> element to SVG <image>.
 
@@ -90,10 +108,16 @@ def convert_blip_fill(
 
     relationship_ids = blip_embed_relationship_ids(blip)
     linked_rid = blip.attrib.get(f"{{{NS['r']}}}link")
+    linked_relationship = slide_part.rels.get(linked_rid or "", {})
+    external_linked = linked_relationship.get("external") == "1"
     if not relationship_ids:
+        if external_linked:
+            raise LinkedImageResolutionError(
+                "Linked image relationships are not supported; embed the image in PowerPoint first"
+            )
         if linked_rid:
             raise MediaResolutionError(
-                "Linked image relationships are not supported; embed the image in PowerPoint first"
+                "Linked image relationship cannot be resolved; embed the image in PowerPoint first"
             )
         return PictureResult()
 
@@ -117,16 +141,31 @@ def convert_blip_fill(
         break
     if target is None or img_bytes is None:
         details = "; ".join(failures)
-        raise MediaResolutionError(
+        error_type = (
+            LinkedImageResolutionError
+            if external_linked
+            else MediaResolutionError
+        )
+        raise error_type(
             f"No embedded image relationship can be read in {slide_part.path}: {details}"
         )
 
     filename = (asset_name_map or {}).get(target, pkg.media_filename(target))
     filename, img_bytes = _normalize_office_media(filename, img_bytes)
     tile_source_bytes = img_bytes
-    filename, img_bytes = _apply_blip_image_effects(filename, img_bytes, blip)
+    diagnostics = list(_unsupported_blip_effect_diagnostics(blip))
+    filename, img_bytes, effect_diagnostics = _apply_blip_image_effects(
+        filename,
+        img_bytes,
+        blip,
+    )
+    diagnostics.extend(effect_diagnostics)
+    opacity_attr, opacity_diagnostics = _blip_opacity_attr(blip)
+    diagnostics.extend(opacity_diagnostics)
+    if strict and diagnostics:
+        details = "; ".join(item.message for item in diagnostics)
+        raise ValueError(f"Cannot reproduce DrawingML picture effects: {details}")
     href = _build_href(filename, img_bytes, media_subdir, embed_inline)
-    opacity_attr = _blip_opacity_attr(blip)
 
     # srcRect: l/t/r/b in 1/100000ths (so 50000 = 50%).
     src_rect = blip_fill_elem.find("a:srcRect", NS)
@@ -160,7 +199,7 @@ def convert_blip_fill(
             f'width="{fmt_num(xfrm.w)}" height="{fmt_num(xfrm.h)}" '
             f'viewBox="{fmt_num(vb_l, 5)} {fmt_num(vb_t, 5)} '
             f'{fmt_num(vb_w, 5)} {fmt_num(vb_h, 5)}" '
-            f'preserveAspectRatio="none">'
+            f'preserveAspectRatio="none" overflow="hidden">'
             f'<image href="{href}" x="0" y="0" width="1" height="1" '
             f'preserveAspectRatio="none"{opacity_attr}/>'
             f"</svg>"
@@ -169,7 +208,12 @@ def convert_blip_fill(
     media: dict[str, bytes] = {}
     if not embed_inline:
         media[filename] = img_bytes
-    return PictureResult(svg=svg, media=media)
+    return PictureResult(
+        svg=svg,
+        media=media,
+        diagnostics=tuple(diagnostics),
+        external_linked=external_linked,
+    )
 
 
 def convert_picture(
@@ -178,9 +222,10 @@ def convert_picture(
     slide_part: PartRef,
     pkg: OoxmlPackage,
     *,
-    media_subdir: str = "assets",
+    media_subdir: str = "images",
     embed_inline: bool = False,
     asset_name_map: dict[str, str] | None = None,
+    strict: bool = False,
 ) -> PictureResult:
     """Translate <p:pic> to SVG <image> (or nested <svg>+<image> for cropping)."""
     blip_fill = pic_elem.find("p:blipFill", NS)
@@ -192,6 +237,7 @@ def convert_picture(
         media_subdir=media_subdir,
         embed_inline=embed_inline,
         asset_name_map=asset_name_map,
+        strict=strict,
     )
 
 
@@ -200,18 +246,78 @@ def convert_picture(
 # ---------------------------------------------------------------------------
 
 
-def _blip_opacity_attr(blip: ET.Element) -> str:
+def _blip_opacity_attr(
+    blip: ET.Element,
+) -> tuple[str, tuple[PictureDiagnostic, ...]]:
     """Translate DrawingML fixed image alpha to an SVG opacity attribute."""
-    alpha = blip.find("a:alphaModFix", NS)
-    if alpha is None:
-        return ""
+    alpha_effects = blip.findall("a:alphaModFix", NS)
+    if not alpha_effects:
+        return "", ()
+    if len(alpha_effects) > 1:
+        return "", (
+            _effect_diagnostic(
+                "duplicate a:alphaModFix effects cannot be reproduced safely"
+            ),
+        )
+    alpha = alpha_effects[0]
     try:
-        opacity = max(0.0, min(1.0, float(alpha.attrib.get("amt", "100000")) / 100000.0))
+        opacity = float(alpha.attrib.get("amt", "100000")) / 100000.0
     except ValueError:
-        return ""
+        return "", (
+            _effect_diagnostic(
+                f"invalid a:alphaModFix amt={alpha.attrib.get('amt')!r}"
+            ),
+        )
+    if not math.isfinite(opacity) or not 0.0 <= opacity <= 1.0:
+        return "", (
+            _effect_diagnostic(
+                f"out-of-range a:alphaModFix amt={alpha.attrib.get('amt')!r}"
+            ),
+        )
     if opacity >= 1.0:
-        return ""
-    return f' opacity="{format_ooxml_alpha(opacity)}"'
+        return "", ()
+    return f' opacity="{format_ooxml_alpha(opacity)}"', ()
+
+
+def _effect_diagnostic(message: str) -> PictureDiagnostic:
+    return PictureDiagnostic(
+        code="image-effect-omitted",
+        message=message,
+        fallback="retain the source image and omit only this image effect",
+    )
+
+
+def _unsupported_blip_effect_diagnostics(
+    blip: ET.Element,
+) -> tuple[PictureDiagnostic, ...]:
+    """Report direct a:blip effects outside the implemented subset."""
+    supported_tags = {
+        f"{{{NS['a']}}}lum",
+        f"{{{NS['a']}}}alphaModFix",
+        f"{{{NS['a']}}}extLst",
+    }
+    unsupported = sorted({
+        child.tag.rsplit("}", 1)[-1]
+        for child in blip
+        if child.tag not in supported_tags
+    })
+    diagnostics = (
+        [
+            _effect_diagnostic(
+                "unsupported direct a:blip effect(s): "
+                + ", ".join(f"a:{name}" for name in unsupported)
+            )
+        ]
+        if unsupported
+        else []
+    )
+    if len(blip.findall("a:lum", NS)) > 1:
+        diagnostics.append(
+            _effect_diagnostic(
+                "duplicate a:lum effects cannot be reproduced safely"
+            )
+        )
+    return tuple(diagnostics)
 
 _OFFICE_VECTOR_EXTS = {".emf", ".wmf"}
 
@@ -418,26 +524,61 @@ def _apply_blip_image_effects(
     filename: str,
     img_bytes: bytes,
     blip: ET.Element,
-) -> tuple[str, bytes]:
+) -> tuple[str, bytes, tuple[PictureDiagnostic, ...]]:
     """Bake supported DrawingML blip effects into extracted image bytes.
 
-    Keeping the SVG as a plain <image> avoids introducing CSS filters that the
-    downstream native PPTX converter cannot reliably map back to DrawingML.
+    Brightness and contrast are pixel operations, not picture-shape
+    shadow/glow effects, so preserve them in the extracted bitmap.
     """
-    lum = blip.find("a:lum", NS)
-    if lum is None:
-        return filename, img_bytes
+    lum_effects = blip.findall("a:lum", NS)
+    if not lum_effects:
+        return filename, img_bytes, ()
+    if len(lum_effects) > 1:
+        return filename, img_bytes, ()
+    lum = lum_effects[0]
 
-    bright = _signed_pct_attr(lum, "bright")
-    contrast = _signed_pct_attr(lum, "contrast")
+    values: dict[str, float | None] = {}
+    for name in ("bright", "contrast"):
+        raw_value = lum.attrib.get(name)
+        if raw_value is None:
+            values[name] = None
+            continue
+        try:
+            value = float(raw_value) / 100000.0
+        except ValueError:
+            return filename, img_bytes, (
+                _effect_diagnostic(f"invalid a:lum {name}={raw_value!r}"),
+            )
+        if not math.isfinite(value) or not -1.0 <= value <= 1.0:
+            return filename, img_bytes, (
+                _effect_diagnostic(
+                    f"out-of-range a:lum {name}={raw_value!r}"
+                ),
+            )
+        values[name] = value
+    bright = values["bright"]
+    contrast = values["contrast"]
     if bright is None and contrast is None:
-        return filename, img_bytes
+        return filename, img_bytes, ()
     if Image is None or ImageEnhance is None:
-        return filename, img_bytes
+        return filename, img_bytes, (
+            _effect_diagnostic(
+                "a:lum requires Pillow, but Pillow is unavailable"
+            ),
+        )
 
     try:
-        image = Image.open(io.BytesIO(img_bytes))
-        output_format = image.format or _pil_format_from_filename(filename)
+        with Image.open(io.BytesIO(img_bytes)) as source_image:
+            if getattr(source_image, "is_animated", False):
+                return filename, img_bytes, (
+                    _effect_diagnostic(
+                        "a:lum on an animated image would flatten its frames"
+                    ),
+                )
+            output_format = (
+                source_image.format or _pil_format_from_filename(filename)
+            )
+            image = source_image.copy()
         if image.mode not in ("RGB", "RGBA"):
             image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
         if bright is not None:
@@ -451,19 +592,15 @@ def _apply_blip_image_effects(
         image.save(out, format=save_format, **save_kwargs)
         effect_key = f"lum-{bright}-{contrast}".encode("ascii")
         digest = hashlib.sha1(effect_key).hexdigest()[:8]
-        return _effect_filename(filename, digest, save_format), out.getvalue()
-    except Exception:
-        return filename, img_bytes
-
-
-def _signed_pct_attr(elem: ET.Element, name: str) -> float | None:
-    val = elem.attrib.get(name)
-    if val is None:
-        return None
-    try:
-        return float(val) / 100000.0
-    except ValueError:
-        return None
+        return (
+            _effect_filename(filename, digest, save_format),
+            out.getvalue(),
+            (),
+        )
+    except (KeyError, OSError, ValueError) as exc:
+        return filename, img_bytes, (
+            _effect_diagnostic(f"a:lum could not be rendered: {exc}"),
+        )
 
 
 def _pil_format_from_filename(filename: str) -> str | None:
