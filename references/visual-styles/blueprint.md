@@ -16,7 +16,7 @@ Engineering schematic — thin line work on dark blueprint paper, isometric proj
 - Clean sans for labels and body; monospace for every component name / code / coordinate — mirroring how real technical docs read.
 - Small, precise annotation type; wide tracking on coordinate / dimension labels. Restraint over emphasis.
 
-> Families are chosen at confirmation `g`; this style asks for a clean sans + monospace pairing.
+> Families are chosen at confirmation `g`; this style asks for a clean sans + monospace pairing. This governs editable native text; decorative-lettering eligibility remains a separate carrier decision.
 
 ## 3. Using the deck's colors
 
@@ -35,4 +35,4 @@ Engineering schematic — thin line work on dark blueprint paper, isometric proj
 
 ## 6. Illustration propensity
 
-**supportive** — but note the natural illustration here is hand-drawn **SVG schematic line-work / annotated marks**, not raster spot sheets; reach for line diagrams over decorative cutouts. If raster spots are used at all, keep them schematic, sparse, and secondary to the SVG line work. With no user steer this is the default lean; an explicit user request wins either way, and `image_usage: none` writes no illustration rows.
+**supportive** — when illustration is selected, its natural language is schematic line-work, annotated marks, and blueprint-aligned transparent elements, whether authored in SVG or generated and sliced. Role, scale, reuse, and placement stay Strategist judgment; an explicit user request wins either way, and `image_usage: none` writes no illustration rows.

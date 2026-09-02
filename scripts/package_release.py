@@ -65,6 +65,8 @@ LOCAL_RELEASE_ITEMS = (
     ".gitignore",
     "README.md",
     "LICENSE",
+    "SPONSORS.md",
+    "SPONSORS_CN.md",
     "THIRD_PARTY_NOTICES.md",
     "SKILL.md",
     "VERSION",
@@ -117,6 +119,8 @@ REQUIRED_RELEASE_PATHS = (
     ".gitignore",
     "README.md",
     "LICENSE",
+    "SPONSORS.md",
+    "SPONSORS_CN.md",
     "THIRD_PARTY_NOTICES.md",
     "SKILL.md",
     "VERSION",
@@ -138,9 +142,11 @@ REQUIRED_RELEASE_PATHS = (
     "references/image-type-templates/",
     "references/image-layout-patterns.md",
     "references/visual-review.md",
+    "references/video-design.md",
     "references/native-data-interface.md",
     "references/pptx-structure-interface.md",
     "scripts/",
+    "scripts/attribution_guard.py",
     "scripts/visual_review.py",
     "scripts/latex_render.py",
     "scripts/project_specs.py",
@@ -155,11 +161,15 @@ REQUIRED_RELEASE_PATHS = (
     "templates/",
     "templates/brands/brands_index.json",
     "templates/decks/decks_index.json",
+    "templates/layouts/layouts_index.json",
+    "templates/styles/styles_index.json",
     "templates/icons/phosphor-duotone/",
     "templates/icons/simple-icons/",
     "templates/decks/sustech_academic_official/templates/design_spec.md",
     "workflows/",
+    "workflows/routing.md",
     "workflows/generate-pptx.md",
+    "workflows/edit-native-pptx.md",
     "workflows/stages/live-preview.md",
     "workflows/stages/refine-spec.md",
     "workflows/stages/resume-execute.md",
@@ -167,7 +177,12 @@ REQUIRED_RELEASE_PATHS = (
     "workflows/stages/apply-template-workspace.md",
     "workflows/stages/visual-review.md",
     "workflows/profiles/beautify-pptx.md",
+    "workflows/profiles/image-to-pptx.md",
+    "workflows/profiles/quick-generate.md",
+    "workflows/create-template.md",
     "workflows/create-template/create-brand.md",
+    "workflows/create-template/create-style.md",
+    "workflows/create-template/create-layout.md",
     "workflows/create-template/create-deck.md",
 )
 
@@ -185,10 +200,27 @@ FORBIDDEN_RELEASE_PATHS = (
     ".venv-flask-check/",
     ".venv-svg-editor/",
     "scripts/ppt_text_normalize/CONTEXT.md",
+    "scripts/ppt_text_normalize/build_review_workspace.py",
+    "scripts/ppt_text_normalize/compile_review_decisions.py",
+    "scripts/ppt_text_normalize/contracts/review_decisions.schema.json",
+    "scripts/ppt_text_normalize/contracts/review_model.schema.json",
+    "scripts/ppt_text_normalize/contracts/rules_reviewed.schema.json",
+    "scripts/ppt_text_normalize/core/review_decisions.py",
+    "scripts/ppt_text_normalize/core/review_model.py",
+    "scripts/ppt_text_normalize/core/review_workspace.py",
+    "scripts/ppt_text_normalize/tests/test_visual_review_field_override.py",
+    "scripts/svg_editor/static/normalization_review.js",
     "scripts/svg_to_pptx/text_contract.py",
     "scripts/svg_to_pptx/pptx_package/text_validation.py",
+    "scripts/template_fill_pptx.py",
+    "scripts/template_fill_pptx/",
+    "scripts/native_enhance_pptx.py",
+    "scripts/native_enhance_pptx_core.py",
+    "scripts/native_narration_pptx.py",
     "workflows/distill-layouts.md",
     "workflows/live-preview.md",
+    "workflows/template-fill-pptx.md",
+    "workflows/native-enhance-pptx.md",
 )
 
 
@@ -440,6 +472,15 @@ def copy_local_item(source: Path, destination: Path) -> None:
     shutil.copy2(source, destination)
 
 
+def is_forbidden_release_source(path: Path) -> bool:
+    relative = path.resolve().relative_to(SKILL_DIR).as_posix()
+    return any(
+        relative == forbidden.rstrip("/")
+        or (forbidden.endswith("/") and relative.startswith(forbidden))
+        for forbidden in FORBIDDEN_RELEASE_PATHS
+    )
+
+
 def ignore_copytree_entries(_dirpath: str, names: list[str]) -> set[str]:
     ignored: set[str] = set()
     for name in names:
@@ -447,6 +488,9 @@ def ignore_copytree_entries(_dirpath: str, names: list[str]) -> set[str]:
             ignored.add(name)
             continue
         if Path(name).suffix.lower() in EXCLUDED_SUFFIXES:
+            ignored.add(name)
+            continue
+        if is_forbidden_release_source(Path(_dirpath) / name):
             ignored.add(name)
     return ignored
 

@@ -13,7 +13,6 @@
     "typography",
     "icons",
     "page_rhythm",
-    "pptx_structure",
     "forbidden"
   ],
   "properties": {
@@ -63,6 +62,7 @@
     "pptx_layouts": {"type": "object"},
     "page_pptx_layouts": {"type": "object"},
     "page_layouts": {"type": "object"},
+    "page_visualizations": {"type": "object"},
     "page_charts": {"type": "object"},
     "forbidden": {"type": "string"}
   },
@@ -95,11 +95,15 @@
           "core_message"
         ],
         "allowed_fields": [
+          "primary_language",
           "audience",
           "objective",
           "core_message",
           "consumption_mode"
         ],
+        "field_patterns": {
+          "primary_language": "^(?!und(?:-|$))(?:(?:zh(?:-[a-z]{3}){0,3}(?:-[A-Z][a-z]{3}(?:-(?:[A-Z]{2}|[0-9]{3}))?|-(?:[A-Z]{2}|[0-9]{3})))|(?:(?!zh(?:-|$))(?:[a-z]{2,3}(?:-[a-z]{3}){0,3}|[a-z]{4}|[a-z]{5,8})(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|[0-9]{3}))?))(?:-(?:[a-z0-9]{5,8}|[0-9][a-z0-9]{3}))*(?:-[0-9a-wy-z](?:-[a-z0-9]{2,8})+)*(?:-x(?:-[a-z0-9]{1,8})+)?$"
+        },
         "field_enums": {
           "consumption_mode": ["text", "balanced", "presentation"]
         }
@@ -141,21 +145,21 @@
         "pattern": "^typography$",
         "required": true,
         "required_fields": ["font_family", "body", "title"],
-        "field_patterns": {
-          "font_family": "^\\S(?:.*\\S)?$",
-          "title_family": "^\\S(?:.*\\S)?$",
-          "body_family": "^\\S(?:.*\\S)?$",
-          "subtitle_family": "^\\S(?:.*\\S)?$",
-          "annotation_family": "^\\S(?:.*\\S)?$",
-          "footer_family": "^\\S(?:.*\\S)?$",
-          "footnote_family": "^\\S(?:.*\\S)?$",
-          "data_family": "^\\S(?:.*\\S)?$",
-          "emphasis_family": "^\\S(?:.*\\S)?$",
-          "quote_family": "^\\S(?:.*\\S)?$",
-          "code_family": "^\\S(?:.*\\S)?$",
-          "body": "^[0-9]+(?:\\.[0-9]+)?$",
-          "title": "^[0-9]+(?:\\.[0-9]+)?$"
-        }
+        "entry_key_pattern": "^[a-z][a-z0-9_]*$",
+        "field_value_rules": [
+          {
+            "key_pattern": "^(?:font_family|[a-z][a-z0-9_]*_family)$",
+            "value_pattern": "^\\S(?:.*\\S)?$",
+            "requirement": "be a non-empty font-family stack"
+          },
+          {
+            "key_pattern": "^(?!font_family$)(?![a-z][a-z0-9_]*_family$)[a-z][a-z0-9_]*$",
+            "value_pattern": "^(?=.*[1-9])(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)$",
+            "normalize": false,
+            "numeric": "positive_finite",
+            "requirement": "be a positive finite unitless px number"
+          }
+        ]
       },
       {
         "id": "icons",
@@ -187,7 +191,7 @@
       {
         "id": "pptx_structure",
         "pattern": "^pptx_structure$",
-        "required": true,
+        "required": false,
         "required_fields": ["mode"],
         "allowed_fields": ["mode", "template_reuse_scope", "template_adherence"],
         "field_enums": {
@@ -229,16 +233,20 @@
         "value_pattern": "^[A-Za-z0-9._-]+$"
       },
       {
+        "id": "page_visualizations",
+        "pattern": "^page_visualizations$",
+        "required": false,
+        "min_entries": 1,
+        "entry_key_pattern": "^P[0-9]{2,}$",
+        "value_pattern": "^(?:chart|table)/[a-z0-9]+(?:_[a-z0-9]+)*$"
+      },
+      {
         "id": "page_charts",
         "pattern": "^page_charts$",
         "required": false,
         "min_entries": 1,
         "entry_key_pattern": "^P[0-9]{2,}$",
-        "value_catalog": {
-          "path": "../charts/charts_index.json",
-          "pointer": ["charts"],
-          "asset_path_pattern": "../charts/{value}.svg"
-        }
+        "value_pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"
       },
       {"id": "forbidden", "pattern": "^forbidden$", "required": true, "min_body_chars": 1}
     ],

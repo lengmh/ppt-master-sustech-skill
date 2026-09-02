@@ -2,7 +2,7 @@
 """
 PPT Master - Animation Config Tool
 
-Create and validate optional per-object PPTX animation sidecar files.
+Create and validate optional PPTX animation and deterministic Morph sidecars.
 
 Usage:
     python3 scripts/animation_config.py scaffold <project_path>
@@ -43,7 +43,7 @@ configure_utf8_stdio()
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description='Create or validate PPTX animation sidecar configuration.',
+        description='Create or validate PPTX motion sidecar configuration.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest='command', required=True)
@@ -66,7 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     validate = subparsers.add_parser(
         'validate',
-        help='validate animations.json references against svg_output/*.svg',
+        help='validate animations.json values and project-local references',
     )
     validate.add_argument('project_path', help='Project directory')
     validate.add_argument('-c', '--config', default=None, help='Config path; default: <project>/animations.json')
@@ -115,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as exc:
             print(f'Error: {exc}', file=sys.stderr)
             return 1
-        if not config:
+        if config is None:
             print('No animations.json found; default animation policy will be used.')
             return 0
         errors = list(dict.fromkeys(

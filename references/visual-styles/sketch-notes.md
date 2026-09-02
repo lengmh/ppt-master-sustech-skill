@@ -6,7 +6,7 @@ Warm hand-drawn sketchnote — soft paper field, black ink doodle line work, gen
 
 ## 1. Shape & decoration
 
-- Shape language: rounded shapes drawn with a slight wobble; pastel block fills that slightly overshoot their outlines (hand-painted feel); simple cartoon icons. Draw that wobble as a `<path>` with non-aligned points — a `<rect rx>` is not wobble.
+- Shape language: rounded shapes drawn with a slight wobble; pastel block fills that slightly overshoot their outlines (hand-painted feel); simple cartoon icons. When a contour must read as doodled, draw the wobble as a `<path>` with non-aligned points rather than treating `<rect rx>` as hand drawing. Functional native contours remain eligible and may share the page with hand-drawn marks.
 - Composition geometry: a wavy-arrow journey path structuring the whole page; a radial mind-map around a central doodle; a hand-drawn banner ribbon carrying the title; numbered circles hopping along a dotted route; one cloud frame around the idea that matters.
 - Decoration: small doodles — stars, sparkles, dots, underlines — sprinkled sparingly for warmth; wavy hand-drawn arrows connecting ideas with short inline labels.
 - Whitespace: airy and well-organized; generous gaps between elements keep it friendly, never dense.
@@ -15,7 +15,7 @@ Warm hand-drawn sketchnote — soft paper field, black ink doodle line work, gen
 
 - Friendly hand-lettered titles; clear humanist body. Warmth and legibility over corporate severity.
 
-> Families are chosen at confirmation `g`; this style asks for a warm hand-lettered / humanist *character*.
+> Families are chosen at confirmation `g`; this style asks for a warm hand-lettered / humanist *character*. This governs editable native text; decorative-lettering eligibility remains a separate carrier decision.
 
 ## 3. Using the deck's colors
 
@@ -34,4 +34,4 @@ Warm hand-drawn sketchnote — soft paper field, black ink doodle line work, gen
 
 ## 6. Illustration propensity
 
-**core** — doodle spots and hand-drawn marks are intrinsic here, not optional garnish; with no user steer, default to recommending a coherent spot-illustration family (the decoration this style is built on). This sets the default *lean* only: heaviness and placement stay Strategist judgment, an explicit user request wins either way, and `image_usage: none` writes no illustration rows.
+**core** — when illustration is selected, doodles and hand-drawn elements may lead the style rather than act as incidental garnish. Role, scale, reuse, and placement stay Strategist judgment; an explicit user request wins either way, and `image_usage: none` writes no illustration rows.

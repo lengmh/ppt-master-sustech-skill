@@ -20,10 +20,23 @@ Dependencies:
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import json
-import sys
+import os
 from pathlib import Path
+import sys
+import tempfile
 from typing import Any
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows
+    fcntl = None
+
+try:
+    import msvcrt
+except ImportError:  # pragma: no cover - POSIX
+    msvcrt = None
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
@@ -31,14 +44,29 @@ if str(_SCRIPTS_DIR) not in sys.path:
 
 from console_encoding import configure_utf8_stdio  # noqa: E402
 from beautify_identity import extract_identity  # noqa: E402
-from template_fill_pptx.analyzer import analyze_pptx  # noqa: E402
+from pptx_ooxml.analyzer import analyze_pptx  # noqa: E402
 
 configure_utf8_stdio()
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    fd, temp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=str(path.parent),
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+        os.replace(temp_name, path)
+    except Exception:
+        try:
+            os.unlink(temp_name)
+        except OSError:
+            pass
+        raise
 
 
 def _chart_summary(slide_library: dict[str, Any]) -> dict[str, Any]:
@@ -154,15 +182,11 @@ def build_source_profile(
             "standard_generation": (
                 "Use identity and slide-library fields as source facts and recommendation "
                 "candidates only; do not preserve original page count, order, or coordinates "
-                "unless the user selected the beautify profile or Fill Native PPTX route."
+                "unless the user selected the beautify profile."
             ),
             "beautify": (
                 "Promote source text, page order, page count, colors, fonts, and font sizes "
                 "into locked constraints after user confirmation."
-            ),
-            "template_fill": (
-                "Use slide slots, tables, charts, diagrams, and geometry as the native PPTX "
-                "fill contract; diagrams are inventory-only and remain unchanged."
             ),
         },
         "artifacts": {
@@ -200,23 +224,75 @@ def build_source_profile(
 SOURCE_INDEX_NAME = "source_profile.json"
 
 
-def upsert_source_index(output_dir: Path, digest: dict[str, Any]) -> Path:
-    """Merge one deck's digest into the single multi-deck index `source_profile.json`.
+@contextmanager
+def _source_index_lock(output_dir: Path):
+    """Serialize source-index bundle publication with a persistent lock file."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = output_dir / f"{SOURCE_INDEX_NAME}.lock"
+    with lock_path.open("a+b") as lock_file:
+        if fcntl is not None:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+            return
 
-    The index stays the single must-read entry for the Strategist: it inlines every
-    deck's digest under `decks[]`, so a one-deck project is a one-entry index and a
-    multi-deck project lists each source deck self-containedly. Re-importing a deck
-    with the same stem replaces its entry in place.
-    """
+        if msvcrt is not None:
+            lock_file.seek(0, os.SEEK_END)
+            if lock_file.tell() == 0:
+                lock_file.write(b"\0")
+                lock_file.flush()
+            lock_file.seek(0)
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
+            try:
+                yield
+            finally:
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+            return
+
+        raise RuntimeError(
+            "Cannot safely update source_profile.json: no supported file-lock API"
+        )
+
+
+def _load_source_index(index_path: Path) -> dict[str, Any]:
+    """Load and validate an existing multi-deck source index."""
+    if not index_path.exists():
+        return {}
+    if not index_path.is_file():
+        raise RuntimeError(f"Source index is not a file: {index_path}")
+
+    try:
+        loaded = json.loads(index_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeError) as exc:
+        raise RuntimeError(
+            f"Source index contains invalid JSON and was left unchanged: {index_path}"
+        ) from exc
+    except OSError as exc:
+        raise RuntimeError(f"Cannot read source index: {index_path}: {exc}") from exc
+
+    if not isinstance(loaded, dict) or not isinstance(loaded.get("decks"), list):
+        raise RuntimeError(
+            f"Source index must be a JSON object with a decks array and was left unchanged: "
+            f"{index_path}"
+        )
+    for index, deck in enumerate(loaded["decks"]):
+        if not isinstance(deck, dict):
+            raise RuntimeError(
+                f"Source index decks[{index}] must be an object and was left unchanged: "
+                f"{index_path}"
+            )
+    return loaded
+
+
+def _upsert_source_index_unlocked(
+    output_dir: Path,
+    digest: dict[str, Any],
+) -> Path:
     index_path = output_dir / SOURCE_INDEX_NAME
-    index: dict[str, Any] = {}
-    if index_path.is_file():
-        try:
-            loaded = json.loads(index_path.read_text(encoding="utf-8"))
-            if isinstance(loaded, dict) and isinstance(loaded.get("decks"), list):
-                index = loaded
-        except (json.JSONDecodeError, OSError):
-            index = {}
+    index = _load_source_index(index_path)
     stem = digest.get("stem")
     decks = [d for d in index.get("decks", []) if d.get("stem") != stem]
     decks.append(digest)
@@ -230,6 +306,18 @@ def upsert_source_index(output_dir: Path, digest: dict[str, Any]) -> Path:
     return index_path
 
 
+def upsert_source_index(output_dir: Path, digest: dict[str, Any]) -> Path:
+    """Merge one deck digest into the serialized multi-deck source index.
+
+    The index stays the single must-read entry for the Strategist: it inlines every
+    deck's digest under `decks[]`, so a one-deck project is a one-entry index and a
+    multi-deck project lists each source deck self-containedly. Re-importing a deck
+    with the same stem replaces its entry in place.
+    """
+    with _source_index_lock(output_dir):
+        return _upsert_source_index_unlocked(output_dir, digest)
+
+
 def run_intake(pptx_path: Path, output_dir: Path) -> dict[str, Path]:
     """Write `<stem>.identity.json`, `<stem>.slide_library.json`, and merge the
     deck's digest into the single multi-deck index `source_profile.json`."""
@@ -241,9 +329,10 @@ def run_intake(pptx_path: Path, output_dir: Path) -> dict[str, Path]:
 
     identity_path = output_dir / f"{stem}.identity.json"
     slide_library_path = output_dir / f"{stem}.slide_library.json"
-    _write_json(identity_path, identity)
-    _write_json(slide_library_path, slide_library)
-    profile_path = upsert_source_index(output_dir, digest)
+    with _source_index_lock(output_dir):
+        _write_json(identity_path, identity)
+        _write_json(slide_library_path, slide_library)
+        profile_path = _upsert_source_index_unlocked(output_dir, digest)
     return {
         "identity": identity_path,
         "slide_library": slide_library_path,

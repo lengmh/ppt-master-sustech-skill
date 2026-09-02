@@ -16,6 +16,7 @@ Configuration keys:
   OPENAI_OUTPUT_COMPRESSION  (optional) 0-100, only for jpeg/webp GPT image output
   OPENAI_BACKGROUND          (optional) auto or opaque for gpt-image-2
   OPENAI_MODERATION          (optional) auto or low for GPT image models
+  OPENAI_INPUT_FIDELITY      (optional) high or low for supported GPT image edits
 
 Image editing (image-to-image):
   When image_gen.py passes reference_image=<path> (single-image CLI only,
@@ -54,6 +55,7 @@ from image_backends.backend_common import (
     MAX_RETRIES,
     download_image,
     http_error,
+    is_permanent_error,
     is_rate_limit_error,
     normalize_image_size,
     resolve_output_path,
@@ -81,7 +83,8 @@ LEGACY_COMPAT_ASPECT_RATIO_TO_SIZE = {
     "21:9": "1792x1024",   # closest wide format
 }
 
-# GPT Image 1/1.5/mini officially support only square, landscape, portrait, or auto.
+# Legacy GPT Image models and chatgpt-image-latest support only square,
+# landscape, portrait, or auto.
 GPT_IMAGE_LEGACY_ASPECT_RATIO_TO_SIZE = {
     "1:1":  "1024x1024",
     "16:9": "1536x1024",
@@ -175,6 +178,7 @@ OPENAI_QUALITY_VALUES = {
 }
 GPT_IMAGE_BACKGROUNDS = {"auto", "opaque", "transparent"}
 GPT_IMAGE_MODERATION_VALUES = {"auto", "low"}
+GPT_IMAGE_INPUT_FIDELITY_VALUES = {"high", "low"}
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
 # Signals to image_gen.py that this backend can accept a reference_image
@@ -194,7 +198,11 @@ def _normalized_model(model: str) -> str:
 
 
 def _is_gpt_image_model(model: str) -> bool:
-    return _normalized_model(model).startswith("gpt-image-")
+    normalized = _normalized_model(model)
+    return (
+        normalized.startswith("gpt-image-")
+        or normalized == "chatgpt-image-latest"
+    )
 
 
 def _is_gpt_image_2(model: str) -> bool:
@@ -315,6 +323,26 @@ def _gpt_image_options(model: str) -> tuple[dict, str]:
     return options, output_ext
 
 
+def _read_input_fidelity(model: str) -> str | None:
+    """Read input fidelity for GPT Image edit requests."""
+    input_fidelity = _read_env_choice(
+        "OPENAI_INPUT_FIDELITY",
+        GPT_IMAGE_INPUT_FIDELITY_VALUES,
+    )
+    if input_fidelity is None:
+        return None
+    if _is_gpt_image_2(model):
+        raise ValueError(
+            "gpt-image-2 always uses high input fidelity and does not accept "
+            "OPENAI_INPUT_FIDELITY. Remove this setting."
+        )
+    if not _is_gpt_image_model(model):
+        raise ValueError(
+            f"{model} does not support OPENAI_INPUT_FIDELITY in this backend."
+        )
+    return input_fidelity
+
+
 def _image_generations_url(base_url: str | None) -> str:
     base = (base_url or DEFAULT_BASE_URL).rstrip("/")
     if base.endswith("/images/generations"):
@@ -342,12 +370,17 @@ def _read_response_format() -> str | None:
     return _read_env_choice("OPENAI_RESPONSE_FORMAT", OPENAI_RESPONSE_FORMATS)
 
 
-def _read_quality(image_size: str) -> str | None:
+def _read_quality(image_size: str, model: str) -> str | None:
     """Resolve the quality field for OpenAI-compatible requests."""
     quality = _read_env_choice("OPENAI_QUALITY", OPENAI_QUALITY_VALUES)
     if quality == "omit":
         return None
     if quality and quality != "auto":
+        if _is_gpt_image_model(model) and quality in {"standard", "hd"}:
+            raise ValueError(
+                f"{model} does not support OPENAI_QUALITY={quality}. "
+                "Use auto, omit, low, medium, or high."
+            )
         return quality
     return IMAGE_SIZE_TO_QUALITY.get(image_size, "auto")
 
@@ -357,11 +390,36 @@ def _apply_response_format(request: dict, model: str) -> None:
     response_format = _read_response_format()
     if response_format == "omit":
         return
+    if not _supports_response_format(model):
+        if response_format in {"b64_json", "url"}:
+            raise ValueError(
+                f"{model} does not support OPENAI_RESPONSE_FORMAT. "
+                "Use auto or omit."
+            )
+        return
     if response_format in {"b64_json", "url"}:
         request["response_format"] = response_format
         return
-    if _supports_response_format(model):
-        request["response_format"] = "b64_json"
+    request["response_format"] = "b64_json"
+
+
+def _validate_request_options(
+    model: str,
+    aspect_ratio: str,
+    image_size: str,
+    *,
+    editing: bool,
+) -> None:
+    """Validate local model options before entering the retry loop."""
+    size_preset = _read_size_preset()
+    _select_size(model, aspect_ratio, image_size, size_preset)
+    if not (editing and _is_dall_e_2(model)):
+        _read_quality(image_size, model)
+    if _is_gpt_image_model(model):
+        _gpt_image_options(model)
+    if editing:
+        _read_input_fidelity(model)
+    _apply_response_format({}, model)
 
 
 def _post_image_generation(api_key: str, base_url: str | None, request: dict) -> dict:
@@ -431,7 +489,7 @@ def _generate_image(api_key: str, prompt: str,
     # Map parameters
     size_preset = _read_size_preset()
     size = _select_size(model, aspect_ratio, image_size, size_preset)
-    quality = _read_quality(image_size)
+    quality = _read_quality(image_size, model)
     output_ext = ".png"
     request = {
         "prompt": prompt,
@@ -527,7 +585,7 @@ def _edit_image(api_key: str, prompt: str, reference_image: str,
     """
     size_preset = _read_size_preset()
     size = _select_size(model, aspect_ratio, image_size, size_preset)
-    quality = None if _is_dall_e_2(model) else _read_quality(image_size)
+    quality = None if _is_dall_e_2(model) else _read_quality(image_size, model)
     output_ext = ".png"
     request = {
         "prompt": prompt,
@@ -540,6 +598,9 @@ def _edit_image(api_key: str, prompt: str, reference_image: str,
     if _is_gpt_image_model(model):
         gpt_options, output_ext = _gpt_image_options(model)
         request.update(gpt_options)
+    input_fidelity = _read_input_fidelity(model)
+    if input_fidelity is not None:
+        request["input_fidelity"] = input_fidelity
     _apply_response_format(request, model)
 
     mode_label = f"Proxy: {base_url}" if base_url else "OpenAI API"
@@ -567,6 +628,8 @@ def _edit_image(api_key: str, prompt: str, reference_image: str,
         print(f"  Background:   {request['background']}")
     if request.get("moderation"):
         print(f"  Moderation:   {request['moderation']}")
+    if request.get("input_fidelity"):
+        print(f"  Input Fidelity: {request['input_fidelity']}")
     print()
 
     start_time = time.time()
@@ -640,14 +703,6 @@ def generate(prompt: str,
     Returns:
         Path of the saved image file
     """
-    api_key = os.environ.get("OPENAI_API_KEY")
-    base_url = os.environ.get("OPENAI_BASE_URL")
-
-    if not api_key:
-        raise ValueError(
-            "No API key found. Set OPENAI_API_KEY in the current environment or a .env file."
-        )
-
     if model is None:
         model = os.environ.get("OPENAI_MODEL") or DEFAULT_MODEL
 
@@ -658,6 +713,20 @@ def generate(prompt: str,
         raise ValueError(
             f"Unsupported aspect ratio '{aspect_ratio}' for OpenAI backend. "
             f"Supported: {supported}"
+        )
+
+    _validate_request_options(
+        model,
+        aspect_ratio,
+        image_size,
+        editing=reference_image is not None,
+    )
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    base_url = os.environ.get("OPENAI_BASE_URL")
+    if not api_key:
+        raise ValueError(
+            "No API key found. Set OPENAI_API_KEY in the current environment or a .env file."
         )
 
     last_error = None
@@ -672,6 +741,8 @@ def generate(prompt: str,
                                    filename, model, base_url)
         except Exception as e:
             last_error = e
+            if is_permanent_error(e):
+                raise
             if attempt < max_retries and is_rate_limit_error(e):
                 delay = retry_delay(attempt, rate_limited=True)
                 print(f"\n  [WARN] Rate limit hit (attempt {attempt + 1}/{max_retries + 1}). "

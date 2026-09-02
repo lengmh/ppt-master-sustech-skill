@@ -4,7 +4,6 @@ Built-in Safe MVP tool for automation-first PPT text style normalization.
 
 ## Current contents
 
-- `CONTEXT.md` — local vocabulary aligned with the root `CONTEXT.md`
 - `design.md` — current Safe MVP design and validation rationale
 
 ## Current built-in pipeline
@@ -39,7 +38,7 @@ Current built-in commands:
 - `scan.py`
 - `apply.py`
 
-The public `r4.1.0-v0.4.0` command surface is limited to these two commands.
+The public `r6.1.0-v0.4.0` command surface is limited to these two commands.
 
 `font_family` means both DrawingML Latin and East Asian font channels where
 canonical values exist: `font_family` and `east_asia_font_family`.

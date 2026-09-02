@@ -35,6 +35,11 @@ def main(argv: list[str] | None = None) -> int:
     input_pptx = Path(args.input_pptx).expanduser().resolve()
     rules_path = Path(args.rules).expanduser().resolve()
     rules = json.loads(rules_path.read_text(encoding="utf-8"))
+    if "review_gate" in rules or "reviewed_overrides" in rules:
+        raise ValueError(
+            "Safe MVP apply accepts only scan-generated rules.json; "
+            "reviewed rules are not supported."
+        )
     workdir = rules_path.parent
     output_path = Path(args.output).expanduser().resolve() if args.output else workdir / "output" / f"{input_pptx.stem}_normalized.pptx"
 

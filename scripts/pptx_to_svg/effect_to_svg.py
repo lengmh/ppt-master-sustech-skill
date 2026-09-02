@@ -12,7 +12,7 @@ import re
 from dataclasses import dataclass
 from xml.etree import ElementTree as ET
 
-from pptx_effects import unsupported_effect_metadata
+from pptx_effects import native_effect_metadata, unsupported_effect_metadata
 from pptx_shapes.formula import OOXML_COORDINATE_MAX
 
 from .color_resolver import COLOR_TAGS, ColorPalette, resolve_color
@@ -24,6 +24,28 @@ _OOXML_HEX_COLOR_RE = re.compile(r"[0-9A-Fa-f]{6}")
 _DRAWINGML_NAMESPACE = NS["a"]
 _DRAWINGML_TAG_PREFIX = f"{{{_DRAWINGML_NAMESPACE}}}"
 _EFFECT_CONTAINER_NAMES = frozenset({"effectLst", "effectDag"})
+_OUTER_SHADOW_ATTRIBUTES = frozenset({
+    "algn",
+    "blurRad",
+    "dir",
+    "dist",
+    "kx",
+    "ky",
+    "rotWithShape",
+    "sx",
+    "sy",
+})
+_OUTER_SHADOW_ALIGNMENTS = frozenset({
+    "b",
+    "bl",
+    "br",
+    "ctr",
+    "l",
+    "r",
+    "t",
+    "tl",
+    "tr",
+})
 
 
 @dataclass(frozen=True)
@@ -35,8 +57,15 @@ class EffectResult:
     metadata: tuple[tuple[str, str], ...] = ()
 
     @classmethod
-    def unsupported(cls, reason: str) -> "EffectResult":
-        return cls(metadata=tuple(unsupported_effect_metadata(reason).items()))
+    def unsupported(
+        cls,
+        reason: str,
+        effect_container: ET.Element | None = None,
+    ) -> "EffectResult":
+        metadata = unsupported_effect_metadata(reason)
+        if effect_container is not None:
+            metadata.update(native_effect_metadata(effect_container))
+        return cls(metadata=tuple(metadata.items()))
 
 
 def unsupported_target_effect_metadata(
@@ -64,9 +93,20 @@ def unsupported_target_effect_metadata(
         )
     if not effect_names:
         return {}
-    return unsupported_effect_metadata(
+    metadata = unsupported_effect_metadata(
         f"unsupported-effect-target:{target}:" + ",".join(effect_names)
     )
+    containers = [
+        child
+        for child in sp_pr
+        if isinstance(child.tag, str)
+        and _local_name(child) in _EFFECT_CONTAINER_NAMES
+    ]
+    if len(containers) == 1 and containers[0].tag.startswith(
+        _DRAWINGML_TAG_PREFIX
+    ):
+        metadata.update(native_effect_metadata(containers[0]))
+    return metadata
 
 
 def convert_effects(
@@ -75,6 +115,7 @@ def convert_effects(
     *,
     id_prefix: str = "fx",
     id_seq: list[int] | None = None,
+    target_rotation_degrees: float = 0.0,
 ) -> EffectResult:
     """Return one supported filter or blocking metadata for source effects."""
     if sp_pr is None:
@@ -99,7 +140,10 @@ def convert_effects(
             f"invalid-effect-container-namespace:{container_name}"
         )
     if container_name == "effectDag":
-        return EffectResult.unsupported("unsupported-effect-container:effectDag")
+        return EffectResult.unsupported(
+            "unsupported-effect-container:effectDag",
+            container,
+        )
     effects = [
         child
         for child in container
@@ -110,7 +154,8 @@ def convert_effects(
     names = [child.tag.split("}", 1)[-1] for child in effects]
     if len(effects) != 1:
         return EffectResult.unsupported(
-            "multiple-effects:" + ",".join(names)
+            "multiple-effects:" + ",".join(names),
+            container,
         )
 
     effect = effects[0]
@@ -121,16 +166,28 @@ def convert_effects(
         )
     try:
         if effect_name == "outerShdw":
+            unsupported_attributes = _unsupported_outer_shadow_attributes(
+                effect,
+                target_rotation_degrees=target_rotation_degrees,
+            )
+            if unsupported_attributes:
+                return EffectResult.unsupported(
+                    "unsupported-effect-attributes:outerShdw:"
+                    + ",".join(unsupported_attributes),
+                    container,
+                )
             primitives = _outer_shadow(effect, palette)
         elif effect_name == "glow":
             primitives = _glow(effect, palette)
         else:
             return EffectResult.unsupported(
-                f"unsupported-effect:{effect_name}"
+                f"unsupported-effect:{effect_name}",
+                container,
             )
     except (OverflowError, TypeError, ValueError) as exc:
         return EffectResult.unsupported(
-            f"invalid-effect:{effect_name}:{exc}"
+            f"invalid-effect:{effect_name}:{exc}",
+            container,
         )
 
     if id_seq is None:
@@ -260,6 +317,55 @@ def _effect_integer(
     ):
         raise ValueError(f"{attr}={raw!r}")
     return value
+
+
+def _unsupported_outer_shadow_attributes(
+    elem: ET.Element,
+    *,
+    target_rotation_degrees: float,
+) -> tuple[str, ...]:
+    """Return source shadow attributes the local SVG filter cannot preserve."""
+    unsupported = set(elem.attrib) - _OUTER_SHADOW_ATTRIBUTES
+    neutral_transforms = (
+        ("sx", 100000),
+        ("sy", 100000),
+        ("kx", 0),
+        ("ky", 0),
+    )
+    for attr, neutral in neutral_transforms:
+        if attr in elem.attrib and _effect_integer(elem, attr) != neutral:
+            unsupported.add(attr)
+
+    raw_alignment = elem.get("algn")
+    if (
+        raw_alignment is not None
+        and raw_alignment.strip() not in _OUTER_SHADOW_ALIGNMENTS
+    ):
+        raise ValueError(f"algn={raw_alignment!r}")
+
+    raw_rotates = elem.get("rotWithShape")
+    if raw_rotates is None:
+        rotates_with_shape = True
+    else:
+        token = raw_rotates.strip()
+        if token in {"1", "true"}:
+            rotates_with_shape = True
+        elif token in {"0", "false"}:
+            rotates_with_shape = False
+        else:
+            raise ValueError(f"rotWithShape={raw_rotates!r}")
+    target_is_rotated = not math.isclose(
+        math.remainder(target_rotation_degrees, 360.0),
+        0.0,
+        abs_tol=1e-9,
+    )
+    if rotates_with_shape and target_is_rotated:
+        # CT_OuterShadowEffect defaults rotWithShape to true, while the local
+        # SVG-to-PPTX mapping writes false. Blocking the visible distinction
+        # prevents the next export from changing the source shadow direction.
+        unsupported.add("rotWithShape")
+
+    return tuple(sorted(unsupported))
 
 
 def _direction_offset(elem: ET.Element) -> tuple[float, float]:

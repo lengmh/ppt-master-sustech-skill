@@ -2,24 +2,18 @@
 
 # Executor Web-image Attribution Branch
 
-Conditional Executor authority for inline attribution on web-sourced images.
+Conditional Executor authority for inline attribution on web-sourced images and their prepared derivatives.
 
-**Trigger**: load when at least one placed image has `Status: Sourced`.
+**Trigger**: any placed `Status: Sourced` image, or a placed derivative whose filename has a copied `image_sources.json` record; Quick uses the same manifest without interaction.
 
 ## 1. Inline Attribution for Sourced Images
 
-Whenever the slide uses an image with `Status: Sourced`, look up the corresponding entry in `project/images/image_sources.json` and act on `license_tier`:
+**Contract**: look up the filename entry and act on `license_tier` — the manifest is the single source of credits, and the credit is rendered in the SVG you author, never by post-processing or export.
 
 | `license_tier` | Action on this slide |
 |---|---|
-| `no-attribution` | Embed the `<image>` element only. **No credit element needed.** |
-| `attribution-required` | Embed the `<image>` element **plus** a small inline `<text>` credit element per the visual spec in [image-searcher.md §7](./image-searcher.md). |
-| `manual` | Embed the `<image>` element only. **No credit element** — a user-supplied `--from-url` replacement; verifying usage rights / any required credit is the user's responsibility. |
+| `no-attribution` | `<image>` only |
+| `attribution-required` | `<image>` plus a visible inline credit preserving that asset's author, source/provider, and CC BY / CC BY-SA license ([image-searcher.md §7](./image-searcher.md)) |
+| `manual` | `<image>` only — a user-supplied `--from-url` replacement whose rights and credit are the user's responsibility |
 
-The credit text is **not** rendered by post-processing or export — it must be present in the SVG you produce. The shape of the credit element (size, position, color, multi-image source line, hero gradient overlay) is specified in [image-searcher.md §7](./image-searcher.md). Do not invent a different style.
-
-Use `attribution_text` from the manifest entry as the **starting point**, then compress for the small-text constraint (drop URL, drop filename, keep "via Provider / License"). For CC0/PD images that landed in the `attribution-required` tier only because of upstream metadata quirks (rare), credits are still safe to render.
-
-`svg_quality_checker.py` treats missing CC BY / CC BY-SA inline attribution as an **error**. Fix the offending SVG before post-processing.
-
-**The manifest is the single source of truth for credits.** Do not duplicate license info into speaker notes or any other artifact.
+Start from the manifest's `attribution_text`; the filename and full URL may go when the source stays clear, but the author and license stay so the checker can bind the credit to the asset. Size, position, color, per-image versus combined treatment, labels, and any contrast scrim/gradient are Executor's as long as the credit is readable and unambiguously bound. `svg_quality_checker.py` errors on a missing image-specific author + license credit (one generic CC token never covers several files) and on an unreadable manifest or missing per-file provenance; fix before post-processing or Quick export. Never duplicate credits into speaker notes or any other artifact.

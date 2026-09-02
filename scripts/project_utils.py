@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 from console_encoding import configure_utf8_stdio
+from slide_roster import discover_slide_svgs
 from svg_to_pptx.canvas_contract import (
     CanvasContractError,
     parse_project_viewbox,
@@ -222,7 +223,7 @@ def get_project_info(project_path: str) -> Dict:
     # Count SVG files
     svg_output = project_path / 'svg_output'
     if svg_output.exists():
-        svg_files = sorted(svg_output.glob('*.svg'))
+        svg_files = discover_slide_svgs(svg_output)
         info['svg_count'] = len(svg_files)
         info['svg_files'] = [f.name for f in svg_files]
 
@@ -341,6 +342,7 @@ def validate_communication_trace(
         return errors
 
     missing_moves = []
+    missing_relationships = []
     for index, slide_match in enumerate(slide_matches):
         block_end = (
             slide_matches[index + 1].start()
@@ -354,11 +356,23 @@ def validate_communication_trace(
             flags=re.IGNORECASE | re.MULTILINE,
         ) is None:
             missing_moves.append(slide_match.group(1))
+        if re.search(
+            r'^[ \t]*-[ \t]+(?:\*\*)?Relationships(?:\*\*)?[ \t]*:',
+            slide_block,
+            flags=re.IGNORECASE | re.MULTILINE,
+        ) is None:
+            missing_relationships.append(slide_match.group(1))
     if missing_moves:
         errors.append(
             'Communication trace: every design_spec.md §IX Slide block must '
             'contain an Audience move line; missing on Slide '
             f'{", ".join(missing_moves)}.',
+        )
+    if missing_relationships:
+        errors.append(
+            'Communication trace: every design_spec.md §IX Slide block must '
+            'contain a Relationships line; missing on Slide '
+            f'{", ".join(missing_relationships)}.',
         )
     return errors
 
@@ -406,11 +420,11 @@ def validate_project_structure(
 
     # Check required files
     if not (project_path / 'README.md').exists():
-        msg = "Missing required file: README.md"
+        msg = "Missing README.md (optional project notes; nothing reads it)"
         if use_helper and verbose:
             msg += "\n" + ErrorHelper.format_error_message('missing_readme',
                                                            {'project_path': str(project_path)})
-        errors.append(msg)
+        warnings.append(msg)
 
     # Check design specification file
     has_spec = any((project_path / name).exists() for name in _DESIGN_SPEC_NAMES)

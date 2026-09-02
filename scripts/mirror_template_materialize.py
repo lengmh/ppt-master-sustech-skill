@@ -4,8 +4,9 @@ PPT Master - Mirror Template Materializer
 
 Materialize a deterministic structured SVG template workspace from one Type A
 PPTX import workspace. The editable authoring IR is the only authoring input;
-lossless SVG files are consulted solely to restore unchanged supported source
-objects. Final templates and imported vectors contain no IR-only source refs.
+lossless SVG files are consulted solely to validate source identity and recover
+small non-visible semantics. Final templates keep the compact authoring tree and
+contain no IR-only source refs.
 
 Usage:
     python3 scripts/mirror_template_materialize.py \
@@ -29,13 +30,20 @@ import sys
 import tempfile
 from collections import Counter
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 from urllib.parse import unquote, urlsplit, urlunsplit
 from xml.etree import ElementTree as ET
+from zipfile import BadZipFile, ZipFile
 
 from compact_svg_coordinates import compact_svg_tree, format_coordinate
+from compact_svg_styles import compact_svg_style_tree
 from console_encoding import configure_utf8_stdio
+from extract_svg_assets import (
+    ASSET_ROLE_ATTRIBUTE,
+    DECORATION_ASSET_ROLE,
+    VECTOR_INVENTORY_SCHEMA,
+)
 from native_payloads import (
     PAYLOAD_STORE_RELATIVE_PATH,
     NativePayloadError,
@@ -47,21 +55,37 @@ from native_payloads import (
     hydrate_native_payload_refs,
     serialize_native_payload_store,
 )
-from pptx_shapes import svg_preset_preview_fingerprint
+from pptx_shapes import (
+    NATIVE_FALLBACK_SHA256_ATTR,
+    svg_native_fallback_fingerprint,
+    svg_preset_preview_fingerprint,
+)
 from svg_authoring_view import (
     AUTHORING_MANIFEST_NAME,
     AUTHORING_SCHEMA,
+    SEMANTIC_OBJECT_ATTRIBUTE,
     SOURCE_REF_ATTRIBUTE,
     semantic_subtree_sha256,
 )
 from svg_finalize.flatten_tspan import flatten_text_with_tspans
 from svg_to_pptx.pptx_package.template_structure import (
+    SOURCE_THEMES_FILENAME,
+    SOURCE_THEMES_SCHEMA,
     TemplateStructureError,
+    load_template_source_themes,
     parse_template_slides,
 )
+from svg_to_pptx.native_objects import stamp_native_fallback_baseline
 from template_text_slots import (
     analyze_template_text_slots,
     text_slot_integrity_sha256,
+)
+from pptx_workspace import (
+    AUDIO_EXTENSIONS,
+    IMAGE_EXTENSIONS,
+    VIDEO_EXTENSIONS,
+    conversion_report_path,
+    native_structure_path,
 )
 
 configure_utf8_stdio()
@@ -69,13 +93,14 @@ configure_utf8_stdio()
 SVG_NS = "http://www.w3.org/2000/svg"
 XLINK_NS = "http://www.w3.org/1999/xlink"
 XML_NS = "http://www.w3.org/XML/1998/namespace"
+DML_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 NATIVE_STRUCTURE_SCHEMA = "ppt-master.native-structure.v1"
-VECTOR_INVENTORY_SCHEMA = "vector_asset_inventory.v1"
 TEMPLATE_EXECUTION_MANIFEST_NAME = "template_execution_manifest.json"
 TEMPLATE_EXECUTION_MANIFEST_SCHEMA = "ppt-master.template-execution-manifest.v1"
 TEMPLATE_TEXT_SLOTS_DIR = "template_execution"
 TEMPLATE_TEXT_SLOTS_SCHEMA = "ppt-master.template-text-slots.v2-min"
 IMPORTED_ICON_NAMESPACE = "imported"
+_FRESH_NATIVE_FALLBACK_ATTR = "data-pptx-mirror-fresh-fallback"
 TRANSPARENT_PIXEL_DATA_URI = (
     "data:image/png;base64,"
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUA"
@@ -86,17 +111,6 @@ ET.register_namespace("", SVG_NS)
 ET.register_namespace("xlink", XLINK_NS)
 
 _NON_VISUAL_TAGS = frozenset({"defs", "desc", "metadata", "style", "title"})
-_BITMAP_EXTENSIONS = frozenset({
-    ".avif",
-    ".bmp",
-    ".gif",
-    ".jpeg",
-    ".jpg",
-    ".png",
-    ".tif",
-    ".tiff",
-    ".webp",
-})
 _INHERITED_PRESENTATION_ATTRIBUTES = frozenset({
     "color",
     "fill",
@@ -120,6 +134,24 @@ _INHERITED_PRESENTATION_ATTRIBUTES = frozenset({
     "text-decoration",
     "word-spacing",
 })
+_ROOT_TYPOGRAPHY_ATTRIBUTES = (
+    "font-family",
+    "font-size",
+    "font-style",
+    "font-weight",
+    "letter-spacing",
+    "text-anchor",
+    "text-decoration",
+    "word-spacing",
+)
+_TEXT_PRESENTATION_ATTRIBUTES = frozenset(_ROOT_TYPOGRAPHY_ATTRIBUTES)
+_TEXT_PRESENTATION_CONTAINERS = frozenset({
+    "a",
+    "g",
+    "svg",
+    "text",
+    "tspan",
+})
 _AGGREGATE_GROUP_ATTRIBUTES = frozenset({
     "clip-path",
     "filter",
@@ -139,6 +171,7 @@ _AXIS_REFLECTION_RE = re.compile(
     rf"translate\(\s*({_TRANSFORM_NUMBER})[\s,]+"
     rf"({_TRANSFORM_NUMBER})\s*\)\s*$"
 )
+_SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
 class MirrorMaterializationError(RuntimeError):
@@ -181,9 +214,12 @@ class SlotPlan:
 
 @dataclass
 class RestorationStats:
+    # Retained for report compatibility. Mirror materialization no longer
+    # rehydrates visible source subtrees, so this counter remains zero.
     rehydrated_refs: int = 0
     fallback_refs: int = 0
     structural_refs: int = 0
+    semantic_refs: int = 0
     detached_connector_endpoints: int = 0
     upright_text_compensations: int = 0
 
@@ -191,6 +227,7 @@ class RestorationStats:
         self.rehydrated_refs += other.rehydrated_refs
         self.fallback_refs += other.fallback_refs
         self.structural_refs += other.structural_refs
+        self.semantic_refs += other.semantic_refs
         self.detached_connector_endpoints += other.detached_connector_endpoints
         self.upright_text_compensations += other.upright_text_compensations
 
@@ -199,6 +236,7 @@ class RestorationStats:
             "rehydrated_refs": self.rehydrated_refs,
             "fallback_refs": self.fallback_refs,
             "structural_refs": self.structural_refs,
+            "semantic_refs": self.semantic_refs,
             "detached_connector_endpoints": self.detached_connector_endpoints,
             "upright_text_compensations": self.upright_text_compensations,
         }
@@ -278,11 +316,12 @@ def _template_execution_manifest_files(
         "text_slots_schema": TEMPLATE_TEXT_SLOTS_SCHEMA,
         "execution_policy": (
             "This manifest and its text_slots_path records are derived tool "
-            "metadata, not page-authoring inputs. Before each page, run "
-            "project_manager.py page-context <project> P<NN> --record-usage. "
-            "Read the selected complete prototype only when its path and SHA "
-            "are absent from the active execution context or changed, then "
-            "reuse it. Choose semantic replacements and edit only existing "
+            "metadata, not page-authoring inputs. Retain the complete project "
+            "Design Spec and lock once per valid uncompacted execution context; "
+            "use page-context only for on-demand diagnostics or telemetry. "
+            "Read the selected complete prototype once per valid context and "
+            "again only after a known change or context invalidation. Choose "
+            "semantic replacements and edit only existing "
             "visible text values; structured export validates text/tspan "
             "topology and attributes against the prototype."
         ),
@@ -290,6 +329,7 @@ def _template_execution_manifest_files(
             "warning_count": 0,
             "by_code": {},
         },
+        "source_themes": SOURCE_THEMES_FILENAME,
         "templates": templates,
     }
     files.append(MaterializedFile(
@@ -301,7 +341,7 @@ def _template_execution_manifest_files(
 
 def _source_import_summary(import_workspace: Path) -> dict[str, object] | None:
     """Summarize source-owned tolerant-import diagnostics by stable code."""
-    report_path = import_workspace / "conversion-report.json"
+    report_path = conversion_report_path(import_workspace)
     try:
         report = json.loads(report_path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -333,6 +373,74 @@ def _source_import_summary(import_workspace: Path) -> dict[str, object] | None:
         "by_code": dict(sorted(by_code.items())),
         "samples": dict(sorted(samples.items())),
     }
+
+
+def _source_theme_bundle(
+    import_workspace: Path,
+    native: dict[str, Any],
+    masters: dict[str, dict[str, Any]],
+    retained_master_keys: set[str],
+) -> bytes:
+    """Package exact source Theme parts for every reachable mirror Master."""
+    source = native.get("source")
+    if not isinstance(source, dict):
+        raise MirrorMaterializationError("Native source facts are missing")
+    template_name = _require_string(
+        source.get("templateFile"),
+        context="native source template",
+    )
+    template_path = _resolve_inside(
+        import_workspace,
+        template_name,
+        context="native source template",
+    )
+    records: dict[str, dict[str, str]] = {}
+    try:
+        with ZipFile(template_path) as archive:
+            for master_key in sorted(retained_master_keys):
+                theme_part = _require_string(
+                    masters[master_key].get("themePart"),
+                    context=f"Master {master_key!r} themePart",
+                )
+                normalized = PurePosixPath(theme_part)
+                if (
+                    theme_part != normalized.as_posix()
+                    or normalized.is_absolute()
+                    or ".." in normalized.parts
+                ):
+                    raise MirrorMaterializationError(
+                        f"Master {master_key!r} has unsafe Theme part {theme_part!r}"
+                    )
+                try:
+                    theme_xml = archive.read(theme_part)
+                except KeyError as exc:
+                    raise MirrorMaterializationError(
+                        f"Master {master_key!r} Theme part is missing: {theme_part}"
+                    ) from exc
+                try:
+                    theme_root = ET.fromstring(theme_xml)
+                except ET.ParseError as exc:
+                    raise MirrorMaterializationError(
+                        f"Master {master_key!r} Theme part is malformed"
+                    ) from exc
+                if theme_root.tag != f"{{{DML_NS}}}theme":
+                    raise MirrorMaterializationError(
+                        f"Master {master_key!r} Theme part is not a:theme"
+                    )
+                records[master_key] = {
+                    "source_part": theme_part,
+                    "encoding": "base64",
+                    "sha256": hashlib.sha256(theme_xml).hexdigest(),
+                    "payload": base64.b64encode(theme_xml).decode("ascii"),
+                }
+    except BadZipFile as exc:
+        raise MirrorMaterializationError(
+            f"Source template is not a valid PPTX package: {template_path}"
+        ) from exc
+    return _json_bytes({
+        "schema": SOURCE_THEMES_SCHEMA,
+        "masters": records,
+    })
 
 
 def _local_name(name: object) -> str:
@@ -500,6 +608,7 @@ def _source_identity(element: ET.Element) -> str | None:
 
 def _load_authoring_documents(
     workspace: Path,
+    required_names: set[str],
 ) -> tuple[Path, dict[str, AuthoringDocument]]:
     authoring_root = workspace / "authoring-svg"
     manifest_path = authoring_root / AUTHORING_MANIFEST_NAME
@@ -536,6 +645,7 @@ def _load_authoring_documents(
         context="authoring_manifest.json documents",
     )
     documents: dict[str, AuthoringDocument] = {}
+    manifest_names: set[str] = set()
     for index, raw in enumerate(documents_raw):
         if not isinstance(raw, dict):
             raise MirrorMaterializationError(f"documents[{index}] must be an object")
@@ -543,14 +653,17 @@ def _load_authoring_documents(
             raw.get("authoring"),
             context=f"documents[{index}].authoring",
         )
+        if authoring_name in manifest_names:
+            raise MirrorMaterializationError(
+                f"Duplicate authoring manifest document: {authoring_name}"
+            )
+        manifest_names.add(authoring_name)
+        if authoring_name not in required_names:
+            continue
         source_name = _require_string(
             raw.get("source"),
             context=f"documents[{index}].source",
         )
-        if authoring_name in documents:
-            raise MirrorMaterializationError(
-                f"Duplicate authoring manifest document: {authoring_name}"
-            )
         authoring_path = _resolve_inside(
             authoring_root,
             authoring_name,
@@ -620,25 +733,15 @@ def _load_authoring_documents(
             source_refs=refs,
         )
 
-    actual_authoring_files = {
-        path.relative_to(authoring_root).as_posix()
-        for path in authoring_root.rglob("*.svg")
-        if path.is_file()
-    }
-    if actual_authoring_files != set(documents):
+    if required_names != set(documents):
         raise MirrorMaterializationError(
-            "Authoring manifest/file roster differs; missing="
-            f"{sorted(set(documents) - actual_authoring_files)}, extra="
-            f"{sorted(actual_authoring_files - set(documents))}"
+            "Reachable authoring manifest roster differs; missing="
+            f"{sorted(required_names - set(documents))}, extra="
+            f"{sorted(set(documents) - required_names)}"
         )
-    if manifest.get("file_count") != len(documents):
+    if manifest.get("file_count") != len(documents_raw):
         raise MirrorMaterializationError(
             "authoring_manifest.json file_count does not match documents"
-        )
-    expected_ref_count = sum(len(document.source_refs) for document in documents.values())
-    if manifest.get("source_ref_count") != expected_ref_count:
-        raise MirrorMaterializationError(
-            "authoring_manifest.json source_ref_count does not match documents"
         )
     return authoring_root, documents
 
@@ -659,26 +762,36 @@ def _load_vector_assets(
         raise MirrorMaterializationError(
             "Mirror vector inventory must use icon_namespace='imported'"
         )
+    if inventory.get("asset_role") != DECORATION_ASSET_ROLE:
+        raise MirrorMaterializationError(
+            "Mirror vector inventory must use asset_role='decoration'"
+        )
     icons_root = workspace / "icons"
     records: dict[str, VectorAssetRecord] = {}
-    for index, raw in enumerate(
-        _require_list(inventory.get("assets"), context="vector inventory assets")
-    ):
+    assets = _require_list(
+        inventory.get("assets"),
+        context="vector inventory assets",
+    )
+    if inventory.get("asset_count") != len(assets):
+        raise MirrorMaterializationError("Vector inventory asset_count is stale")
+    for index, raw in enumerate(assets):
         if not isinstance(raw, dict):
             raise MirrorMaterializationError(f"vector assets[{index}] must be an object")
         icon = _require_string(raw.get("icon"), context=f"assets[{index}].icon")
         asset = _require_string(raw.get("asset"), context=f"assets[{index}].asset")
         origin = _require_string(raw.get("svg"), context=f"assets[{index}].svg")
+        if raw.get("role") != DECORATION_ASSET_ROLE:
+            raise MirrorMaterializationError(
+                f"Vector asset {icon!r} is not declared as decoration"
+            )
+        if origin not in documents:
+            continue
         if not icon.startswith(f"{IMPORTED_ICON_NAMESPACE}/"):
             raise MirrorMaterializationError(
                 f"Vector asset {icon!r} is outside imported/ namespace"
             )
         if icon in records:
             raise MirrorMaterializationError(f"Duplicate vector asset id: {icon}")
-        if origin not in documents:
-            raise MirrorMaterializationError(
-                f"Vector asset {icon!r} names unknown origin document {origin!r}"
-            )
         asset_path = _resolve_inside(
             icons_root,
             asset,
@@ -686,6 +799,11 @@ def _load_vector_assets(
         )
         if not asset_path.is_file() or asset_path.suffix.lower() != ".svg":
             raise MirrorMaterializationError(f"Vector asset is missing: {asset_path}")
+        asset_root = _parse_svg(asset_path)
+        if asset_root.get(ASSET_ROLE_ATTRIBUTE) != DECORATION_ASSET_ROLE:
+            raise MirrorMaterializationError(
+                f"Vector asset {icon!r} lacks its decoration role"
+            )
         expected_sha256 = _require_string(
             raw.get("asset_sha256"),
             context=f"vector asset {icon!r} asset_sha256",
@@ -711,8 +829,6 @@ def _load_vector_assets(
             expected_sha256=expected_sha256,
             source_refs=tuple(refs_raw),
         )
-    if inventory.get("asset_count") != len(records):
-        raise MirrorMaterializationError("Vector inventory asset_count is stale")
     return records
 
 
@@ -726,12 +842,17 @@ def _source_ref_counts(root: ET.Element) -> dict[str, int]:
 
 
 def _imported_icon_refs(root: ET.Element) -> set[str]:
-    return {
-        value
-        for element in root.iter()
-        if (value := (element.get("data-icon") or "").strip())
-        if value.startswith(f"{IMPORTED_ICON_NAMESPACE}/")
-    }
+    refs: set[str] = set()
+    for element in root.iter():
+        value = (element.get("data-icon") or "").strip()
+        if not value.startswith(f"{IMPORTED_ICON_NAMESPACE}/"):
+            continue
+        if element.get(ASSET_ROLE_ATTRIBUTE) != DECORATION_ASSET_ROLE:
+            raise MirrorMaterializationError(
+                f"Imported vector {value!r} is not marked as decoration"
+            )
+        refs.add(value)
+    return refs
 
 
 def _validate_source_ref_closure(
@@ -791,7 +912,7 @@ def _validate_source_ref_closure(
 
 
 def _load_native_graph(workspace: Path) -> dict[str, Any]:
-    native_path = workspace / "native_structure.json"
+    native_path = native_structure_path(workspace)
     native = _load_json(native_path, context="native structure")
     if native.get("schema") != NATIVE_STRUCTURE_SCHEMA:
         raise MirrorMaterializationError(
@@ -838,8 +959,9 @@ def _load_inheritance(workspace: Path) -> dict[str, Any]:
 def _validate_graph_roster(
     native: dict[str, Any],
     inheritance: dict[str, Any],
-    documents: dict[str, AuthoringDocument],
-) -> None:
+    retained_master_keys: set[str],
+    retained_layout_keys: set[str],
+) -> set[str]:
     masters = _require_list(native.get("masters"), context="native masters")
     layouts = _require_list(native.get("layouts"), context="native layouts")
     slides = _require_list(native.get("slides"), context="native slides")
@@ -847,15 +969,50 @@ def _validate_graph_roster(
         inheritance.get("masters"),
         context="inheritance masters",
     )
-    master_file_by_part = {
-        _require_string(item.get("partPath"), context="inheritance Master partPath"):
-        _require_string(item.get("file"), context="inheritance Master file")
-        for item in inheritance_masters_raw
-        if isinstance(item, dict)
+    retained_masters = [
+        item
+        for item in masters
+        if isinstance(item, dict) and item.get("key") in retained_master_keys
+    ]
+    retained_layouts = [
+        item
+        for item in layouts
+        if isinstance(item, dict) and item.get("key") in retained_layout_keys
+    ]
+    if len(retained_masters) != len(retained_master_keys):
+        raise MirrorMaterializationError(
+            "Reachable Master roster differs from native graph"
+        )
+    if len(retained_layouts) != len(retained_layout_keys):
+        raise MirrorMaterializationError(
+            "Reachable Layout roster differs from native graph"
+        )
+    required_master_parts = {
+        _require_string(
+            master.get("packagePart"),
+            context=f"native Master {master.get('key')!r} packagePart",
+        )
+        for master in retained_masters
     }
+    master_file_by_part: dict[str, str] = {}
+    for item in inheritance_masters_raw:
+        if not isinstance(item, dict):
+            continue
+        part_path = item.get("partPath")
+        if part_path not in required_master_parts:
+            continue
+        master_file_by_part[_require_string(
+            part_path,
+            context="inheritance Master partPath",
+        )] = _require_string(
+            item.get("file"),
+            context="inheritance Master file",
+        )
     for index, master in enumerate(masters):
         if not isinstance(master, dict):
             raise MirrorMaterializationError(f"native masters[{index}] must be an object")
+        if master.get("key") not in retained_master_keys:
+            continue
         package_part = _require_string(
             master.get("packagePart"),
             context=f"native masters[{index}].packagePart",
@@ -868,8 +1025,14 @@ def _validate_graph_roster(
         master["svgFile"] = svg_file
     expected_files: set[str] = set()
     for collection, field in (
-        (masters, "svgFile"),
-        (layouts, "svgFile"),
+        (
+            retained_masters,
+            "svgFile",
+        ),
+        (
+            retained_layouts,
+            "svgFile",
+        ),
         (slides, "layeredSvgFile"),
     ):
         for index, item in enumerate(collection):
@@ -878,38 +1041,55 @@ def _validate_graph_roster(
             expected_files.add(
                 _require_string(item.get(field), context=f"native {field}[{index}]")
             )
-    if expected_files != set(documents):
+    expected_role_count = len(retained_masters) + len(retained_layouts) + len(slides)
+    if len(expected_files) != expected_role_count:
         raise MirrorMaterializationError(
-            "Native graph and authoring document roster differ; missing="
-            f"{sorted(expected_files - set(documents))}, extra="
-            f"{sorted(set(documents) - expected_files)}"
+            "Reachable Master/Layout/Slide authoring files must be role-distinct"
         )
 
-    inherited_masters = {
-        _require_string(item.get("file"), context="inheritance master file")
-        for item in inheritance_masters_raw
-        if isinstance(item, dict)
+    retained_layout_files = {
+        _require_string(
+            item.get("svgFile"),
+            context=f"native Layout {item.get('key')!r} svgFile",
+        )
+        for item in retained_layouts
     }
-    inherited_layouts = {
-        _require_string(item.get("file"), context="inheritance layout file"): item
-        for item in _require_list(inheritance.get("layouts"), context="inheritance layouts")
-        if isinstance(item, dict)
-    }
+    inherited_layouts: dict[str, dict[str, Any]] = {}
+    for item in _require_list(
+        inheritance.get("layouts"),
+        context="inheritance layouts",
+    ):
+        if not isinstance(item, dict) or item.get("file") not in retained_layout_files:
+            continue
+        inherited_layouts[_require_string(
+            item.get("file"),
+            context="inheritance layout file",
+        )] = item
     inherited_slides = {
         int(item.get("index")): item
         for item in _require_list(inheritance.get("slides"), context="inheritance slides")
         if isinstance(item, dict) and isinstance(item.get("index"), int)
     }
-    if inherited_masters != {item["svgFile"] for item in masters}:
-        raise MirrorMaterializationError("Inheritance Master roster differs from native graph")
-    if set(inherited_layouts) != {item["svgFile"] for item in layouts}:
-        raise MirrorMaterializationError("Inheritance Layout roster differs from native graph")
+    if retained_layout_files != set(inherited_layouts):
+        raise MirrorMaterializationError(
+            "Reachable inheritance Layout roster differs from native graph"
+        )
     if set(inherited_slides) != {int(item["index"]) for item in slides}:
         raise MirrorMaterializationError("Inheritance Slide roster differs from native graph")
 
-    master_file_by_key = {item["key"]: item["svgFile"] for item in masters}
-    layout_file_by_key = {item["key"]: item["svgFile"] for item in layouts}
-    for layout in layouts:
+    master_file_by_key = {
+        item["key"]: item["svgFile"]
+        for item in retained_masters
+    }
+    layout_file_by_key = {
+        item["key"]: item["svgFile"]
+        for item in retained_layouts
+    }
+    layout_master_by_key = {
+        item["key"]: item["masterKey"]
+        for item in retained_layouts
+    }
+    for layout in retained_layouts:
         inherited = inherited_layouts[layout["svgFile"]]
         if inherited.get("master") != master_file_by_key.get(layout.get("masterKey")):
             raise MirrorMaterializationError(
@@ -929,6 +1109,10 @@ def _validate_graph_roster(
             )
     for slide in slides:
         inherited = inherited_slides[int(slide["index"])]
+        if slide.get("masterKey") != layout_master_by_key.get(slide.get("layoutKey")):
+            raise MirrorMaterializationError(
+                f"Slide {slide.get('index')} Master does not match its Layout parent"
+            )
         if inherited.get("layout") != layout_file_by_key.get(slide.get("layoutKey")):
             raise MirrorMaterializationError(
                 f"Slide {slide.get('index')} Layout parent differs across native facts"
@@ -949,6 +1133,7 @@ def _validate_graph_roster(
             raise MirrorMaterializationError(
                 f"Slide {slide.get('index')} showInheritedShapes differs across facts"
             )
+    return expected_files
 
 
 def _absolutize_local_hrefs(root: ET.Element, base_dir: Path) -> None:
@@ -967,47 +1152,44 @@ def _absolutize_local_hrefs(root: ET.Element, base_dir: Path) -> None:
             )
 
 
-def _rehydrate_tree(
+def _validate_authoring_tree(
     root: ET.Element,
     document: AuthoringDocument,
     *,
     excluded_refs: set[str],
 ) -> RestorationStats:
-    source_root = _parse_svg(document.source_path)
+    """Inspect source-ref hashes while preserving the compact authoring tree."""
     stats = RestorationStats()
 
-    def restore(element: ET.Element) -> ET.Element:
+    def validate(element: ET.Element) -> None:
         source_ref = element.get(SOURCE_REF_ATTRIBUTE)
         record = document.source_refs.get(source_ref or "")
+        contains_semantic_object = any(
+            item.get(SEMANTIC_OBJECT_ATTRIBUTE) is not None
+            for item in element.iter()
+        )
         if source_ref and record is None:
             raise MirrorMaterializationError(
                 f"{document.name} contains unknown source ref {source_ref!r}"
             )
-        if source_ref and source_ref in excluded_refs:
-            stats.structural_refs += 1
-        elif source_ref and record is not None:
+        if source_ref and record is not None:
             actual_hash = semantic_subtree_sha256(
                 element,
                 ignored_attributes=frozenset({SOURCE_REF_ATTRIBUTE}),
             )
-            if actual_hash == record.initial_authoring_subtree_sha256:
-                restored = copy.deepcopy(_source_element(source_root, record.source_path))
-                _absolutize_local_hrefs(restored, document.source_path.parent)
-                stats.rehydrated_refs += 1
-                return restored
-            stats.fallback_refs += 1
+            hash_changed = actual_hash != record.initial_authoring_subtree_sha256
 
-        children = list(element)
-        for index, child in enumerate(children):
-            replacement = restore(child)
-            if replacement is child:
-                continue
-            replacement.tail = child.tail
-            element.remove(child)
-            element.insert(index, replacement)
-        return element
+            if source_ref in excluded_refs:
+                stats.structural_refs += 1
+            elif contains_semantic_object:
+                stats.semantic_refs += 1
+            elif hash_changed:
+                stats.fallback_refs += 1
 
-    restore(root)
+        for child in element:
+            validate(child)
+
+    validate(root)
     return stats
 
 
@@ -1154,10 +1336,36 @@ def _prepared_document(
     excluded_refs: set[str],
 ) -> tuple[ET.Element, RestorationStats]:
     root = _parse_svg(document.authoring_path)
+    fresh_native_fallbacks = _fresh_native_fallbacks(root)
+    stats = _validate_authoring_tree(root, document, excluded_refs=excluded_refs)
+    _annotate_unchanged_explicit_text_breaks(
+        root,
+        document,
+        set(document.source_refs),
+    )
     _absolutize_local_hrefs(root, document.authoring_path.parent)
-    stats = _rehydrate_tree(root, document, excluded_refs=excluded_refs)
-    _annotate_unchanged_explicit_text_breaks(root, document, excluded_refs)
+    for marker in fresh_native_fallbacks & set(root.iter()):
+        marker.set(_FRESH_NATIVE_FALLBACK_ATTR, "true")
     return root, stats
+
+
+def _fresh_native_fallbacks(root: ET.Element) -> set[ET.Element]:
+    """Snapshot valid input guards before mirror-only normalization."""
+    fresh: set[ET.Element] = set()
+    for element in root.iter():
+        expected = element.get(NATIVE_FALLBACK_SHA256_ATTR)
+        if (
+            expected is None
+            or expected != expected.strip()
+            or _SHA256_RE.fullmatch(expected) is None
+        ):
+            continue
+        if svg_native_fallback_fingerprint(
+            element,
+            document_root=root,
+        ) == expected.lower():
+            fresh.add(element)
+    return fresh
 
 
 def _safe_prefix(value: str) -> str:
@@ -1266,15 +1474,29 @@ def _visible_leaf(element: ET.Element) -> bool:
 
 
 def _merge_group_inheritance(parent: ET.Element, child: ET.Element) -> None:
+    child_tag = _local_name(child.tag)
     for name in _INHERITED_PRESENTATION_ATTRIBUTES:
+        if (
+            name in _TEXT_PRESENTATION_ATTRIBUTES
+            and child_tag not in _TEXT_PRESENTATION_CONTAINERS
+        ):
+            continue
         if parent.get(name) is not None and child.get(name) is None:
             child.set(name, parent.get(name, ""))
     parent_style = _parse_style(parent.get("style"))
     child_style = _parse_style(child.get("style"))
     if parent_style:
-        merged = dict(parent_style)
+        merged = {
+            name: value
+            for name, value in parent_style.items()
+            if (
+                name not in _TEXT_PRESENTATION_ATTRIBUTES
+                or child_tag in _TEXT_PRESENTATION_CONTAINERS
+            )
+        }
         merged.update(child_style)
-        child.set("style", _style_text(merged))
+        if merged:
+            child.set("style", _style_text(merged))
     parent_transform = (parent.get("transform") or "").strip()
     child_transform = (child.get("transform") or "").strip()
     if parent_transform:
@@ -1365,13 +1587,15 @@ def _fixed_atoms(
             continue
         if not _visible_leaf(child):
             continue
+        item = copy.deepcopy(child)
+        _merge_group_inheritance(root, item)
         if tag == "g":
             expanded = _flatten_fixed_group(
-                child,
+                item,
                 context=f"{scope} {key} element {child.get('id') or '<g>'}",
             )
         else:
-            expanded = [copy.deepcopy(child)]
+            expanded = [item]
         expanded = _flatten_fixed_text_atoms(expanded)
         source_ref = child.get(SOURCE_REF_ATTRIBUTE)
         source_token = source_ref.split(":", 1)[-1] if source_ref else str(serial + 1)
@@ -2193,6 +2417,18 @@ def _compose_template(
         },
     )
 
+    typography_roots = [
+        candidate
+        for candidate in (master_root, layout_root, slide_root)
+        if candidate is not None
+    ]
+    for name in _ROOT_TYPOGRAPHY_ATTRIBUTES:
+        for candidate in typography_roots:
+            value = candidate.get(name)
+            if value is not None:
+                root.set(name, value)
+                break
+
     roots = [master_root, layout_root]
     if slide_root is not None:
         roots.append(slide_root)
@@ -2233,9 +2469,12 @@ def _compose_template(
                 continue
             source_ref = child.get(SOURCE_REF_ATTRIBUTE)
             if source_ref in placeholder_refs:
-                source_placeholder_elements[source_ref] = child
+                item = copy.deepcopy(child)
+                _merge_group_inheritance(slide_root, item)
+                source_placeholder_elements[source_ref] = item
                 continue
             item = copy.deepcopy(child)
+            _merge_group_inheritance(slide_root, item)
             if _is_full_canvas_rect(item, width, height):
                 item.set("id", item.get("id") or f"slide-{slide['index']}-background")
                 item.set("data-pptx-layer", "slide")
@@ -2243,6 +2482,17 @@ def _compose_template(
                 slide_backgrounds.append(item)
             else:
                 item.set("id", item.get("id") or f"slide-{slide['index']}-node-{index + 1}")
+                if _local_name(item.tag) == "g" and _visible_leaf(item):
+                    bounds = _frame(item)
+                    if bounds is None:
+                        raise MirrorMaterializationError(
+                            f"Slide {slide['index']} root group "
+                            f"{item.get('id')!r} has no positive source frame"
+                        )
+                    item.set(
+                        "data-pptx-bounds",
+                        " ".join(format_coordinate(value) for value in bounds),
+                    )
                 slide_content.append(item)
         if len(slide_backgrounds) > 1:
             raise MirrorMaterializationError(
@@ -2344,6 +2594,14 @@ def _refresh_preset_preview_hashes(root: ET.Element) -> None:
                     descendant.set("data-pptx-preview-sha256", fingerprint)
 
 
+def _refresh_fresh_native_fallback_hashes(root: ET.Element) -> None:
+    """Rebind valid guards changed only by deterministic mirror normalization."""
+    for element in root.iter():
+        if element.attrib.pop(_FRESH_NATIVE_FALLBACK_ATTR, None) is None:
+            continue
+        stamp_native_fallback_baseline(element, document_root=root)
+
+
 def _sanitize_connector_references(root: ET.Element) -> int:
     """Drop endpoint bindings whose native target is absent from this SVG tree."""
     identities = {
@@ -2439,10 +2697,16 @@ def _rewrite_packaged_assets(
                     else f"{source.stem}{detected_extension}"
                 )
                 relative_target = Path("images") / packaged_name
-            elif source.suffix.lower() in _BITMAP_EXTENSIONS:
+            elif source.suffix.lower() in IMAGE_EXTENSIONS:
                 relative_target = Path("images") / source.name
+            elif source.suffix.lower() in VIDEO_EXTENSIONS:
+                relative_target = Path("video") / source.name
+            elif source.suffix.lower() in AUDIO_EXTENSIONS:
+                relative_target = Path("audio") / source.name
             else:
-                relative_target = Path("templates") / "assets" / source.name
+                relative_target = (
+                    Path("native-payloads") / "imported" / source.name
+                )
             previous = asset_sources.get(relative_target)
             if previous is not None and _sha256_file(previous) != _sha256_file(source):
                 raise MirrorMaterializationError(
@@ -2469,8 +2733,8 @@ def _materialize_icon(
             f"expected {record.expected_sha256}, found {actual_sha256}"
         )
     root = _parse_svg(record.asset_path)
+    stats = _validate_authoring_tree(root, document, excluded_refs=set())
     _absolutize_local_hrefs(root, record.asset_path.parent)
-    stats = _rehydrate_tree(root, document, excluded_refs=set())
     _strip_source_refs(root)
     return root, stats
 
@@ -2514,11 +2778,36 @@ def _preflight_output(
             raise MirrorMaterializationError(
                 f"Template output is not a directory: {templates_root}"
             )
-        existing = sorted(path for path in templates_root.iterdir())
-        if existing:
+        # Brand/Style specs own no roster. During a Layout transition, one Deck
+        # spec may also remain after its lower-priority roster was withheld by
+        # the parent workflow. Any other payload would contend with this run.
+        existing = sorted(templates_root.iterdir())
+        coexisting_specs = [
+            path
+            for path in existing
+            if path.is_file()
+            and _MIRROR_COEXISTING_SPEC_NAME_RE.fullmatch(path.name)
+        ]
+        blocking = [path for path in existing if path not in coexisting_specs]
+        if blocking:
             raise MirrorMaterializationError(
-                f"Template output must be empty before mirror materialization: "
-                f"{templates_root}; first entry: {existing[0].name}"
+                "Template output must hold no roster before mirror "
+                f"materialization: {templates_root}; blocking entry: "
+                f"{blocking[0].name}"
+            )
+        coexisting_kinds = [
+            _MIRROR_COEXISTING_SPEC_NAME_RE.fullmatch(path.name).group("kind")
+            for path in coexisting_specs
+        ]
+        duplicate_kinds = sorted({
+            kind
+            for kind in coexisting_kinds
+            if coexisting_kinds.count(kind) > 1
+        })
+        if duplicate_kinds:
+            raise MirrorMaterializationError(
+                f"Template output declares the same kind more than once: "
+                + ", ".join(duplicate_kinds)
             )
     collisions = [
         template_workspace / relative
@@ -2529,6 +2818,11 @@ def _preflight_output(
         raise MirrorMaterializationError(
             f"Output file already exists: {collisions[0]}"
         )
+
+
+_MIRROR_COEXISTING_SPEC_NAME_RE = re.compile(
+    r"design_spec\.(?P<kind>brand|style|deck)\.[^/\\]+\.md"
+)
 
 
 def _nearest_existing_directory(path: Path) -> Path:
@@ -2609,27 +2903,96 @@ def materialize_mirror_template(
     import_workspace: Path,
     template_workspace: Path,
 ) -> dict[str, Any]:
-    """Validate one Type A import graph and publish its mirror SVG contract."""
-    authoring_root, documents = _load_authoring_documents(import_workspace)
-    vector_assets = _load_vector_assets(import_workspace, documents)
-    referenced_icons = _validate_source_ref_closure(documents, vector_assets)
+    """Publish source Slide prototypes with their reachable mirror structure."""
     native = _load_native_graph(import_workspace)
     inheritance = _load_inheritance(import_workspace)
-    _validate_graph_roster(native, inheritance, documents)
-
-    masters = {item["key"]: item for item in native["masters"]}
-    layouts = {item["key"]: item for item in native["layouts"]}
-    slides = sorted(native["slides"], key=lambda item: int(item["index"]))
+    masters: dict[str, dict[str, Any]] = {}
+    for index, item in enumerate(
+        _require_list(native.get("masters"), context="native masters")
+    ):
+        if not isinstance(item, dict):
+            raise MirrorMaterializationError(
+                f"native masters[{index}] must be an object"
+            )
+        key = _require_string(item.get("key"), context=f"native masters[{index}].key")
+        if key in masters:
+            raise MirrorMaterializationError(f"Duplicate native Master key: {key}")
+        masters[key] = item
+    layouts: dict[str, dict[str, Any]] = {}
+    for index, item in enumerate(
+        _require_list(native.get("layouts"), context="native layouts")
+    ):
+        if not isinstance(item, dict):
+            raise MirrorMaterializationError(
+                f"native layouts[{index}] must be an object"
+            )
+        key = _require_string(item.get("key"), context=f"native layouts[{index}].key")
+        if key in layouts:
+            raise MirrorMaterializationError(f"Duplicate native Layout key: {key}")
+        layouts[key] = item
+    slides: list[dict[str, Any]] = []
+    for index, item in enumerate(
+        _require_list(native.get("slides"), context="native slides")
+    ):
+        if not isinstance(item, dict) or not isinstance(item.get("index"), int):
+            raise MirrorMaterializationError(
+                f"native slides[{index}] requires an integer index"
+            )
+        slides.append(item)
+    slides.sort(key=lambda item: int(item["index"]))
+    if not slides:
+        raise MirrorMaterializationError(
+            "Mirror materialization requires at least one source Slide"
+        )
     if [int(item["index"]) for item in slides] != list(range(1, len(slides) + 1)):
         raise MirrorMaterializationError(
             "Mirror source slide indexes must be contiguous and start at 1"
         )
 
+    retained_layout_keys = {
+        str(slide["layoutKey"])
+        for slide in slides
+    }
+    missing_layout_keys = retained_layout_keys - set(layouts)
+    if missing_layout_keys:
+        raise MirrorMaterializationError(
+            "Source Slides reference missing Layout key(s): "
+            + ", ".join(sorted(missing_layout_keys))
+        )
+    retained_master_keys = {
+        str(layouts[layout_key]["masterKey"])
+        for layout_key in retained_layout_keys
+    }
+    missing_master_keys = retained_master_keys - set(masters)
+    if missing_master_keys:
+        raise MirrorMaterializationError(
+            "Reachable Layouts reference missing Master key(s): "
+            + ", ".join(sorted(missing_master_keys))
+        )
+    selected_document_names = _validate_graph_roster(
+        native,
+        inheritance,
+        retained_master_keys,
+        retained_layout_keys,
+    )
+    authoring_root, documents = _load_authoring_documents(
+        import_workspace,
+        selected_document_names,
+    )
+    vector_assets = _load_vector_assets(import_workspace, documents)
+    referenced_icons = _validate_source_ref_closure(documents, vector_assets)
+    source_theme_bundle = _source_theme_bundle(
+        import_workspace,
+        native,
+        masters,
+        retained_master_keys,
+    )
     prepared_masters: dict[str, ET.Element] = {}
     prepared_layouts: dict[str, ET.Element] = {}
     prepared_slides: dict[int, ET.Element] = {}
     total_stats = RestorationStats()
-    for key, master in masters.items():
+    for key in sorted(retained_master_keys):
+        master = masters[key]
         document = documents[master["svgFile"]]
         root, stats = _prepared_document(
             document,
@@ -2638,7 +3001,8 @@ def materialize_mirror_template(
         _namespace_ids(root, f"m-{_safe_prefix(str(key))}-")
         prepared_masters[key] = root
         total_stats.merge(stats)
-    for key, layout in layouts.items():
+    for key in sorted(retained_layout_keys):
+        layout = layouts[key]
         document = documents[layout["svgFile"]]
         root, stats = _prepared_document(
             document,
@@ -2660,12 +3024,15 @@ def materialize_mirror_template(
         prepared_slides[index] = root
         total_stats.merge(stats)
 
-    slides_by_layout: dict[str, list[dict[str, Any]]] = {key: [] for key in layouts}
+    slides_by_layout: dict[str, list[dict[str, Any]]] = {
+        key: [] for key in retained_layout_keys
+    }
     for slide in slides:
         slides_by_layout[str(slide["layoutKey"])].append(slide)
 
     plans_by_layout: dict[str, list[SlotPlan]] = {}
-    for key, layout in layouts.items():
+    for key in sorted(retained_layout_keys):
+        layout = layouts[key]
         master_key = str(layout["masterKey"])
         plans_by_layout[key] = _slot_plans(
             layout,
@@ -2694,24 +3061,6 @@ def materialize_mirror_template(
         )
         materialized_roots.append((filename, root))
 
-    unused_layouts = [
-        layout for key, layout in layouts.items() if not slides_by_layout[key]
-    ]
-    for layout in sorted(unused_layouts, key=lambda item: str(item["key"])):
-        master = masters[str(layout["masterKey"])]
-        filename = Path("templates") / f"layout_{layout['key']}.svg"
-        root = _compose_template(
-            native=native,
-            master=master,
-            layout=layout,
-            master_root=prepared_masters[str(master["key"])],
-            layout_root=prepared_layouts[str(layout["key"])],
-            slide=None,
-            slide_root=None,
-            slot_plans=plans_by_layout[str(layout["key"])],
-        )
-        materialized_roots.append((filename, root))
-
     asset_sources: dict[Path, Path] = {}
     files: list[MaterializedFile] = []
     output_roots: list[tuple[Path, ET.Element]] = []
@@ -2731,7 +3080,9 @@ def materialize_mirror_template(
             _compensate_reflected_group_text(root)
         )
         compact_svg_tree(root, compact_native_frames=False)
+        compact_svg_style_tree(root)
         _refresh_preset_preview_hashes(root)
+        _refresh_fresh_native_fallback_hashes(root)
         try:
             native_payload_stats.merge(
                 externalize_native_payloads(root, native_payloads)
@@ -2762,7 +3113,9 @@ def materialize_mirror_template(
             icon_root
         )
         compact_svg_tree(icon_root, compact_native_frames=False)
+        compact_svg_style_tree(icon_root)
         _refresh_preset_preview_hashes(icon_root)
+        _refresh_fresh_native_fallback_hashes(icon_root)
         try:
             native_payload_stats.merge(
                 externalize_native_payloads(icon_root, native_payloads)
@@ -2800,6 +3153,8 @@ def materialize_mirror_template(
             _source_import_summary(import_workspace),
         )
     )
+    source_themes_path = Path("templates") / SOURCE_THEMES_FILENAME
+    files.append(MaterializedFile(source_themes_path, source_theme_bundle))
 
     for relative_target, source in sorted(asset_sources.items()):
         files.append(MaterializedFile(relative_target, source.read_bytes()))
@@ -2839,6 +3194,16 @@ def materialize_mirror_template(
         )
         try:
             parse_template_slides(template_paths)
+            staged_source_themes = load_template_source_themes(
+                staged_root / "templates"
+            )
+            if (
+                staged_source_themes is None
+                or set(staged_source_themes) != retained_master_keys
+            ):
+                raise TemplateStructureError(
+                    "Mirror source Theme roster does not match retained Masters"
+                )
         except TemplateStructureError as exc:
             raise MirrorMaterializationError(
                 f"Materialized structured SVG contract is invalid: {exc}"
@@ -2861,16 +3226,26 @@ def materialize_mirror_template(
         )
 
     return {
-        "schema": "ppt-master.mirror-materialization-report.v1",
+        "schema": "ppt-master.mirror-materialization-report.v2",
         "import_workspace": str(import_workspace),
         "template_workspace": str(template_workspace),
         "source_slide_indexes": [int(item["index"]) for item in slides],
         "source_slide_count": len(slides),
-        "master_count": len(masters),
-        "layout_count": len(layouts),
-        "unused_layout_count": len(unused_layouts),
+        "source_structure": {
+            "master_count": len(masters),
+            "layout_count": len(layouts),
+        },
+        "retained_structure": {
+            "master_keys": sorted(retained_master_keys),
+            "layout_keys": sorted(retained_layout_keys),
+        },
+        "omitted_structure": {
+            "master_keys": sorted(set(masters) - retained_master_keys),
+            "layout_keys": sorted(set(layouts) - retained_layout_keys),
+        },
         "template_svg_count": len(materialized_roots),
         "template_execution_manifest": execution_manifest_path.as_posix(),
+        "source_themes": source_themes_path.as_posix(),
         "template_text_slot_manifest_count": len(materialized_roots),
         "imported_vector_count": len(referenced_icons),
         "packaged_asset_count": len(asset_sources),
@@ -2909,7 +3284,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "template_workspace",
         type=Path,
-        help="Empty template workspace destination (templates/ must be absent or empty)",
+        help=(
+            "Template workspace destination (templates/ must own no roster; "
+            "qualified Brand/Style specs or one Deck spec staged for Layout "
+            "supersession may remain)"
+        ),
     )
     return parser
 

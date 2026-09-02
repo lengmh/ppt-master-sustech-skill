@@ -11,6 +11,8 @@ import pytest
 from package_release import (
     FORBIDDEN_RELEASE_PATHS,
     REQUIRED_RELEASE_PATHS,
+    ignore_copytree_entries,
+    stage_local_release_tree,
     verify_release_zip,
 )
 
@@ -30,7 +32,7 @@ def _write_zip(path: Path, entries: list[str]) -> None:
             archive.writestr(entry, b"")
 
 
-def test_v41_required_and_retired_path_inventory() -> None:
+def test_v61_required_and_retired_path_inventory() -> None:
     required = set(REQUIRED_RELEASE_PATHS)
     forbidden = set(FORBIDDEN_RELEASE_PATHS)
 
@@ -38,14 +40,22 @@ def test_v41_required_and_retired_path_inventory() -> None:
         "scripts/project_specs.py",
         "scripts/page_context.py",
         "scripts/chart_recall.py",
+        "scripts/attribution_guard.py",
         "scripts/svg_authoring_view.py",
         "scripts/template_preview_pptx.py",
         "scripts/template_brief_lock.py",
         ".env.example",
         "requirements.txt",
+        "SPONSORS.md",
+        "SPONSORS_CN.md",
         "references/native-data-interface.md",
         "references/pptx-structure-interface.md",
+        "references/video-design.md",
+        "templates/layouts/layouts_index.json",
+        "templates/styles/styles_index.json",
+        "workflows/routing.md",
         "workflows/generate-pptx.md",
+        "workflows/edit-native-pptx.md",
         "workflows/stages/live-preview.md",
         "workflows/stages/refine-spec.md",
         "workflows/stages/resume-execute.md",
@@ -53,7 +63,12 @@ def test_v41_required_and_retired_path_inventory() -> None:
         "workflows/stages/apply-template-workspace.md",
         "workflows/stages/visual-review.md",
         "workflows/profiles/beautify-pptx.md",
+        "workflows/profiles/image-to-pptx.md",
+        "workflows/profiles/quick-generate.md",
+        "workflows/create-template.md",
         "workflows/create-template/create-brand.md",
+        "workflows/create-template/create-style.md",
+        "workflows/create-template/create-layout.md",
         "workflows/create-template/create-deck.md",
         "templates/decks/sustech_academic_official/templates/design_spec.md",
         "scripts/pptx_shapes/data/NOTICE.md",
@@ -64,10 +79,27 @@ def test_v41_required_and_retired_path_inventory() -> None:
         "AGENTS.md",
         "CONTEXT.md",
         "scripts/ppt_text_normalize/CONTEXT.md",
+        "scripts/ppt_text_normalize/build_review_workspace.py",
+        "scripts/ppt_text_normalize/compile_review_decisions.py",
+        "scripts/ppt_text_normalize/contracts/review_decisions.schema.json",
+        "scripts/ppt_text_normalize/contracts/review_model.schema.json",
+        "scripts/ppt_text_normalize/contracts/rules_reviewed.schema.json",
+        "scripts/ppt_text_normalize/core/review_decisions.py",
+        "scripts/ppt_text_normalize/core/review_model.py",
+        "scripts/ppt_text_normalize/core/review_workspace.py",
+        "scripts/ppt_text_normalize/tests/test_visual_review_field_override.py",
+        "scripts/svg_editor/static/normalization_review.js",
         "scripts/svg_to_pptx/text_contract.py",
         "scripts/svg_to_pptx/pptx_package/text_validation.py",
+        "scripts/template_fill_pptx.py",
+        "scripts/template_fill_pptx/",
+        "scripts/native_enhance_pptx.py",
+        "scripts/native_enhance_pptx_core.py",
+        "scripts/native_narration_pptx.py",
         "workflows/distill-layouts.md",
         "workflows/live-preview.md",
+        "workflows/template-fill-pptx.md",
+        "workflows/native-enhance-pptx.md",
     } <= forbidden
     assert "workflows/create-brand.md" not in required
     assert "workflows/visual-review.md" not in required
@@ -81,6 +113,74 @@ def test_release_metadata_describes_legacy_brief_lock_compatibility() -> None:
 
     assert "legacy brief-lock read and explicit strict-audit compatibility" in notes
     assert "SUSTech template audit" not in notes
+
+
+def test_release_metadata_tracks_v61_fixed_snapshot() -> None:
+    metadata = json.loads(
+        (REPO_ROOT / "RELEASE_META.json").read_text(encoding="utf-8")
+    )
+    upstream = metadata["upstream"]
+
+    assert metadata["schema_version"] == 1
+    assert metadata["release_version"] == "r6.1.0-v0.4.0"
+    assert metadata["local"]["version"] == "0.4.0"
+    assert upstream == {
+        "repo": "hugohe3/ppt-master",
+        "version": "6.1.0",
+        "tag": "v6.1.0",
+        "commit": "c40bca58e168fcef2facdc7612cc352d1233679b",
+        "baseline_kind": "tag",
+        "tracked_ref": "refs/tags/v6.1.0",
+        "tracked_commit": "c40bca58e168fcef2facdc7612cc352d1233679b",
+        "tracked_range": "v6.1.0..c40bca58e168fcef2facdc7612cc352d1233679b",
+        "absorbed_from_commit": "cad57e4a45d8664bf4830d85711d355dc2600455",
+        "absorbed_range": (
+            "snapshot:cad57e4a45d8664bf4830d85711d355dc2600455"
+            "=>c40bca58e168fcef2facdc7612cc352d1233679b"
+        ),
+    }
+
+
+def test_package_filter_excludes_unreleased_normalizer_review_flow() -> None:
+    normalizer_dir = REPO_ROOT / "scripts" / "ppt_text_normalize"
+    editor_static_dir = REPO_ROOT / "scripts" / "svg_editor" / "static"
+
+    assert {
+        "build_review_workspace.py",
+        "compile_review_decisions.py",
+    } <= ignore_copytree_entries(
+        str(normalizer_dir),
+        ["apply.py", "build_review_workspace.py", "compile_review_decisions.py"],
+    )
+    assert "normalization_review.js" in ignore_copytree_entries(
+        str(editor_static_dir),
+        ["app.js", "normalization_review.js"],
+    )
+
+
+def test_staged_release_tree_excludes_unreleased_normalizer_review_flow(
+    tmp_path: Path,
+) -> None:
+    package_root = tmp_path / PACKAGE_ROOT
+    package_root.mkdir()
+    stage_local_release_tree(package_root)
+
+    for path in (
+        "scripts/ppt_text_normalize/build_review_workspace.py",
+        "scripts/ppt_text_normalize/compile_review_decisions.py",
+        "scripts/ppt_text_normalize/contracts/review_decisions.schema.json",
+        "scripts/ppt_text_normalize/contracts/review_model.schema.json",
+        "scripts/ppt_text_normalize/contracts/rules_reviewed.schema.json",
+        "scripts/ppt_text_normalize/core/review_decisions.py",
+        "scripts/ppt_text_normalize/core/review_model.py",
+        "scripts/ppt_text_normalize/core/review_workspace.py",
+        "scripts/ppt_text_normalize/tests/test_visual_review_field_override.py",
+        "scripts/svg_editor/static/normalization_review.js",
+    ):
+        assert not (package_root / path).exists(), path
+    assert "CONTEXT.md" not in (
+        package_root / "scripts" / "ppt_text_normalize" / "README.md"
+    ).read_text(encoding="utf-8")
 
 
 def test_verify_release_zip_accepts_required_inventory(tmp_path: Path) -> None:

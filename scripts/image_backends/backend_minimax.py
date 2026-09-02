@@ -5,7 +5,7 @@ MiniMax image generation backend.
 Configuration keys:
   MINIMAX_API_KEY   (required)
   MINIMAX_BASE_URL  (optional)
-  MINIMAX_MODEL     (optional)
+  MINIMAX_MODEL     (optional; image-01 only)
 """
 
 import sys
@@ -33,7 +33,9 @@ import requests
 from image_backends.backend_common import (
     MAX_RETRIES,
     detect_image_extension,
+    download_image,
     http_error,
+    is_permanent_error,
     is_rate_limit_error,
     normalize_image_size,
     require_api_key,
@@ -45,19 +47,25 @@ from image_backends.backend_common import (
 
 DEFAULT_ENDPOINT = "https://api.minimaxi.com/v1/image_generation"
 DEFAULT_MODEL = "image-01"
+SUPPORTED_MODELS = {DEFAULT_MODEL}
+
+# Request the documented default response format. The API returns hosted links
+# in `data.image_urls` for "url" and inline strings in `data.image_base64` for
+# "base64"; both shapes are handled when the response is parsed.
+DEFAULT_RESPONSE_FORMAT = "url"
 
 # International fallback: set MINIMAX_BASE_URL=https://api.minimax.io if needed
 
 ASPECT_RATIO_SIZE_MAP = {
     "512px": {
         "1:1": (512, 512),
-        "16:9": (640, 360),
-        "4:3": (576, 432),
-        "3:2": (624, 416),
-        "2:3": (416, 624),
-        "3:4": (432, 576),
-        "9:16": (360, 640),
-        "21:9": (672, 288),
+        "16:9": (912, 512),
+        "4:3": (680, 512),
+        "3:2": (768, 512),
+        "2:3": (512, 768),
+        "3:4": (512, 680),
+        "9:16": (512, 912),
+        "21:9": (1192, 512),
     },
     "1K": {
         "1:1": (1024, 1024),
@@ -79,17 +87,17 @@ ASPECT_RATIO_SIZE_MAP = {
         "9:16": (1152, 2048),
         "21:9": (2048, 880),
     },
-    "4K": {
-        "1:1": (2048, 2048),
-        "16:9": (2048, 1152),
-        "4:3": (2048, 1536),
-        "3:2": (2048, 1368),
-        "2:3": (1368, 2048),
-        "3:4": (1536, 2048),
-        "9:16": (1152, 2048),
-        "21:9": (2048, 880),
-    },
 }
+
+
+def _validate_model(model: str) -> str:
+    """Limit the backend to the model contract implemented below."""
+    resolved = model.strip()
+    if resolved not in SUPPORTED_MODELS:
+        raise ValueError(
+            f"Unsupported MiniMax model '{model}'. Supported: {sorted(SUPPORTED_MODELS)}"
+        )
+    return resolved
 
 
 def _resolve_url(base_url: str) -> str:
@@ -111,9 +119,16 @@ def _resolve_url(base_url: str) -> str:
 def _resolve_dimensions(aspect_ratio: str, image_size: str) -> tuple[int, int]:
     """Resolve width and height from the unified aspect_ratio/image_size pair."""
     normalized = normalize_image_size(image_size)
-    dimensions = (ASPECT_RATIO_SIZE_MAP.get(normalized) or {}).get(aspect_ratio)
+    sizes = ASPECT_RATIO_SIZE_MAP.get(normalized)
+    if sizes is None:
+        supported_sizes = ", ".join(ASPECT_RATIO_SIZE_MAP)
+        raise ValueError(
+            f"Unsupported image size '{image_size}' for MiniMax backend. "
+            f"image-01 supports these logical sizes: {supported_sizes}."
+        )
+    dimensions = sizes.get(aspect_ratio)
     if not dimensions:
-        supported = sorted(ASPECT_RATIO_SIZE_MAP["1K"])
+        supported = sorted(sizes)
         raise ValueError(
             f"Unsupported aspect ratio '{aspect_ratio}' for MiniMax backend. "
             f"Supported: {supported}"
@@ -122,11 +137,20 @@ def _resolve_dimensions(aspect_ratio: str, image_size: str) -> tuple[int, int]:
 
 
 def _extract_image_bytes(payload: dict) -> bytes | None:
-    """Extract image bytes from a MiniMax response payload."""
+    """Extract inline base64 image bytes from a MiniMax response payload."""
     data = payload.get("data") or {}
     image_base64 = data.get("image_base64") or []
     if image_base64:
         return base64.b64decode(image_base64[0])
+    return None
+
+
+def _extract_image_url(payload: dict) -> str | None:
+    """Extract the first hosted image URL from a MiniMax response payload."""
+    data = payload.get("data") or {}
+    image_urls = data.get("image_urls") or []
+    if image_urls:
+        return image_urls[0]
     return None
 
 
@@ -135,6 +159,7 @@ def _generate_image(api_key: str, prompt: str,
                     output_dir: str = None, filename: str = None,
                     model: str = DEFAULT_MODEL, base_url: str = DEFAULT_ENDPOINT) -> str:
     """Generate one image with the MiniMax backend."""
+    model = _validate_model(model)
     width, height = _resolve_dimensions(aspect_ratio, image_size)
     url = _resolve_url(base_url)
 
@@ -147,7 +172,7 @@ def _generate_image(api_key: str, prompt: str,
         "prompt": prompt,
         "width": width,
         "height": height,
-        "response_format": "base64",
+        "response_format": DEFAULT_RESPONSE_FORMAT,
         "n": 1,
     }
 
@@ -172,12 +197,19 @@ def _generate_image(api_key: str, prompt: str,
         raise RuntimeError(f"MiniMax image generation failed: {data}")
 
     image_bytes = _extract_image_bytes(data)
-    if not image_bytes:
-        raise RuntimeError(f"MiniMax response missing image data: {data}")
+    if image_bytes:
+        ext = detect_image_extension(image_bytes) or ".jpeg"
+        path = resolve_output_path(prompt, output_dir, filename, ext)
+        return save_image_bytes(image_bytes, path)
 
-    ext = detect_image_extension(image_bytes) or ".jpeg"
-    path = resolve_output_path(prompt, output_dir, filename, ext)
-    return save_image_bytes(image_bytes, path)
+    image_url = _extract_image_url(data)
+    if image_url:
+        # image-01 serves JPEG; save_image_bytes realigns the extension when the
+        # downloaded bytes are a different format.
+        path = resolve_output_path(prompt, output_dir, filename, ".jpeg")
+        return download_image(image_url, path)
+
+    raise RuntimeError(f"MiniMax response missing image data: {data}")
 
 
 def generate(prompt: str,
@@ -185,13 +217,15 @@ def generate(prompt: str,
              output_dir: str = None, filename: str = None,
              model: str = None, max_retries: int = MAX_RETRIES) -> str:
     """Generate an image with retries using the MiniMax backend."""
+    resolved_model = model or os.environ.get("MINIMAX_MODEL") or DEFAULT_MODEL
+    _validate_model(resolved_model)
+    normalized_size = normalize_image_size(image_size)
+    _resolve_dimensions(aspect_ratio, normalized_size)
     api_key = require_api_key(
         "MINIMAX_API_KEY",
         message="No API key found. Set MINIMAX_API_KEY in the current environment or a .env file.",
     )
     base_url = os.environ.get("MINIMAX_BASE_URL") or DEFAULT_ENDPOINT
-    resolved_model = model or os.environ.get("MINIMAX_MODEL") or DEFAULT_MODEL
-    normalized_size = normalize_image_size(image_size)
 
     last_error = None
     for attempt in range(max_retries + 1):
@@ -208,6 +242,8 @@ def generate(prompt: str,
             )
         except Exception as exc:
             last_error = exc
+            if is_permanent_error(exc):
+                raise
             if attempt >= max_retries:
                 break
             limited = is_rate_limit_error(exc)

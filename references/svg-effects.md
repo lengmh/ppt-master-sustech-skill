@@ -2,138 +2,134 @@
 
 # SVG Effects and Geometry Specification
 
-Conditional reference for advanced paint, effects, transforms, freeform/radial geometry, and constructed visual styles. Load only when the page uses one of these capabilities.
+Authority for advanced paint, effects, transforms, freeform/radial geometry, and constructed visual styles. Default and Quick Generate load it on the executor-base routing trigger — the first page whose visual job reaches beyond the everyday block — and keep it for the rest of the run; other SVG-authoring routes follow their workflow trigger. It keeps the form the model writes and the design decisions behind each technique; the complete grammar the checker and exporter enforce for §6.2–§6.10 is in [`svg-contract.md`](../scripts/docs/svg-contract.md) Part II under the same section numbers; §6.1 and §6.11–§6.13 are design guidance with no separate contract.
 
 **Cross-reference map**: unqualified §1, §2, and §4 references point to [`shared-standards-core.md`](./shared-standards-core.md); §6 references are local to this file.
 
 ## 6. Advanced SVG Effects and Authoring Techniques
 
-**Reference — not a constraint**: “Advanced” means capability depth, not rarity.
-Use any compatible technique when it serves the locked visual style and content.
+**Mandatory**: once triggered, read this file completely before that page's
+first SVG line and keep its compatible techniques in active construction vocabulary.
+Before finalizing each page, run the §6.1 selection procedure, with the Visual
+Job Router as recall for the jobs it diagnoses. Use §6.13 when diagnosed
+jobs benefit from one coordinated page recipe.
+
+**Default — situational use (may override when plain construction is stronger)**:
+“Advanced” means capability depth, not an effect quota. During page authoring,
+recall relevant techniques from content, hierarchy, legibility, semantics,
+rhythm, and style; apply those that materially help.
 
 ### 6.1 Availability, Precedence, and Fidelity
 
 | Decision layer | Authority |
 |---|---|
-| Technical validity | Required / Forbidden / Conditional contracts in this file |
-| Project values | `<project_path>/spec_lock.md` stable anchors plus the retained Design Spec and current page context |
-| Aesthetic fit | Locked `visual_style` / `visual_style_behavior` |
+| Technical validity | Required / Forbidden / Conditional contracts in this file, over the shared core's closed authoring surface, the route's other required construction references, and any triggered module |
+| Project values | Default: `<project_path>/spec_lock.md` anchors plus retained Design Spec/page context; Quick: anchors resolved in the current context |
+| Aesthetic fit | Locked or Quick-resolved `visual_style` / `visual_style_behavior` |
 | Per-page choice | Content purpose, hierarchy, legibility, semantics, and rhythm |
 
+**Reference — job-first effect selection**: establish the editable semantic
+skeleton first; the Visual Job Router below lists the visual jobs an effect can
+serve.
+
+| Pass | Decision |
+|---|---|
+| Skeleton / diagnose | Establish native information, relationships, and hierarchy. Image/text integration, plane separation, focus, state/direction, material/style, and the recurring motif are the jobs an effect can serve. |
+| Surface / select | Name the target, confirm its owning subsection and fidelity, and let the Router recall candidates. Choose a compatible technique that fully performs the job; prefer simpler/native-stable alternatives only when communication is equal. `Approximate` requires review, not automatic rejection. |
+| Integrate / stop | Align paint, contour, light, hierarchy, and z-order; combine only techniques with different jobs. Check legibility, editability, density, fidelity, and style; simplify failures, use legal alternatives, and bake only the smallest pixel-dependent layer. Keep authoritative text/data native. |
+
+**Reference — page-level recipes**: §6.13 carries a back-to-front layer stack for
+cover, divider, text-led explanation, process, evidence, comparison, closing, and
+cross-page motif pages. Read it with this router rather than after the page is
+already composed.
+
+**Default — one dominant composition scaffold (may override when a second
+scaffold performs an independent communication job)**: Integrate the page-scale
+move and every active Structure / Image / Chart / Table branch into one dominant
+system, sharing direction, contour, baseline, and z-order as applicable. Make a
+branch-local system visibly subordinate when it cannot share that scaffold;
+simplify any competing scaffold without a separate communication job.
+
+#### Visual Job Router
+
+**Reference — not a quota**: recall candidates for a diagnosed problem from
+this table. A page may use no listed technique, one technique, or several
+techniques with different jobs. The table recalls constructions rather than
+bounding them: one it never names is equally valid when it satisfies every
+applicable technical contract. Those contracts are the boundary; membership in
+this table is not.
+
+| Diagnosed visual problem | Candidate technique | Authority / stop |
+|---|---|---|
+| Meaningful direction, continuous value, or center focus is missing | Linear/radial gradient or channel alpha | §6.2 / §6.3; otherwise keep solid paint |
+| Picture/card/overlay elevation or boundary is unclear | Object or picture/carrier shadow, restrained glow, or hairline | §6.4; one light direction |
+| Native copy and image do not integrate | Scrim, fade, wash, vignette, off-center spotlight, or faux glass | §6.5 and the Image-Treatment Implementation Map; verify contrast; no backdrop blur |
+| Relationship state, direction, continuity, or boundary is unclear | Draft/optional/future → dash; direction → marker; undirected → solid; continuous flow → gradient stroke; repeated boundary → frame/contour/crop edge; exact grid → multi-subpath | §6.6 / §6.3; every line needs a job |
+| Body copy carries a load-bearing figure, contrast, or noun that does not survive a scan | Inline emphasis run — a nested `<tspan>` with its own fill or weight inside the same paragraph | §6.7; the frame stays one editable text object |
+| Short display text needs notation, silhouette, or material/image emphasis | Removed/former → strike; eyebrow distinction → tracking; display silhouette → outline/gradient; justified material/image emphasis → native picture/texture fill; luminous metric → glow; semantic list → native bullet | §6.7 / §6.3 / §6.4; no decorative body-copy treatment |
+| Tilt, repetition, or reversible asset direction helps composition | Rotate, translate/mirror, or local `<use>` | §6.8; never mirror text, logos, or directional evidence |
+| Resolved style needs hand, print, pixel, facets, layers, ribbon, or line-plus-area | Matching constructed recipe | §6.11; no generic decorative freeform |
+| Meaning needs an unmatched silhouette, radial hierarchy, gauge, or custom route | Freeform, explicit arc/sector, or calculated arrowhead | §6.9 / §6.10; prefer an equal stock shape/marker |
+| Look depends on dense texture, source blur, per-pixel composite, reflection, or skew | Native-safe alternative or prepared/baked asset | §6.12; text/data stay editable |
+
+#### Image-Treatment Implementation Map
+
+**Reference — not a constraint**: when image composition names one of these
+modifier or prepared-asset treatments, resolve its implementation here.
+`Effect-only` keeps a visible capability here without restoring a layout ID.
+
+| Image handles / treatment | Construction / boundary |
+|---|---|
+| `M2 · 01/03/04/08/09` · scrim, wash, fade, grid | Explicit solid/linear/radial layers over one picture; §6.2 / §6.3 / §6.5 |
+| `M2 · 06/07` · atmospheric wash, watermark/receded field | Reduced picture alpha + optional wash; subordinate to native content; §6.2 / §6.5 |
+| `M2 · 02/05` · vignette or spotlight | Radial layer with movable `fx/fy` or `cx/cy`; outer geometry `Approximate`; §6.3 / §6.5 |
+| `M3 · 04` · lifted picture panel / visible overlay edge | Picture/carrier shadow, glow, or hairline; shadow one support shape for a framed/captioned panel; §6.4 |
+| `M3 · 01/02/05` · frame, print frame, contour/cut edge | Registered native stroke/path; §6.6 |
+| `M3 · 03; M1 · 09` · rotation, misregistration, Riso offset | Transform + explicit duplicate layers; §6.8 / §6.11 |
+| `M1 · 03` + effect-only forms · paper cut, facets/folds, ribbon, staging | Ordered paths/facets + consistent paint/light; §6.11 / [`native-shape-authoring.md`](./native-shape-authoring.md) §7 |
+| `M1 · 01/02/04–08` · crop, opening, subtraction, reveal | Direct clip or materialized Boolean; no `<mask>`; §1.2 / [`native-shape-authoring.md`](./native-shape-authoring.md) §6 |
+| Effect-only · faux glass | Visible field + translucent panel + highlight; no blur or frosted-crop substitution; §6.5 |
+| `A1 · 02–04; A3 · 02/03` · blur, duotone, blend, frost, desaturation | Prepared local bitmap/composite/derivative; registered frost is a blurred derivative; §6.12 |
+
 **Reference — illustrative colors**: colors below demonstrate syntax only;
-generated pages choose paint from the locked identity anchors, visual style,
-content semantics, and current composition. A contextual tint, gradient stop,
-shadow/glow paint, or one-off display color need not already be a lock row;
-promote it only when it becomes a recurring named role. Fidelity labels are defined
-in [`shared-standards-core.md`](./shared-standards-core.md). Review an `Approximate` result in native PPTX
-when the effect carries material meaning.
+generated pages choose paint from the Default locked or Quick-resolved identity
+anchors, visual style, content semantics, and current composition. A contextual
+tint, gradient stop, shadow/glow paint, or one-off display color need not
+already be a persistent identity role; promote it only when it becomes a
+recurring named role. Review an `Approximate` result in native PPTX when the
+effect carries material meaning.
 
 ---
 
 ### 6.2 Color, Alpha, and Opacity
 
-Compatible paint grammar includes recognized named colors, `rgb()` / `rgba()`,
-`hsl()` / `hsla()`, and `#RGB` / `#RGBA` / `#RRGGBB` / `#RRGGBBAA`. The
-converter also tolerates legacy bare 3/4/6/8-digit hexadecimal tokens.
+Write solid paint as uppercase `#RRGGBB`, `none`, or an exact local `url(#id)`.
+Put alpha on the channel that owns it — `fill-opacity`, `stroke-opacity`,
+`stop-opacity`, or `flood-opacity` as a unitless `0..1` — and use element
+`opacity` only for an `<image>` or one non-group atomic object that fades all
+of its channels together. Do not use element `opacity` as an alias for
+`rgba()` on a fill-only object, and prefer descendant alpha over group opacity
+(§2.2). Alpha multiplies down the tree: color alpha × ancestor group opacity ×
+element opacity × channel opacity. Named colors, short/alpha HEX, `rgb()` /
+`hsl()`, and percentages remain compatible input that the checker only
+recommends normalizing.
 
-**Default — canonical generated paint tokens (may preserve compatible
-alternatives)**: New `svg_output/` and reusable template SVGs write solid paint
-as uppercase six-digit `#RRGGBB`. `fill` / `stroke` may instead use lowercase
-`none` or the exact local reference form `url(#id)`. Named colors, lowercase or
-short/alpha HEX, functional colors, and bare legacy HEX remain supported input.
-The quality checker prints an optional canonical rewrite as a recommendation
-warning; it does not require modification or block export.
-Explicit empty, malformed, or unrecognized paint values are errors in both
-Checker and exporter preflight; neither converts unknown intent into
-`noFill` or default black. Omitted properties still follow their own element
-contract, such as SVG's default fill or §6.3's required gradient-stop color.
-
-| Intent | Canonical authoring | Native result / fidelity |
-|---|---|---|
-| Solid fill or text paint | `fill="#RRGGBB"` | Solid DrawingML paint; `Native-stable` |
-| Fill/text alpha | Opaque `fill` + `fill-opacity="0..1"` | Fill/run alpha; `Native-stable` |
-| Stroke alpha | Opaque `stroke` + `stroke-opacity="0..1"` | Line/outline alpha; `Native-stable` |
-| Gradient-stop alpha | Opaque `stop-color` + `stop-opacity="0..1"` | Per-stop alpha; `Native-stable` |
-| Shadow/glow alpha | Opaque `flood-color` + `flood-opacity="0..1"` | Effect alpha; `Native-stable` within §6.4 |
-| Picture fade | `<image opacity="0..1">` | Picture `<a:alphaModFix>`; `Native-stable` |
-| One atomic whole-object fade | Non-group element `opacity="0..1"` | Alpha compiled into its supported paint/effect channels; `Native-normalized` |
-| Pattern alpha | Opaque pattern child paint + child fill/stroke opacity | Conditional; [`native-data-interface.md`](./native-data-interface.md) |
-| CSS color alpha | Alpha-bearing named/functional/HEX paint | `Native-normalized`; recommendation warning only |
-| Group fade | `<g opacity>` compatibility | `Approximate`; fidelity warning; §2.2 |
-
-```text
-effective fill alpha
-= color alpha × ancestor group opacity × element opacity × fill-opacity
-```
-
-**Default — opaque color authority (may preserve compatible alpha colors)**:
-New generated SVG puts alpha on the semantic channel that owns it. Existing or
-intentional alpha-bearing color tokens remain convertible; they normalize into
-the matching DrawingML color/alpha channels.
-
-**Default — channel-specific alpha (may override for one atomic whole-object
-fade)**: use `fill-opacity`, `stroke-opacity`, `stop-opacity`, or
-`flood-opacity` when only that channel fades. Use element `opacity` only when
-an image or one non-group atomic object intentionally fades all of its
-supported paint/effect channels together. Do not use element `opacity` as an
-alias for `rgba()` on a fill-only object.
-
-**Default — alpha grammar (may preserve compatible alternatives)**: write
-`opacity`, `fill-opacity`, `stroke-opacity`, `stop-opacity`, and
-`flood-opacity` as finite unitless numbers from `0` to `1`. The converter also
-accepts finite numeric values that SVG/CSS clamps into that interval;
-`stop-opacity` and `flood-opacity` additionally accept finite percentages. The
-checker reports those supported non-default spellings as recommendation warnings.
-Malformed or non-finite values are errors in both Checker and exporter
-preflight; neither substitutes an opaque default for unknown intent.
-`fill="transparent"` / `stroke="transparent"` become no fill/line; use a color
-plus alpha when a painted transparent layer must remain represented. Prefer
-descendant alpha over group opacity when isolated compositing matters (§2.2).
-
-PPTX import is a user-input boundary, not generated authoring. Tolerant mode
-retains recognized color semantics, omits only unsupported paint properties,
-and records the decision in `conversion-report.json`; `--strict` keeps the
-closed parser checks. See
-[`conversion.md`](../scripts/docs/conversion.md#import-compatibility-and-recovery-boundary).
 ---
 
 ### 6.3 Gradients and Paint Effects
 
-| Concern | Contract |
-|---|---|
-| Definition | Direct `<linearGradient>` / `<radialGradient>` child of `<defs>` with unique `id` |
-| Reference | Exact local `url(#id)` |
-| Stops | Direct `<stop>` children; explicit color; finite offset `0..1` or `0%..100%`; optional stop alpha |
-| Coordinates | Normalized values / percentages; do not depend on `gradientUnits` user-space geometry |
-| Forbidden | External/quoted refs, `href` inheritance, `gradientTransform`, `spreadMethod`, CSS gradients |
-
-| Target | Contract and fidelity |
-|---|---|
-| `<rect>`, `<circle>`, `<ellipse>`, `<path>`, `<polygon>` fill/stroke | Linear `Native-normalized`; radial `Approximate` |
-| `<line>` / `<polyline>` | Gradient stroke only; linear `Native-normalized`, radial `Approximate` |
-| `<text>` / non-positional `<tspan>` | Gradient fill only; no gradient text outline |
-| `<image>` | No gradient paint; use §6.5 overlays |
-
-Linear export preserves stops/alpha/direction but reduces coordinates to an
-angle. Radial export becomes a centered circular gradient and does not preserve
-`cx/cy/r/fx/fy`. Gradient strokes remain editable, but PPTX-to-SVG re-import may
-retain only the first stop. Stop alpha and element opacity multiply.
-PPTX import normalizes compatible gradients and records any property-level
-degradation without aborting the deck; `--strict` keeps the closed parser
-contract. See
-[`conversion.md`](../scripts/docs/conversion.md#import-compatibility-and-recovery-boundary).
-The quality checker and exporter preflight both validate definition location,
-references, gradient structure, and paint context from the same closed contract.
-Gradient-stop colors are contextual paint values. Keep them coherent with the
-deck anchors and page intent; they are not required to duplicate existing
-`spec_lock.colors` literals.
-
-**Hard rule — non-degenerate gradient geometry**: an `objectBoundingBox`
-gradient stroke requires non-zero intrinsic width and height. SVG stroke width
-does not expand that object bounding box, so a perfectly horizontal or vertical
-gradient ribbon disappears even when its stroke is thick. Author such a ribbon
-as a closed shape with gradient `fill`, or use a path whose intrinsic geometry
-has both dimensions. Checker and exporter reject the degenerate stroke form.
+A gradient is a direct `<linearGradient>` / `<radialGradient>` in `<defs>` with
+≥2 explicit-color stops at non-decreasing `0..1` offsets, referenced by exact
+`url(#id)`, in `objectBoundingBox` units — no `gradientTransform`,
+`spreadMethod`, or CSS gradients. Linear exports as an angle
+(`Native-normalized`); radial keeps only its focus point and normalizes the
+outer circle to the object (`Approximate`), so place the hotspot with `fx/fy`
+inside the object and expect the rim to differ. Text takes gradient fill only;
+images take no gradient paint (use §6.5 overlays). A gradient *stroke* needs a
+path with both width and height — a perfectly horizontal or vertical gradient
+ribbon disappears, so author it as a closed gradient-filled band. Stop colors
+are contextual paint: keep them coherent with the deck anchors and page
+intent without duplicating a lock row.
 
 ```xml
 <defs>
@@ -146,49 +142,45 @@ has both dimensions. Checker and exporter reject the degenerate stroke form.
       stroke="url(#flow)" stroke-width="12"/>
 ```
 
+**Native text picture/texture fill**: when the design calls for a photograph,
+material, or texture inside editable glyphs, fill the `<text>` (or a
+non-positional `<tspan>`) with a registered single-image `<pattern>` marked
+`data-pptx-text-image-fill="stretch"` or `"tile"`. It exports as a PowerPoint
+run picture fill (`stretch` `Native-normalized`; `tile` needs visual review),
+not as a general SVG pattern; the text stays editable.
+
+```xml
+<defs>
+  <pattern id="titleTexture" data-pptx-text-image-fill="stretch"
+           patternUnits="objectBoundingBox"
+           patternContentUnits="objectBoundingBox" width="1" height="1">
+    <image href="../images/cloud-texture.png"
+           x="0" y="0" width="1" height="1"
+           preserveAspectRatio="none"/>
+  </pattern>
+</defs>
+<text x="96" y="220" fill="url(#titleTexture)" fill-opacity="0.85"
+      font-family="Microsoft YaHei" font-size="72" font-weight="700">
+  国风之美
+</text>
+```
+
 Preset patterns are a separate PPT interface in [`native-data-interface.md`](./native-data-interface.md).
 
 ---
 
 ### 6.4 Shadows, Glow, and Elevation
 
-Filters are native-effect metadata, not a general pixel-filter surface.
-
-| Concern | Contract |
-|---|---|
-| Definition/reference | Direct `<defs><filter id="...">` child with unique id; direct `filter="url(#id)"` attribute, never inline style |
-| Public targets | `<rect>`, `<circle>`, `<path>`, `<text>` |
-| Required primitive | `feDropShadow` or `feGaussianBlur` |
-| Required parameters | Explicit `stdDeviation` on either effect primitive; explicit `dx`, `dy`, and `flood-opacity` on `feDropShadow`; explicit `flood-opacity` on `feFlood`; explicit `slope` on linear `feFuncA` |
-| Accepted helpers | `feOffset`, `feFlood`, `feComposite`, `feMerge`, `feMergeNode`, `feComponentTransfer`, linear `feFuncA` |
-| Alpha transfer | Linear `feFuncA` maps multiplicative `slope` only; `intercept` is unsupported |
-| Blur sampling | `feGaussianBlur edgeMode` is unsupported; native effects do not expose the SVG edge-sampling modes |
-| Primitive coordinates | Omit `primitiveUnits` or use `userSpaceOnUse`; `objectBoundingBox` coordinates are unsupported |
-| Numeric values | Finite unitless values; non-negative `stdDeviation`; finite `dx` / `dy`; `feFuncA slope` within `0..1`; mapped glow `rad = stdDeviation × 9525`, shadow `blurRad = stdDeviation × 2 × 9525`, and shadow `dist = hypot(dx,dy) × 9525` must round into DrawingML `0..27273042316900` |
-| Classification | Meaningful non-zero offset → one outer shadow; zero/no offset → one glow |
-| Fidelity | `Approximate`; one filter becomes one DrawingML effect |
-
-Flood opacity, linear `feFuncA slope`, and element opacity multiply. The
-converter-only historical path may also multiply flood-color alpha and
-ancestor group opacity.
-Native export does not preserve filter-region, `in/in2/result`, merge order, or
-composite topology. Other primitives, multiple independent effects, filters on
-`<image>` / `<tspan>` / `<g>` / unsupported targets are forbidden; apply the
-effect to supported objects or use explicit layers.
-The sole `<g filter>` exception is the hash-locked
-`data-pptx-part="geometry-preview"` transport in §1.4: it must be a direct child
-of an imported preset object and reference the same filter as that object's one
-hidden geometry carrier. The preview is render-only and never becomes a second
-PowerPoint object; this exception does not authorize filters on ordinary groups.
-PPTX import preserves one registered shape/connector shadow or glow and records
-unsupported object/run effects as import diagnostics instead of exposing a new
-authoring surface. See
-[`conversion.md`](../scripts/docs/conversion.md#import-compatibility-and-recovery-boundary)
-for tolerant, strict, and release-handling behavior.
-The quality checker and exporter preflight enforce the same definition,
-reference, primitive, target, and numeric-value contract. Missing required
-geometry and malformed values are never replaced by effect defaults during
-native export.
+A filter is native-effect metadata, not a pixel-filter surface: one direct
+`<defs><filter>` referenced as a direct `filter="url(#id)"` on a `<rect>`,
+`<circle>`, `<image>`, `<path>`, `<text>`, or a helper-authored preset group,
+built from `feDropShadow` or the blur + flood + composite + merge graph below
+with explicit `stdDeviation`, `dx`/`dy`, and `flood-opacity`. A meaningful
+offset becomes one outer shadow; zero offset — even `feDropShadow` with
+`dx="0" dy="0"` — becomes one glow. Both are `Approximate`: one filter, one
+DrawingML effect. Filters on `<tspan>` or ordinary `<g>` and every other
+primitive are forbidden; use an existing accent color for glow, since black
+reads as diffuse shadow.
 
 ```xml
 <defs>
@@ -212,9 +204,6 @@ native export.
 </defs>
 ```
 
-Even `feDropShadow` with `dx="0" dy="0"` becomes glow. Use an existing accent
-color for glow; black reads as diffuse shadow.
-
 | Elevation | Use | `dy` | `stdDeviation` | Alpha |
 |---|---|---:|---:|---:|
 | Floor | Backgrounds, dividers, equal peers, body containers, decorative lines/icons, single-layer pages | — | — | — |
@@ -222,24 +211,26 @@ color for glow; black reads as diffuse shadow.
 | Raised | Primary CTA, focused card, overlay | 6–10 | 10–16 | 0.12–0.20 |
 | Glow | Short display text, metric, focus accent | 0 offset | 4–8 | 0.35–0.55 |
 
-**Strong default — single light source per page**: every `feOffset` shadow on
-one slide shares the same `dx`/`dy` direction (default `dx="0"`, `dy="4"`–`dy="8"`,
-light from upper front). Contradictory shadow directions read as multiple light
-sources — a clear low-quality tell. The one sanctioned exception is a deliberate
-upward paper-layer light, where every affected layer flips direction together;
-never mix directions on the same plane. This is a strong default, not a
-checker-enforced hard rule.
+**Default — one light source per page (may override when every affected layer
+uses one deliberate alternative direction)**: every `feOffset` shadow on one
+slide shares the same `dx`/`dy` direction (default `dx="0"`,
+`dy="4"`–`dy="8"`, light from upper front). Contradictory shadow directions
+make one plane read as several incompatible surfaces. A deliberate upward
+paper-layer treatment flips every affected layer together, so one plane keeps
+one light direction.
 
-**Reference — not a constraint**: keep at most two
-non-floor tiers; two or three shadowed objects usually suffice. Do not lift
-every peer card or stack strong shadow, border, gradient, and tint on one
-container. Same-family colored shadow is reserved for a focal accent. On dark
-backgrounds, prefer a light hairline or restrained glow; never glow body copy.
-Negative `dy` is valid for an intentional upward paper-layer light source when
-every affected layer uses the same direction. For older/strict renderers,
-replace a filter with two or three offset translucent shapes behind the object:
-alpha `0.03–0.05`, increasing offset/radius, and optional same-family tint near
-`0.04` (`Native-stable`).
+**Reference — not a constraint**: use no more elevation categories than the
+hierarchy needs; a page may reuse one category across several related objects,
+but two or three shadowed objects usually read cleanest — check that a fourth
+earns its weight. Pick one weight tool per container — shadow, border,
+gradient fill, or strong tint — never stacked; peer-grid cards, dividers,
+body containers, and background panels stay on the floor.
+Same-family colored shadow is reserved for a focal accent. On dark backgrounds
+a light hairline or restrained glow separates surfaces; glow on body copy
+reduces legibility. For older/strict renderers, replace a filter with two or
+three offset translucent shapes behind the object: alpha `0.03–0.05`,
+increasing offset/radius, and optional same-family tint near `0.04`
+(`Native-stable`).
 
 ---
 
@@ -247,74 +238,28 @@ alpha `0.03–0.05`, increasing offset/radius, and optional same-family tint nea
 
 | Need | Authoring contract | Fidelity |
 |---|---|---|
-| Cover/crop | Readable raster dimensions + aligned `slice` | Native `srcRect`; `Native-stable`; otherwise native crop cannot be guaranteed |
+| Cover/crop | Readable raster dimensions + aligned `slice` | Native `srcRect`; `Native-stable` |
 | Contain/fit | Aligned `meet` | Fitted picture frame; `Native-normalized` |
 | Stretch | `preserveAspectRatio="none"` | Native stretched frame |
 | Uniform fade | `<image opacity="...">` | Native picture alpha |
 | Shaped picture | §1.2 image-only `clip-path` | Preset/custom picture geometry |
 
-**Hard rule — closed image aspect-ratio grammar**: on `<image>`, omit
-`preserveAspectRatio` for the default `xMidYMid meet`, use `none` alone for
-stretch, or use one of the nine case-sensitive alignments (`xMinYMin`,
-`xMidYMin`, `xMaxYMin`, `xMinYMid`, `xMidYMid`, `xMaxYMid`, `xMinYMax`,
-`xMidYMax`, `xMaxYMax`) followed by explicit `meet` or `slice`. Generated SVG
-always includes the mode on an aligned value. An alignment without a mode and
-values needing whitespace normalization are compatible input and receive a
-Checker recommendation. Empty values, `defer`, unknown/wrong-case alignments or
-modes, `none` with a mode, and extra tokens are errors; the converter never
-guesses a fallback.
-
-**Hard rule — fit/clip interaction**: a non-trivial clip disables `meet`
-frame-fit. Match the image box to the source ratio or use `slice`. Do not apply
-filters directly to `<image>`.
-
-**Hard rule — picture frames and sources are explicit and decodable**: every
-SVG `<image>` has explicit positive `width`/`height` and exactly one non-empty
-`href` or compatible `xlink:href`. A data URI must use a supported `image/*`
-MIME type, valid strict base64 when marked
-`base64`, a non-empty payload, and bytes that decode as the declared format.
-An external asset must resolve, use a supported extension, be non-empty, and
-decode as that extension. The registered formats are PNG, JPEG, GIF, WebP,
-BMP, TIFF, SVG, EMF, and WMF. Explicit template substitution tokens may remain
-unresolved only during template checking; export requires the resolved image.
-Missing, ambiguous, corrupt, mislabeled, or unsupported sources are errors and
-must never be dropped or packaged as invalid zero-byte media.
-
-**Hard rule — nested SVG is an imported crop transport, not a general
-viewport**: every non-root `<svg>` must be the exact picture-crop wrapper emitted
-by `pptx_to_svg`. The outer element has explicit registered project-geometry
-`x`, `y`, positive `width`/`height`, a unit-coordinate `viewBox` made of four
-ordinary decimal values, and
-`preserveAspectRatio="none"`; it contains exactly one direct, empty `<image>`
-with exactly one non-empty `href` or `xlink:href`, `x="0"`, `y="0"`, `width="1"`,
-`height="1"`, and `preserveAspectRatio="none"`. Its ancestor chain contains
-only the root SVG and ordinary visual `<g>` wrappers; definitions, text,
-render-only geometry details, and other non-visual containers cannot own this
-transport. The outer wrapper may additionally carry `id`, a supported
-`transform`, registered structure metadata (`data-pptx-layer` or
-`data-pptx-carrier`), and the importer metadata
-`data-pptx-frame`, `data-pptx-object`, `data-pptx-shape-id`,
-`data-pptx-shape-name`, and `data-pptx-shape-scope`. A shape clip is present
-only when exact `data-pptx-crop="1"` and a registered image-only `clip-path`
-occur together and the local clip definition resolves. The inner image may
-add only registered `opacity`. The `viewBox` must quantize without clamping to
-a DrawingML `srcRect` with a positive visible region: each signed crop value
-must fit the OOXML percentage integer range `-2147483648..2147483647`, while
-`l + r < 100000` and
-`t + b < 100000` preserve a positive visible region. Negative crop values and
-crop windows extending outside the source unit rectangle are retained exactly,
-not clamped. `0 0 1 1` is redundant and must be written as a plain `<image>`.
-Extra visual children, indirect images, character data, unknown attributes,
-malformed or unrepresentable crop coordinates, and generalized nested
-viewports are errors. Checker and the converter share this parser so a nested
-subtree cannot pass validation and then silently disappear during export.
+Every `<image>` has explicit positive `width`/`height`, one decodable
+project-local or data-URI `href`, and — when not the default `xMidYMid meet` —
+an aligned `preserveAspectRatio` with explicit `meet` or `slice`, or `none`
+alone. A clip disables `meet` frame-fit, so match the box to the source ratio
+or use `slice`; put a §6.4 filter directly on an unclipped image, and for a
+clipped one on an exact outer `<g>` whose sole visual child is that image —
+never both on the same `<image>`. A nested `<svg>` is only the exact
+single-image crop wrapper the crop parser accepts, not a general viewport.
 
 | Overlay | Construction | Typical stops / alpha |
 |---|---|---|
 | Directional scrim | Linear rect, darkest beside text | `0%: 0.88; 55%: 0.30; 100%: 0` |
 | Bottom title fade | Vertical rect over lower image | black `0 → 0.72` |
-| Vignette/spotlight | Centered radial rect (`cx=50%`, `cy=50%`, `r=70%`); native center only | black `0 → 0.58` |
+| Vignette/spotlight | Radial rect; place the hotspot with `fx/fy` or `cx/cy` inside the canonical focus circle; outer center/radius remain approximate | black `0 → 0.58` |
 | Brand wash | Directional existing brand-color gradient | `0.80 → 0.10` |
+| Grid scrim | Seamless no-stroke rect cells over one image; vary neighboring alpha narrowly and irregularly | Keep the field subordinate; a regular alternation reads as a checkerboard |
 | Faux glass | Visible fields + diagonal linear panel (`0,0 → 1,1`) + highlight stroke; optional §6.4 elevation | white `0.38 → 0.12`; stroke about `0.55` |
 
 Layer in document order: image → scrim/wash → text. True source/backdrop blur is
@@ -326,36 +271,36 @@ fidelity.
 
 ### 6.6 Lines, Connectors, Borders, and Markers
 
-| Surface | Contract / native result |
+A solid stroke with width and alpha is an editable native line. Dashes map to
+the five presets (`4,4` / `6,3` dash, `2,2` sysDot, `8,4` lgDash, `8,4,2,4`
+lgDashDot) or to one custom `dash gap` pair; caps are `butt` / `round` /
+`square`, joins `miter` / `round` / `bevel`, `vector-effect` `none` or
+`non-scaling-stroke`. Markers follow §1.1 (type native, size approximate); a
+gradient stroke follows §6.3.
+
+**Default — relationship-fit dash rhythm (may override when style calls for
+another rhythm)**: after §6.1 selects dash, preserve direction markers and
+branch-owned placeholder patterns.
+
+| Already-dashed/dotted job (illustrative) | Dash |
 |---|---|
-| Solid stroke/width/alpha | `Native-stable` editable line |
-| `4,4`; `6,3`; `2,2`; `8,4`; `8,4,2,4` (comma or space separators) | `dash`; `dash`; `sysDot`; `lgDash`; `lgDashDot` (`Native-normalized`) |
-| Canonical custom dash | Exactly two positive finite unitless ordinary decimals (`dash gap`); export scales/quantizes against stroke width; `Native-normalized` |
-| Compatible custom dash | Three or more positive finite unitless values are accepted but reduce to the first pair with a Checker recommendation; compatible numeric spellings also warn |
-| `stroke-linecap` | `butt`, `round`, `square`; `Native-stable` |
-| `stroke-linejoin` | `miter`, `round`, `bevel`; `Native-stable` |
-| `vector-effect` | Exactly `none` or `non-scaling-stroke`; export resolves the choice into native line width (`Native-normalized`) |
-| `stroke-dashoffset` | No general line mapping; allowed only as a direct finite unitless ordinary-decimal attribute on a §6.10 thick-circle shorthand (`px` suffix is compatible input and warns) |
-| Gradient stroke | §6.3; re-import may flatten to first stop |
-| `marker-start` / `marker-end` | §1.1 native line end; type `Native-normalized`, size `Approximate` (`sm/med/lg`) |
+| Separator/boundary | `4,4` |
+| Subtle dotted border/generic non-image placeholder | `2,2` |
+| Optional/future timeline/flow connector | `8,4` |
+| Technical/dimension line | `8,4,2,4` |
 
-PPTX import treats unsupported line properties as source diagnostics: tolerant
-mode retains the object and omits only the unsupported outline; `--strict`
-retains the closed rejection behavior. See
-[`conversion.md`](../scripts/docs/conversion.md#import-compatibility-and-recovery-boundary).
+**Default — contour-fit joins (may override when the resolved style calls for
+another character)**: smooth polyline/organic form → `round`; technical
+diagram → `bevel`; crisp rectangle/arrow → `miter`.
 
-The dash grammar is closed: exact lowercase `none`, or at least two finite
-unitless numbers separated by whitespace or one comma. Generated SVG uses
-ordinary decimal spellings. A leading plus sign, exponent, trailing decimal
-point, surrounding whitespace, or longer custom list is compatible input and
-produces a non-blocking normalization recommendation. Unknown units, one-value
-arrays, empty or repeated comma fields, non-finite values, and negative or zero
-entries are errors. The only zero exception is a gap declared directly on the
-§6.10 thick-circle element.
-
-Generated cap, join, and `vector-effect` values use the exact lowercase tokens
-in the table. Surrounding whitespace is compatible input and produces a
-recommendation; every other token is an error.
+```xml
+<rect x="60" y="60" width="400" height="240" rx="12"
+  fill="none" stroke="#999999" stroke-width="2" stroke-dasharray="4,4"/>
+<line x1="100" y1="420" x2="500" y2="420"
+  stroke="#1A73E8" stroke-width="2" stroke-dasharray="8,4"/>
+<polyline points="100,200 200,100 300,200" fill="none"
+  stroke="#1A73E8" stroke-width="3" stroke-linejoin="round"/>
+```
 
 Match marker paint to the parent stroke using the shape-specific channel from
 §1.1: fill for closed/oval line ends and stroke for the open arrow. Use markers
@@ -372,212 +317,126 @@ fixed-density preset pattern:
 
 ### 6.7 Advanced Text Treatments
 
-**Hard rule — closed text property grammar**: generated text uses only the
-values in the `Canonical authoring` column. Registered compatible input remains
-convertible and receives a non-blocking normalization recommendation. Every
-other value is invalid; the converter must not replace it with a default.
-
-| Property | Canonical authoring | Compatible input | DrawingML mapping / rejection boundary |
-|---|---|---|---|
-| `font-weight` | `normal`, `bold`, or an exact integer hundred from `100` through `900` | `medium` → `500`; `semibold` → `600` | `normal` and `100..500` map to regular; `bold` and `600..900` map to `b="1"`; therefore numeric weights are `Native-normalized` |
-| `font-style` | `normal` or `italic` | None | `italic` maps to `i="1"`; oblique, angle, relative, and CSS-wide values are invalid |
-| `text-anchor` | `start`, `middle`, or `end` on `<svg>`, `<g>`, or `<text>` | None | Maps to left/center/right paragraph alignment plus normalized frame position; it is invalid on `<tspan>` because run-level anchoring has no mapping |
-| `text-decoration` | `none`, `underline`, `line-through`, or `underline line-through` | `line-through underline` → canonical order | Maps to the single underline and strike run properties; unknown, repeated, or substring-like tokens are invalid |
-| `letter-spacing` | Finite unitless ordinary decimal SVG px | The same ordinary decimal with `px`, `pt`, or `em`; normalize to unitless px | Maps to `a:rPr@spc`; the final value must fit DrawingML `-400000..400000`, and negative tracking must leave every generated DrawingML run with a positive estimated advance and its text frame with a positive extent; keywords, percentages, exponents, leading plus signs, trailing decimal points, non-finite values, and other units are invalid |
-
-The registered text properties follow SVG inheritance, including declarations
-on the root `<svg>`: inline `style` overrides the same element's direct
-attribute, which overrides its ancestor. Relative font sizes and `em` tracking
-resolve against the same effective inherited size in Checker and converter.
-Every declaration is validated even when a later declaration overrides it, so
-hidden garbage cannot bypass preflight.
-
-The DrawingML character-spacing range is necessary but not sufficient for
-negative tracking. After run assembly, each output run must retain a positive
-estimated advance using the quantized `sz` and `spc` values that will actually
-be written; a wider sibling run or paragraph line cannot hide a run whose
-aggregate advance would reverse or collapse, which can reorder or drop
-characters across PowerPoint-compatible renderers. The generated text frame
-must also retain a positive horizontal and vertical extent. Checker rejects
-directly measurable single-line violations, and the converter revalidates
-every generated run and text frame before writing OOXML. It must not clamp,
-take the absolute value of, or otherwise hide a non-positive advance or extent.
-Adjacent authored runs with identical final DrawingML run properties form one
-output run before sizing and validation; splitting text across equivalent
-`<tspan>` nodes is not a tracking escape hatch. Tracking and width estimates
-count the registered project text clusters rather than raw Unicode code points:
-combining marks, variation selectors, emoji modifiers and ZWJ sequences,
-paired regional indicators, and same-script virama conjuncts do not receive
-internal spacing.
-An unchanged imported native text body reuses the geometry carrier's positive
-shape frame and attaches the preserved `txBody` payload instead of regenerating
-runs or a text frame from the SVG estimate.
-
-**Hard rule — element-specific text surface**:
-
-- Inheritable text declarations belong only on `<svg>`, `<g>`, `<text>`, or
-  `<tspan>`; placing them on geometry, image, definition, or reuse elements is
-  an error rather than ignored decoration.
-- `<text>` accepts `x`, `y`, registered paint/alpha/run properties, the text
-  properties above, `font-family`, `font-size`, direct `filter`, direct
-  `transform`, `xml:space`, `id`, and project `data-*` metadata.
-- `<tspan>` accepts `x`, `y`, `dx`, `dy`, registered paint/alpha/run
-  properties, `font-family`, `font-size`, `font-weight`, `font-style`,
-  `letter-spacing`, `text-decoration`, `xml:space`, `id`, and project `data-*`
-  metadata. It does not accept `text-anchor`, `filter`, or `transform`.
-- `word-spacing`, `dominant-baseline`, `alignment-baseline`, `baseline-shift`,
-  font shorthand/variant/stretch/feature/variation/synthesis controls,
-  `font-kerning`/`kerning`, `font-size-adjust`, `line-height`, text alignment,
-  indent/shadow/rendering controls, white-space/word-break/hyphenation
-  controls, `writing-mode`, `vertical-align`, `direction`, `unicode-bidi`, and
-  `text-transform` have no registered native mapping and are errors as direct
-  attributes or inline style.
-- Any other unregistered `font-*` or `text-*` property is also an error; the
-  closed grammar must not grow through an ignored CSS spelling.
-
-**Hard rule — project text whitespace**:
-
-- `xml:space` is the project's closed authoring control for significant text
-  whitespace. It is valid only as an exact direct attribute on `<text>` or
-  `<tspan>`, accepts only the case-sensitive values `default` and `preserve`,
-  inherits through the text tree, and may be reset on a child `<tspan>`.
-- The project maps this control to the visible Chromium/SVG2 behavior used by
-  Live Preview; it does not claim the legacy SVG 1.1 newline-deletion model.
-  XML line endings and tabs become U+0020 SPACE. In `default` mode, contiguous
-  U+0020 characters collapse across inline run boundaries and leading or
-  trailing default-mode spaces in the resulting text chunk are removed. In
-  `preserve` mode, every resulting U+0020 character remains significant.
-- Only XML whitespace is normalized. NBSP, ideographic space, and other
-  Unicode spacing characters remain literal text and must not be rewritten by
-  a generic Unicode-whitespace regular expression.
-- Source line breaks do not create PowerPoint paragraphs. Use the registered
-  positioned-`tspan`/paragraph structure for visual lines, and preserve DOM
-  text/tail order plus original style inheritance when normalizing that
-  structure.
-
-These allowlists are additive to the global structural blacklist and the
-paint, font-size, opacity, filter, and transform value contracts owned by their
-respective sections; they do not weaken those contracts.
+Generated text uses only the canonical values: `font-weight` `normal` / `bold`
+/ an integer hundred, `font-style` `normal` / `italic`, `text-anchor` on
+`<text>` or above, `text-decoration` `underline` / `line-through` / both,
+direct `baseline-shift="super|sub"` on `<tspan>`, and unitless-px
+`letter-spacing` and `font-size`. Inheritable text declarations belong only on
+`<svg>`, `<g>`, `<text>`, or `<tspan>`; `xml:space` (`default` or `preserve`) on
+`<text>` / `<tspan>` is the one whitespace control — it inherits through the
+text tree and may be reset on a child `<tspan>`, so one frame can mix
+collapsed and preserved runs. Every other `font-*` / `text-*`
+property has no native mapping and is an error.
 
 | Treatment | SVG surface | Result / boundary |
 |---|---|---|
 | Underline / strike / both | `text-decoration="underline"`, `line-through`, or both | `Native-stable`; both emits both run properties |
 | Mixed runs | Non-positional `<tspan>` | One `Native-normalized` editable frame; §4.2 |
-| Font size | Generated default is a finite unitless SVG px value; compatible `px`, `pt`, `pc`/`pica`, `in`, `cm`, `mm`, `q`, `em`, and `rem` values receive a recommendation warning only | Converted to SVG px, then editable DrawingML point size; unsupported units/percentages error |
-| Tracking | §6.7 closed `letter-spacing` grammar | `Native-normalized`; compatible units normalize to SVG px before DrawingML conversion |
+| Superscript / subscript | Direct `baseline-shift="super|sub"` on `<tspan>` | Editable run at PowerPoint's native baseline offset; set `font-size` on the same run when a smaller glyph is intended |
+| Tracking | Unitless-px `letter-spacing` | `Native-normalized`; negative tracking must leave every run a positive advance |
 | Transparency | `opacity` / `fill-opacity` on text/run | `Native-normalized` run alpha, not isolated compositing |
 | Gradient fill | §6.3 gradient on text/run | Editable fill; geometry normalizes |
 | Outline | Solid `stroke`, `stroke-width`, `stroke-opacity` | `Native-normalized` editable run outline; re-import does not reconstruct it |
 | Shadow/glow | §6.4 filter on `<text>` only | Shape shadow / run glow; `Approximate` |
 | Native bullet | Leading `· • ● ▪ ■ ◆ ◇ ◦ ‣` + non-empty content | `·`/`•` → `•`; others unchanged; color/alpha from marker run; font/size follow text |
 
+**Inline emphasis**: bold or accent-colored `<tspan>` runs lift numerical
+results, explicit contrasts, or a load-bearing noun inside prose; green/red
+conventionally read as polarity.
+
 ```xml
-<text x="100" y="200" font-size="20" xml:space="preserve">Current <tspan
-  fill="#999999" text-decoration="line-through">old</tspan> value</text>
+<!-- Uniform: the two results disappear into the sentence. -->
+<text x="80" y="200" font-size="20" fill="#333333">
+  2024年公司营收同比增长35%达到12亿元创历史新高
+</text>
+
+<!-- Lifted: data-bearing runs carry the scan. -->
+<text x="80" y="200" font-size="20" fill="#333333">
+  2024年公司营收同比<tspan fill="#1A73E8" font-weight="bold">增长35%</tspan>达到<tspan fill="#1A73E8" font-weight="bold">12亿元</tspan>创历史新高
+</text>
 ```
 
-Use strikethrough for removed/former values; it is ordinary notation, not a
-style-exclusive effect. Imported double underline/strike normalizes to single.
-Bullet detection allows optional leading whitespace, requires non-empty content,
-and leaves non-leading decorative glyphs as ordinary text.
-Keep body tracking normal; CJK tracking defaults near/below 2% of font size and
-above 5% triggers review. Text outline is solid only. `textPath`, masks, blend
-modes, generated effects, and text-image knockouts are outside editable text.
+**Underline** conventionally marks links, key terms, or local emphasis —
+decorate the linked run, not the whole sentence. **Strikethrough** marks
+removed/former values; it is ordinary notation, not a style-exclusive effect.
+
+```xml
+<text x="100" y="240" font-size="18" fill="#333333">Read <a
+  href="https://example.com"><tspan text-decoration="underline">the guide</tspan></a>.</text>
+<text x="100" y="200" font-size="20" xml:space="preserve">Current <tspan
+  fill="#999999" text-decoration="line-through">old</tspan> value</text>
+<text x="100" y="240" font-size="20">CO<tspan
+  baseline-shift="sub" font-size="14">2</tspan></text>
+```
+
+**Hard rule — generated decorative lettering ownership**: approved AI
+decorative lettering is a prepared `<image>` asset under the image contracts,
+not an advanced native-text treatment. Keep ordinary editable titles and
+subtitles as normal `<text>`; this contract does not add WordArt, text warp, or
+text-on-path authoring.
+
+CJK tracking defaults near/below 2% of font size and above 5% triggers review.
+Text outline is solid only. `textPath`, masks, blend modes, generated effects,
+and text-image knockouts are outside editable text.
 
 ---
 
 ### 6.8 Transforms, Layering, and Static Reuse
 
-| Surface | Contract / fidelity |
-|---|---|
-| `rotate(angle[, cx, cy])` | Geometry/image/text/ordinary group; `Native-normalized` |
-| `translate(x y)` | Geometry/image/group; pure translation also safe on text; `Native-normalized` |
-| Positive scale / negative mirror | Geometry/image or a group/use whose expanded visual subtree is geometry/image only; explicit pivot; `Native-normalized` |
-| `matrix(a b c d e f)` | Geometry/image or the same geometry/image-only group/use; transformed axes finite, non-zero, orthogonal; excludes rounded rectangles and subtrees containing them; `Native-normalized` |
-| Source order | Back-to-front PPT z-order; `Native-stable` |
-| `<g opacity>` | Compatible approximate mapping; generated SVG prefers descendant alpha, §2.2 |
-| Local `<use>` | §1.3 compile-time reuse; `Native-normalized` |
-
-**Hard rule — closed transform grammar**: Use only lowercase `translate`,
-`scale`, `rotate`, and `matrix` with exact finite unitless argument counts:
-`translate` 1/2, `scale` 1/2, `rotate` 1/3, and `matrix` 6. Separate arguments
-and operations with whitespace or one comma. Leading/trailing/repeated commas,
-adjacent operations without a separator, units, unknown functions, and
-incomplete input fail quality check and export. Generated numeric tokens use
-ordinary decimals; a supported leading `+`, exponent, or trailing decimal point
-remains compatible input and receives a non-blocking normalization warning.
-Model-facing translation values, rotation centers, and matrix `e/f` use at
-most two decimals under §1.4; angles, scale arguments, and matrix `a/b/c/d`
-retain the precision required by the transform.
-
-Set text size/position directly. A text transform is either a translate-only
-list or one rotate operation; do not scale, matrix-transform, or mix operations
-on text. A group containing text follows the same translate-only/single-rotate
-limit. `skewX`, `skewY`, zero/non-orthogonal axes, and shear matrices are
-forbidden. Native chart/table markers allow translate/scale only. The §6.10
-thick-circle shortcut does not inherit general transform support. Positive
-rotation is clockwise and pivoted rotation normalizes the native frame. Every
-cumulative matrix, including transforms split across ancestors, must remain
-finite, non-zero, and orthogonal; importer/live-editor matrices do not expand
-the hand-authored contract.
-Mirror around vertical pivot `cx` with
-`translate(cx 0) scale(-1 1) translate(-cx 0)`; use the analogous Y sequence
-for a horizontal pivot. During mirror materialization, imported PowerPoint
-groups with an axis flip keep their geometry reflection, while each descendant
-SVG text node receives the matching counter-reflection so browser previews keep
-glyphs upright. The tool-side native record retains the source group flip.
+Use only lowercase `translate`, `scale`, `rotate`, and `matrix` with finite
+unitless arguments; `rotate` is clockwise and may take a pivot. Geometry,
+images, and geometry-only groups accept any of them (`Native-normalized`) as
+long as the cumulative matrix stays finite, non-zero, and orthogonal — no
+`skewX` / `skewY` or shear, and `matrix` excludes rounded rectangles. Text, and
+any group containing text, takes only a translate-only list or one rotate; set
+text size/position directly. Native chart/table markers allow translate/scale
+only. Mirror around a vertical pivot `cx` with
+`translate(cx 0) scale(-1 1) translate(-cx 0)`, and never mirror text, logos,
+or directional evidence.
 
 Layer back-to-front: background/image → scrim/shadow → main geometry → labels /
-icons → top annotation. Finalization and native export independently expand
-`<use>` into cloned editable primitives; PowerPoint does not retain a symbol /
-instance graph.
+icons → top annotation; source order is PPT z-order. Local `<use>` (§1.3) is
+compile-time reuse — finalization and native export expand it into cloned
+editable primitives, and PowerPoint retains no symbol/instance graph. Group
+opacity remains an approximate compatibility mapping; generated SVG prefers
+descendant alpha (§2.2).
 
 ---
 
 ### 6.9 Freeform Shapes and Curves
 
-| Input | Native normalization | Fidelity |
-|---|---|---|
-| `M/L/H/V`, absolute or relative | Absolute `M/L` | `Native-normalized` |
-| `C` | Cubic Bézier | `Native-normalized` |
-| `S/Q/T` | Explicit cubic controls | `Native-normalized` |
-| `A` | Cubic segments of at most 90° | `Approximate` |
-| `Z`; polygon/polyline | Closed/open freeform | `Native-normalized` |
+Every SVG path command, `<polygon>`, and `<polyline>` is accepted; export
+normalizes to absolute `M/L` and cubic Béziers, and arcs become ≤90° cubic
+segments (`Approximate`). Write `d` and `points` as finite unitless ordinary
+decimals; geometry needs non-zero bounds; do not depend on
+`fill-rule="evenodd"` — build explicit visible geometry, bake an essential
+knockout, or on a fixed background use a background-colored overlay.
 
-**Hard rule — complete freeform grammar**: Generated `path@d` and
-`polygon` / `polyline@points` use finite unitless ordinary decimals and only
-the commands registered above. Native export consumes the complete attribute;
-it never extracts recognizable fragments while ignoring other characters.
-Finite scientific notation, a leading plus sign, and a trailing decimal point
-remain read-compatible and receive recommendation warnings; generated SVG does
-not write them. Unknown commands or characters, misplaced/repeated commas,
-non-finite numbers, missing attributes, incomplete command groups, and odd
-point counts are invalid. A path starts with `M` / `m`; `A` radii are
-non-negative and both arc flags are exactly `0` or `1`. Each registered path
-command accepts its uppercase absolute and lowercase relative form. Legal
-separator-free arc flag sequences remain valid and are parsed as individual
-flag tokens. A polygon has at least three coordinate pairs and a polyline at
-least two.
+**Reference — not a constraint**: use the fewest curve segments and control
+points that preserve the intended silhouette. Set endpoints and tangent
+directions first; use `S` after `C` or `T` after `Q` when reflected controls
+preserve deliberate tangent continuity.
 
-**Validation**: Checker and native export consume the same parser in
-[`paths.py`](../scripts/svg_to_pptx/drawingml/paths.py); native-object fallback
-bounds reuse its normalized commands rather than a second path grammar.
+```xml
+<path d="M80 300 C180 180 300 180 400 300 S620 420 720 300"
+      fill="none" stroke="#2563EB" stroke-width="4" stroke-linecap="round"/>
+<path d="M80 520 Q240 400 400 520 T720 520"
+      fill="none" stroke="#0F766E" stroke-width="4" stroke-linecap="round"/>
+```
 
-Command identity, relative coordinates, shorthand, arc parameters, and original
-handles are not retained. Geometry needs non-zero bounds. Use a closed cubic
-path for organic silhouettes, polygon/closed path for ribbons/facets, open path
-for curved connectors, multi-`M` path for exact linework, and a [`shared-standards-core.md`](./shared-standards-core.md) §1.2 path clip
-for organic pictures. Filled silhouettes end with `Z`; open paths use
-`fill="none"`. Do not depend on `fill-rule="evenodd"`; build explicit visible
-geometry or bake an essential knockout.
-For a fixed background, a background-colored overlay is also valid.
-
-| Rounded rect input | Result |
-|---|---|
-| One positive radius, or `0 < rx == ry <= min(width,height)/2` | `Native-stable` adjustable `roundRect` without distorting transforms; the same short-side limit applies to one-radius input |
-| `0 < abs(rx-ry) < 0.5px` after scaling | One normalized native radius; `Approximate` |
-| `abs(rx-ry) >= 0.5px`, either positive | Cubic custom geometry; no radius handle; `Approximate` |
-| Equal radius above half the short side | Native short-side clamp may differ from SVG; `Approximate` |
+Before authoring a freeform, apply [`native-shape-authoring.md`](./native-shape-authoring.md):
+prefer editable primitives and exact Office presets, independently composed
+when possible; materialize a Boolean only when one contour requires it. Use a
+closed cubic path only for an organic silhouette those cannot express,
+polygon/closed path for unmatched ribbons/facets, and an open path only for a
+required data curve, custom route, or locked or Quick-resolved hand-drawn /
+organic style. Straight relationships use `<line>`; exact stock bends/curves
+use an authored native Connector preset. Multi-`M` paths remain available for
+exact linework, and a §1.2 path clip for unmatched organic pictures. Filled
+silhouettes end with `Z`; open paths use `fill="none"`. A rounded `<rect>`
+stays a native adjustable `roundRect` only while `rx == ry` and the radius is at
+most half the short side; unequal radii become custom geometry without a
+handle.
 
 ---
 
@@ -594,10 +453,8 @@ For clockwise pie/donut sectors, default to `-90°` only when the chart starts a
 12 o'clock. A full-circle percentage sector spans `percentage × 360°`;
 large-arc is `1` above `180°`; outer sweep is `1`, inner return is `0`. Split
 both outer and inner boundaries of a full ring into at least two arcs each.
-Calculated endpoints survive subject to EMU rounding; `A` curves remain cubic
-approximations. Verify all spans plus gaps against the planned sweep.
-Explicit arc sectors are editable `Approximate` freeforms. Thin circles using a
-§6.6 preset/two-number dash stay `Native-normalized` ellipse lines.
+Verify all spans plus gaps against the planned sweep. Explicit arc sectors are
+editable `Approximate` freeforms.
 
 ```xml
 <!-- 75% donut: center 400,400; outer 180; inner 100; -90° → 180°. -->
@@ -608,26 +465,22 @@ Explicit arc sectors are editable `Approximate` freeforms. Thin circles using a
 **Gauge**: require `max > min`, `p = clamp((value-min)/(max-min),0,1)`, and
 `0 < planned clockwise sweep <= 360°`; value sweep is `p × planned sweep`.
 `valueEndAngle = startAngle + valueSweep`; large-arc is `1` iff
-`abs(valueSweep) > 180°`.
-Omit the value sector at `p=0`. At `p=1` with `360°`, split both boundaries into
-at least two arcs. Track/value share center, radii, start, and sweep flags.
+`abs(valueSweep) > 180°`. Omit the value sector at `p=0`. At `p=1` with
+`360°`, split both boundaries into at least two arcs. Track/value share center,
+radii, start, and sweep flags.
 
-**Sunburst — `Approximate`**: one explicit annular sector per node; each depth owns one radius
-band and child angular intervals partition the parent. Do not use one `evenodd`
-compound ring.
+**Sunburst — `Approximate`**: one explicit annular sector per node; each depth
+owns one radius band and child angular intervals partition the parent. Do not
+use one `evenodd` compound ring.
 
-**Thick-circle shorthand — `Approximate`, non-position-sensitive only**:
+A thin circle with a §6.6 preset or two-number dash stays a `Native-normalized`
+ellipse line; the shorthand below is for thick ring segments only.
 
-- One circle per segment; `fill="none"`; the circle may use one `rotate` for its
-  start angle, and ancestor transforms must be translate-only.
-- Exactly two non-preset finite unitless ordinary-decimal values (`dash gap`);
-  `stroke-dashoffset` is a direct finite unitless ordinary-decimal attribute.
-- `0 < stroke-width < 2r`, `stroke-width/r >= 0.15`,
-  `0 < dash < 2πr`, `gap >= 0`, and `dash + gap >= 2πr - 1` SVG unit. The
-  one-unit tolerance exists only for integer-rounded circumference values.
-- Native construction uses only the first dash and re-imports as a freeform.
-  Its native start is 90° counterclockwise from the SVG preview; use explicit
-  arcs whenever start angle, cap, or radial precision matters.
+**Thick-circle shorthand — `Approximate`, non-position-sensitive only**: one
+`fill="none"` circle per segment with a two-value `dash gap` covering the
+circumference and a direct `stroke-dashoffset`; native construction keeps only
+the first dash and starts 90° counterclockwise from the SVG preview, so use
+explicit arcs whenever start angle, cap, or radial precision matters.
 
 ```xml
 <circle cx="400" cy="400" r="140" fill="none" stroke="#2563EB"
@@ -651,25 +504,28 @@ filled `Native-normalized` arrowhead. Example:
 
 ---
 
-### 6.11 Constructed Visual Styles
+### 6.11 Constructed Technique Recipes
 
 **Hard rule — explicit construction**: these are supported-layer recipes, not
 browser-filter permissions.
 
-**Reference — not a constraint**: use them only when they match the locked style.
+**Reference — not a constraint**: use them only when they match the locked or
+Quick-resolved style. Their curve recipes are explicit exceptions to the
+Shape-first default above; they do not authorize decorative freeforms in
+another style.
 
-| Intent | Construction | Boundary / fidelity |
-|---|---|---|
-| Faux glass | §6.5 translucent panel + highlight stroke + visible fields | No backdrop blur; `Native-normalized` |
-| Hand-drawn mark | Rotated translucent bar + irregular `Q/C` paths + round caps | No roughness filter; `Native-normalized` |
-| Ink wash | Few same-family translucent closed curves/strokes | No feather/wet edge; `Native-normalized` |
-| Riso offset | Duplicate text/shape with small offset, second ink, lower alpha | No blend mode; `Native-normalized` |
-| Pixel grid | Integer-aligned rects on one cell grid | `shape-rendering` preview-only; `Native-stable` |
-| Halftone | Sparse calculated circles | `Native-stable`; bake dense screens / use suitable [`native-data-interface.md`](./native-data-interface.md) preset |
-| Isometric facets | Shared-vertex top/front/side polygons, one light direction | 2D only; `Native-normalized` |
-| Paper cut | Ordered organic paths + consistent §6.4 shadow per layer | Filter each layer, not group; `Approximate` |
-| Gradient ribbon | Non-degenerate cubic path + §6.3 gradient stroke; closed gradient-filled shape for horizontal/vertical ribbons | `Native-normalized`; no mesh gradient; re-import may flatten color |
-| Line-plus-area data | Low-alpha closed area first, crisp line above | Keep area subordinate; `Native-normalized` |
+| Family | Technique | Use when | Construction / boundary |
+|---|---|---|---|
+| Material / depth | Faux glass | Visible field must remain present behind a panel | §6.5 translucent panel + highlight; no backdrop blur; `Native-normalized` |
+| Material / depth | Paper cut | Ordered layers/openings carry the material language | Organic paths + one §6.4 shadow per layer, never the group; `Approximate` |
+| Hand / print | Hand-drawn mark | Annotation, underline, or highlighter gesture | Rotated translucent bar + restrained `Q/C` paths + round caps; no roughness filter; `Native-normalized` |
+| Hand / print | Ink wash | Brush mass or atmosphere | Same-family translucent curves/strokes; no feather/wet edge; `Native-normalized` |
+| Hand / print | Riso offset | Deliberate print misregistration | Offset duplicate, second ink, lower alpha; no blend mode; `Native-normalized` |
+| Hand / print | Pixel grid | Sparse hard-cell digital accent | Integer-aligned rect grid; `shape-rendering` preview-only; `Native-stable` |
+| Hand / print | Halftone | Sparse screen modulation | Calculated circles; `Native-stable`; bake dense screens or use [`native-data-interface.md`](./native-data-interface.md) |
+| Form / geometry | Faceted or folded form | Isometric object, folded ribbon, dimensional numeral/band | Shared vertices, one light direction, same-hue alternating paint per [`native-shape-authoring.md`](./native-shape-authoring.md) §7.1; no 3D; `Native-normalized` |
+| Form / geometry | Gradient ribbon | Continuous directional energy, not faceted depth | Cubic gradient stroke or closed gradient-filled band; no mesh gradient; `Native-normalized`, re-import may flatten color |
+| Data expression | Line plus area | Magnitude context beneath an exact reading edge | Subordinate low-alpha area first, crisp line above; `Native-normalized` |
 
 **Minimal construction anchors**:
 
@@ -723,30 +579,24 @@ halftone and route dense full-slide texture to §6.12.
 glow; it does not blur the object or backdrop. Use a low-alpha raster for dense
 grain and explicit circles/paths only for sparse editable marks.
 
-Unsupported source effects remain visible where possible and retain their
-import diagnostics. Resolve those diagnostics before release export; see
-[`conversion.md`](../scripts/docs/conversion.md#import-compatibility-and-recovery-boundary).
-
 ---
 
-### 6.13 Scenario Quick Reference
+### 6.13 Page-Level Composition Recipes
 
-**Reference — not a constraint**: fidelity remains authoritative in the owning
-subsection; this table only routes scenarios.
+**Reference — not a quota**: use the planned page skeleton; when images are
+active, select it through
+[`image-layout-patterns.md`](./image-layout-patterns.md). Read each recipe
+back-to-front and omit every layer without a distinct job.
 
-| Decision family | Scenario routing | Authority / boundary |
+| Page / deck job | Back-to-front stack | Stop |
 |---|---|---|
-| Elevation | Floating card → resting shadow; one CTA → colored shadow; equal peers/background → flat; maximum predictability → layered shapes; title/metric → glow | §6.4; never body-copy glow |
-| Image/material | Text over image → directional scrim; bottom title → bottom fade; centered hero → vignette; brand wash → brand overlay; glass card → faux glass | §6.5; no backdrop blur |
-| Lines | Draft/optional → dash; process direction → marker; flow/series → gradient stroke; exact grid → multi-subpath path | §6.6 / §6.3 |
-| Text | Removed/former value → line-through; eyebrow → tracking; watermark/outline heading → text outline; list → native bullet | §6.7 |
-| Composition | Move/rotate/mirror → §6.8 transform; repeated static mark → local `<use>` | §6.8; preserve z-order |
-| Hand/print | Annotation → highlighter/curve; ink wash → layered alpha paths; Riso → offset duplicate | §6.11; no turbulence, true bleed, or blend mode |
-| Pixel/halftone | Pixel accent → integer rect grid; sparse screen → circles | §6.11; dense screen → §6.12 |
-| Faceted/layered | Pseudo-3D → 2D facets; paper cut → direct shadow per layer | §6.11; no 3D transform/group composite shadow |
-| Data/freeform | Series depth → area first + line above; organic card → closed cubic; shaped image → [`shared-standards-core.md`](./shared-standards-core.md) §1.2 path clip | §6.11 / §6.9 |
-| Radial | Donut/gauge → explicit arcs; sunburst → sector per node; position-insensitive ring → shorthand | §6.10; shorthand has 90° preview/native offset |
-| Arrow | Manual diagonal arrowhead → calculated triangle; ordinary connector → marker | §6.10 / §1.1 |
-| Unsupported | Dense grain, complex composite, or skew → explicit alternative or baked asset | §6.12; foreground text/data stay editable SVG |
+| Cover | Hero field → optional scrim/wash → purposeful opening/contour → native title, optionally paired with a prepared decorative-lettering image | Stop when copy is safe and title/field read together |
+| Divider | Image band or quiet field → restrained wash → recurring geometry → number/title | Reuse deck language |
+| Text-led explanation | Quiet field → recurring material/contour → native hierarchy → optional local emphasis | Emphasis sits on the argument's load-bearing runs |
+| Process / system | Context field → native relation lines → nodes/labels → optional state/direction focus | Every connector stays semantic |
+| Evidence / metric | Context field → local contrast → native leaders/labels/metric → optional focus/elevation | Claims stay native |
+| Comparison | Matched planes → optional shared wash/divider → matched labels → one difference marker | Keep crop, elevation, and paint symmetric unless asymmetry is the claim |
+| Closing / CTA | Receded field → echoed contour/gradient → native action → optional raised accent | Keep the native action legible |
+| Cross-page motif | Reuse contour, gradient direction, line language, texture, or light logic; vary scale, crop, position by page job | Preserve recognition without copying the page or adding novelty effects |
 
 ---
