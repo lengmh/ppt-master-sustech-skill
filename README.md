@@ -3,27 +3,22 @@
 </p>
 
 <p align="center">
-  <strong>document in · editable PPTX out</strong>
+  <strong>From source material to editable slides.</strong><br />
+  Build presentations with SVG-first layouts, editable PowerPoint export, and SUSTech templates.
 </p>
 
 <p align="center">
-  AI-assisted presentation generation for agent workflows.<br>
-  SVG-first pages, native editable PPTX export, SUSTech-enhanced templates.
-</p>
-
-<p align="center">
-  <a href="VERSION"><img alt="version" src="https://img.shields.io/badge/version-r6.1.0--v0.4.0-0ea5e9?style=flat-square"></a>
-  <a href="https://github.com/lengmh/ppt-master-sustech-skill/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/lengmh/ppt-master-sustech-skill?style=flat-square&label=stars&logo=github"></a>
-  <a href="https://github.com/lengmh/ppt-master-sustech-skill/commits"><img alt="last commit" src="https://img.shields.io/github/last-commit/lengmh/ppt-master-sustech-skill?style=flat-square&label=last%20commit"></a>
-  <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/lengmh/ppt-master-sustech-skill?style=flat-square&label=license"></a>
+  <a href="https://github.com/lengmh/ppt-master-sustech-skill/releases"><img alt="release" src="https://img.shields.io/github/v/release/lengmh/ppt-master-sustech-skill?style=flat-square&amp;label=release"></a>
+  <a href="https://github.com/lengmh/ppt-master-sustech-skill/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/lengmh/ppt-master-sustech-skill?style=flat-square&amp;label=stars"></a>
+  <a href="LICENSE"><img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-7cb342?style=flat-square"></a>
   <a href="RELEASE_META.json"><img alt="upstream" src="https://img.shields.io/badge/upstream-ppt--master%20v6.1.0-f59e0b?style=flat-square"></a>
 </p>
 
 <p align="center">
   <a href="#快速开始">Quick Start</a> ·
   <a href="#功能亮点">Features</a> ·
-  <a href="#sustech-增强">SUSTech</a> ·
   <a href="docs/README.md">Docs</a> ·
+  <a href="templates/README.md">Templates</a> ·
   <a href="https://github.com/lengmh/ppt-master-sustech-skill/releases">Releases</a>
 </p>
 
