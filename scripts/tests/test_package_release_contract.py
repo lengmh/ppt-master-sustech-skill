@@ -8,6 +8,8 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 
+import package_release
+
 from package_release import (
     FORBIDDEN_RELEASE_PATHS,
     REQUIRED_RELEASE_PATHS,
@@ -241,3 +243,17 @@ def test_verify_release_zip_rejects_forbidden_inventory(
 
     with pytest.raises(RuntimeError, match="Forbidden entries present"):
         verify_release_zip(archive, PACKAGE_ROOT)
+
+
+def test_temp_root_defaults_to_system_temp(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.delenv("PPT_MASTER_TEMP_ROOT", raising=False)
+    monkeypatch.setattr(package_release.tempfile, "gettempdir", lambda: str(tmp_path))
+
+    assert package_release.detect_temp_root() == tmp_path / "ppt-master"
+
+
+def test_temp_root_honors_environment_override(monkeypatch, tmp_path: Path) -> None:
+    override = tmp_path / "custom-workspace"
+    monkeypatch.setenv("PPT_MASTER_TEMP_ROOT", str(override))
+
+    assert package_release.detect_temp_root() == override

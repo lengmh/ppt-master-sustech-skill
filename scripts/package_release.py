@@ -314,14 +314,6 @@ def detect_temp_root() -> Path:
     if env_value:
         return Path(env_value)
 
-    preferred_roots = [
-        Path("/home/sustech/TempFiles"),
-        Path(r"F:\AI playground\TempFiles"),
-    ]
-    for candidate in preferred_roots:
-        if candidate.exists():
-            return candidate
-
     return Path(tempfile.gettempdir()) / "ppt-master"
 
 
