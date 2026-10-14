@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import tempfile
 from collections import defaultdict
 from pathlib import Path
 
@@ -174,7 +175,11 @@ def _resolved_ratio(rows: list[dict], field: str) -> float:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     input_pptx = Path(args.input_pptx).expanduser().resolve()
-    workdir = Path(args.workdir).expanduser().resolve() if args.workdir else Path(f"/tmp/ppt_text_normalize/{args.task}")
+    workdir = (
+        Path(args.workdir).expanduser().resolve()
+        if args.workdir
+        else Path(tempfile.gettempdir()) / "ppt_text_normalize" / args.task
+    )
     workdir.mkdir(parents=True, exist_ok=True)
 
     with OoxmlPackage(input_pptx) as pkg:

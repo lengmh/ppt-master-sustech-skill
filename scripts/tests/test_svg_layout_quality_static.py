@@ -13,7 +13,6 @@ from svg_quality_checker import LayoutQualityHeuristics, SVGQualityChecker
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "layout_quality"
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TEMP_DIR = Path("/tmp")
 
 
 class TestLayoutQualityBudget(unittest.TestCase):
@@ -143,11 +142,15 @@ class TestStaticOverlapChecks(unittest.TestCase):
 
 
 class TestLayoutQualityCliReport(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="svg-layout-test-")
+        self.addCleanup(temporary.cleanup)
+        self.temp_dir = Path(temporary.name)
+
     def _report_fixture_dir(self):
-        TEMP_DIR.mkdir(parents=True, exist_ok=True)
         temporary = tempfile.TemporaryDirectory(
             prefix="svg-layout-report-",
-            dir=TEMP_DIR,
+            dir=self.temp_dir,
         )
         self.addCleanup(temporary.cleanup)
         target = Path(temporary.name)
@@ -169,9 +172,7 @@ class TestLayoutQualityCliReport(unittest.TestCase):
         )
 
     def test_layout_json_writes_static_issue_report(self):
-        TEMP_DIR.mkdir(parents=True, exist_ok=True)
-        output = TEMP_DIR / "layout-quality-static-test.json"
-        output.unlink(missing_ok=True)
+        output = self.temp_dir / "layout-quality-static-test.json"
 
         completed = self._run_checker(
             str(self._report_fixture_dir()),
@@ -192,9 +193,7 @@ class TestLayoutQualityCliReport(unittest.TestCase):
         self.assertIn("card_collision", issue_ids)
 
     def test_existing_export_output_cli_still_writes_text_report(self):
-        TEMP_DIR.mkdir(parents=True, exist_ok=True)
-        output = TEMP_DIR / "svg-quality-export-test.txt"
-        output.unlink(missing_ok=True)
+        output = self.temp_dir / "svg-quality-export-test.txt"
 
         completed = self._run_checker(
             str(self._report_fixture_dir()),
