@@ -421,7 +421,9 @@ eligible visual layer may be a direct full-canvas `<rect>` or one inside a
 simple single-child group. Its fill must have a registered native mapping
 (solid, linear/radial gradient, or preset pattern), and it must have no
 transform, filter, clip, rounding, or visible stroke. Export writes the fill as
-Slide `p:bg`; image elements remain pictures. Structured routes use the
+Slide `p:bg`; image elements remain pictures. A rebuilt round-trip slide keeps
+its source `p:bg`, so a new full-canvas `<rect>` there stays a shape at its SVG
+paint position. Structured routes use the
 narrower explicit solid-background ownership contract in
 [`pptx-structure-interface.md`](../../references/pptx-structure-interface.md).
 
@@ -554,7 +556,7 @@ Filters are native-effect metadata, not a general pixel-filter surface.
 | Concern | Contract |
 |---|---|
 | Definition/reference | Direct `<defs><filter id="...">` child with unique id; direct `filter="url(#id)"` attribute, never inline style |
-| Public targets | `<rect>`, `<circle>`, `<image>`, `<path>`, `<text>`; one validated compact authored shape-preset `<g>`; an exact outer `<g filter>` whose sole visual child is one clipped `<image>` |
+| Public targets | `<rect>`, `<circle>`, `<polygon>`, `<image>`, `<path>`, `<text>`; one validated compact authored shape-preset `<g>`; an exact outer `<g filter>` whose sole visual child is one clipped `<image>` |
 | Required primitive | `feDropShadow` or `feGaussianBlur` |
 | Generated glow form | Zero-offset `feDropShadow` with flood paint, or the complete blur + flood + composite + merge graph; never bare blur |
 | Required parameters | Explicit `stdDeviation` on either effect primitive; explicit `dx`, `dy`, and `flood-opacity` on `feDropShadow`; explicit `flood-opacity` on `feFlood`; explicit `slope` on linear `feFuncA` |

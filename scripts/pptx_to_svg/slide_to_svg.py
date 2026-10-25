@@ -45,7 +45,7 @@ from pptx_effects import (
     txbody_has_run_effects,
     unsupported_effect_metadata,
 )
-from hyperlink_contract import SHAPE_HYPERLINK_ATTR
+from hyperlink_contract import SHAPE_HYPERLINK_ATTR, SOURCE_HREF_ATTR
 from svg_to_pptx.drawingml.paths import (
     PathCommand,
     normalize_path_commands,
@@ -604,7 +604,7 @@ def _convert_shape(node: ShapeNode, ctx: AssemblyContext, *, top_level: bool) ->
             )
             if carrier_error is not None:
                 raise FormulaImportError(carrier_error)
-            imported_formula = import_formula(block_formula, display=True)
+            imported_formula = import_formula(block_formula, display=True, palette=ctx.palette)
         except FormulaImportError as exc:
             _diagnose_formula_fallback(ctx, exc)
             block_formula_failed = True
@@ -1036,18 +1036,18 @@ def _prepare_inline_formula_resolver(
     elif not force_opaque:
         for zone in zones:
             try:
-                imported[id(zone)] = import_formula(zone, display=False)
+                imported[id(zone)] = import_formula(zone, display=False, palette=ctx.palette)
             except FormulaImportError as exc:
                 failed = True
                 _diagnose_formula_fallback(ctx, exc)
 
-    def _resolve(zone: ET.Element) -> tuple[str | None, str]:
+    def _resolve(zone: ET.Element) -> tuple[FormulaImport | None, str]:
         if failed:
             return None, opaque_formula_preview(zone)
         item = imported.get(id(zone))
         if item is None:
             return None, opaque_formula_preview(zone)
-        return item.latex, item.preview
+        return item, item.preview
 
     return _resolve
 
@@ -1856,7 +1856,10 @@ def _convert_graphic_fallback(node: ShapeNode, ctx: AssemblyContext,
                 + "\n"
                 + _graphic_preview_label(node, "ole preview")
             )
-            return _wrap_shape_group(labelled, node, ctx, top_level=top_level)
+            return _wrap_shape_group(
+                labelled, node, ctx, top_level=top_level,
+                extra_attrs=[f'{_SOURCE_PROXY_ATTRIBUTE}="native-restore"'],
+            )
 
     if preview_svg:
         labelled = (
@@ -1867,7 +1870,10 @@ def _convert_graphic_fallback(node: ShapeNode, ctx: AssemblyContext,
                 f"{uri.rsplit('/', 1)[-1]} preview",
             )
         )
-        return _wrap_shape_group(labelled, node, ctx, top_level=top_level)
+        return _wrap_shape_group(
+            labelled, node, ctx, top_level=top_level,
+            extra_attrs=[f'{_SOURCE_PROXY_ATTRIBUTE}="native-restore"'],
+        )
 
     label = uri.rsplit("/", 1)[-1]
     placeholder = (
@@ -1876,7 +1882,7 @@ def _convert_graphic_fallback(node: ShapeNode, ctx: AssemblyContext,
         f'fill="none" stroke="#999999" stroke-dasharray="4 4"/>'
         f'<text x="{fmt_num(node.xfrm.x + node.xfrm.w / 2)}" '
         f'y="{fmt_num(node.xfrm.y + node.xfrm.h / 2)}" '
-        f'text-anchor="middle" font-size="14" fill="#999999">'
+        f'text-anchor="middle" font-family="Arial" font-size="14" fill="#999999">'
         f"[{_xml_escape(label)}]</text>"
     )
     if chart_payload_metadata:
@@ -1886,7 +1892,10 @@ def _convert_graphic_fallback(node: ShapeNode, ctx: AssemblyContext,
         node,
         ctx,
         top_level=top_level,
-        extra_attrs=chart_replacement_attrs,
+        extra_attrs=chart_replacement_attrs + (
+            [] if 'data-pptx-replace-with="chart"' in chart_replacement_attrs
+            else [f'{_SOURCE_PROXY_ATTRIBUTE}="native-restore"']
+        ),
     )
 
 
@@ -1896,7 +1905,7 @@ def _graphic_preview_label(node: ShapeNode, label: str) -> str:
         f'width="{fmt_num(node.xfrm.w)}" height="22" '
         f'fill="#FFFFFF" fill-opacity="0.82" stroke="#999999" stroke-width="0.5"/>'
         f'<text x="{fmt_num(node.xfrm.x + 6)}" y="{fmt_num(node.xfrm.y + 15)}" '
-        f'font-size="11" fill="#666666">[{_xml_escape(label)}]</text>'
+        f'font-family="Arial" font-size="11" fill="#666666">[{_xml_escape(label)}]</text>'
     )
 
 
@@ -2171,6 +2180,8 @@ def _render_graphic_chart(
         payload_metadata = _replacement_payload_metadata(payload)
         replacement_attrs.append('data-pptx-replace-with="chart"')
         replacement_attrs.append('data-pptx-native-authority="json"')
+        if not result.native_payload:
+            replacement_attrs.append(f'{_SOURCE_PROXY_ATTRIBUTE}="native-restore"')
     elif result.native_status:
         replacement_attrs.append(
             'data-pptx-replacement-status="'
@@ -2515,9 +2526,12 @@ def _wrap_shape_group(
             attrs.append(
                 f'{SHAPE_HYPERLINK_ATTR}="{_xml_escape(href)}"'
             )
+            if href.startswith('#slide-'):
+                attrs.append(f'{SOURCE_HREF_ATTR}="{_xml_escape(href)}"')
             return f"<g {' '.join(attrs)}>\n{inner}\n</g>"
         if href is not None:
-            return f'<a href="{_xml_escape(href)}">{group_xml}</a>'
+            provenance = f' {SOURCE_HREF_ATTR}="{_xml_escape(href)}"' if href.startswith('#slide-') else ''
+            return f'<a href="{_xml_escape(href)}"{provenance}>{group_xml}</a>'
     return group_xml
 
 

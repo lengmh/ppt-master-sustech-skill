@@ -4,11 +4,13 @@
 
 ## 版本信息
 
+版本信息由 `VERSION` 与 `RELEASE_META.json` 定义，下载资产见 GitHub Releases。
+
 | 项目 | 值 |
 |---|---|
-| Release Version | `r6.1.0-v0.4.0` |
-| Upstream Baseline | `hugohe3/ppt-master@v6.1.0` |
-| Post-tag Tracking | None; fixed tag baseline |
+| Release Version | `r6.7.3-v0.4.0` |
+| Upstream Baseline | `hugohe3/ppt-master@v6.7.3` |
+| Post-tag Tracking | 2 commits; `523e5bd972f94c3cac8742fec0d54d43824a17bb` |
 | Root Directory | `ppt-master/` |
 
 ## 文档列表

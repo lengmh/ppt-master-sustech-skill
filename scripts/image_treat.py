@@ -17,7 +17,7 @@ Dependencies:
     Pillow; project image-search dependencies when copying web provenance
 
 Treatments run in this fixed order: brightness, contrast, tone treatment
-(desaturate / grayscale / duotone), then Gaussian blur.
+(desaturate / grayscale / duotone), Gaussian blur, then --fit downscaling.
 """
 
 from __future__ import annotations
@@ -98,6 +98,19 @@ def _unit_float(value: str) -> float:
     return number
 
 
+_FIT_RE = re.compile(r"^(\d+)x(\d+)$")
+
+
+def _fit_box(value: str) -> tuple[int, int]:
+    match = _FIT_RE.fullmatch(value.strip().lower())
+    if match is None:
+        raise argparse.ArgumentTypeError("fit box must be WIDTHxHEIGHT in pixels, e.g. 920x228")
+    width, height = int(match.group(1)), int(match.group(2))
+    if width <= 0 or height <= 0:
+        raise argparse.ArgumentTypeError("fit box dimensions must be positive")
+    return width, height
+
+
 def _hex_color(value: str) -> str:
     match = _HEX_COLOR_RE.fullmatch(value)
     if match is None:
@@ -121,7 +134,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output",
         required=True,
-        help="New bare .png filename under <project_path>/images; existing files are never replaced.",
+        help="New bare .png filename under <project_path>/images (or .jpg for an opaque photographic derivative such as a --fit downscale); existing files are never replaced.",
     )
     parser.add_argument(
         "--brightness",
@@ -156,6 +169,17 @@ def build_parser() -> argparse.ArgumentParser:
         type=_nonnegative_float,
         help="Gaussian blur radius greater than or equal to 0; 0 is unchanged.",
     )
+    parser.add_argument(
+        "--fit",
+        type=_fit_box,
+        default=None,
+        metavar="WxH",
+        help=(
+            "Downscale so the image fits inside WIDTHxHEIGHT pixels, preserving "
+            "aspect ratio and alpha; never upscales. Use it to bring an "
+            "oversized generated image down to its planned on-slide size."
+        ),
+    )
     return parser
 
 
@@ -183,8 +207,8 @@ def _assert_output_absent(output_path: Path) -> None:
 def _resolve_paths(project_value: str, source_name: str, output_name: str) -> tuple[Path, Path, Path]:
     source_name = _validate_bare_filename(source_name, field_name="source")
     output_name = _validate_bare_filename(output_name, field_name="output")
-    if Path(output_name).suffix.casefold() != ".png":
-        raise ValueError("output must use the .png extension")
+    if Path(output_name).suffix.casefold() not in {".png", ".jpg", ".jpeg"}:
+        raise ValueError("output must use the .png extension, or .jpg for an opaque photographic derivative")
     if source_name.casefold() == output_name.casefold():
         raise ValueError("output must differ from source, including filename casing")
 
@@ -245,6 +269,8 @@ def _treatment_plan(args: argparse.Namespace) -> list[dict]:
         )
     if args.blur is not None and args.blur > 0:
         plan.append({"operation": "blur", "radius": args.blur})
+    if args.fit is not None:
+        plan.append({"operation": "fit", "width": args.fit[0], "height": args.fit[1]})
     if not plan:
         raise ValueError(
             "select at least one effective treatment; identity values such as "
@@ -295,7 +321,13 @@ def _convert_duotone_source_to_srgb(image: Image.Image) -> tuple[Image.Image, by
 
 
 def _has_alpha(image: Image.Image) -> bool:
-    return "A" in image.getbands() or "transparency" in image.info
+    if "A" in image.getbands():
+        with image.getchannel("A") as alpha:
+            return alpha.getextrema()[0] < 255
+    if "transparency" in image.info:
+        with image.convert("RGBA") as rgba:
+            return rgba.getextrema()[3][0] < 255
+    return False
 
 
 def _apply_treatments(
@@ -306,9 +338,14 @@ def _apply_treatments(
     try:
         with Image.open(source_path) as source:
             if int(getattr(source, "n_frames", 1)) != 1:
-                raise RuntimeError(
-                    f"animated or multi-frame images are unsupported: {source_path}"
-                )
+                if (source.format or "").upper() == "MPO":
+                    # A camera multi-picture JPEG: the primary frame is the
+                    # photograph; the sibling frames are stereo/preview data.
+                    source.seek(0)
+                else:
+                    raise RuntimeError(
+                        f"animated images are unsupported: {source_path}"
+                    )
             oriented = ImageOps.exif_transpose(source)
             try:
                 oriented.load()
@@ -344,7 +381,33 @@ def _apply_treatments(
                 result = rgb.convert("RGBA") if alpha is not None else rgb
                 if alpha is not None:
                     result.putalpha(alpha)
-                save_options = {"format": "PNG"}
+                if args.fit is not None:
+                    fit_w, fit_h = args.fit
+                    scale = min(fit_w / width, fit_h / height, 1.0)
+                    if scale < 1.0:
+                        new_size = (
+                            max(1, round(width * scale)),
+                            max(1, round(height * scale)),
+                        )
+                        resized = result.resize(new_size, Image.Resampling.LANCZOS)
+                        if result is not rgb:
+                            result.close()
+                        result = resized
+                        width, height = new_size
+                if getattr(args, "output_format", "PNG") == "JPEG":
+                    if alpha is not None:
+                        raise ValueError(
+                            "JPEG output cannot hold the source's transparency; "
+                            "use a .png output for this source"
+                        )
+                    save_options = {"format": "JPEG", "quality": 90, "optimize": True}
+                    if result.mode != "RGB":
+                        converted = result.convert("RGB")
+                        if result is not rgb:
+                            result.close()
+                        result = converted
+                else:
+                    save_options = {"format": "PNG"}
                 if isinstance(icc_profile, bytes) and icc_profile:
                     save_options["icc_profile"] = icc_profile
                 result.save(temporary_path, **save_options)
@@ -498,6 +561,9 @@ def main(argv: Optional[list[str]] = None) -> int:
             args.project_path,
             args.source,
             args.output,
+        )
+        args.output_format = (
+            "JPEG" if output_path.suffix.casefold() in {".jpg", ".jpeg"} else "PNG"
         )
         treatments = _treatment_plan(args)
         manifest_path = images_path / "image_sources.json"

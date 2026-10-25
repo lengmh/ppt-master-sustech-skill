@@ -13,12 +13,15 @@ from typing import Any
 from xml.etree import ElementTree as ET
 
 from native_payloads import NativePayloadError, hydrate_native_payload_refs
+from pptx_ooxml.package import PackagePartRegistry
 from hyperlink_contract import (
     SHAPE_HYPERLINK_ATTR,
     project_hyperlink_errors,
     svg_hyperlink_href,
 )
 from pptx_shapes import (
+    DRAWINGML_NS,
+    UnknownPresetShapeError,
     has_relationship_attributes,
     resolve_preset_preview_hash,
     svg_preset_preview_fingerprint,
@@ -34,6 +37,7 @@ from resource_paths import icon_dir_for_project
 from svg_authoring_view import (
     SEMANTIC_OBJECT_ATTRIBUTE,
     SEMANTIC_SHAPE_KIND,
+    semantic_shape_text_component,
 )
 from svg_compatibility import normalize_single_child_group_filters
 
@@ -63,6 +67,7 @@ from .utils import (
     _extract_inheritable_styles,
     _get_attr,
     _is_unit_axis_reflection,
+    _xml_escape,
     is_picture_effect_carrier,
     parse_svg_length,
     parse_transform_operations,
@@ -81,6 +86,7 @@ from .utils import (
     project_stroke_style_errors,
     project_transform_errors,
     resolve_url_id,
+    svg_hidden_reason,
     supports_full_project_transform,
     validate_dml_shape_matrix,
 )
@@ -89,6 +95,9 @@ from .styles import (
     get_element_opacity, get_fill_opacity, get_stroke_opacity,
 )
 from .elements import (
+    complete_preset_adjustments,
+    shape_display_name,
+    empty_clip_path_reason,
     convert_rect, convert_circle, convert_ellipse,
     convert_line, convert_path,
     convert_polygon, convert_polyline,
@@ -97,7 +106,12 @@ from .elements import (
     project_image_errors,
     project_nested_svg_crop_errors,
 )
-from ..animation_config import is_chrome_id, usable_animation_group_id
+from ..animation_config import (
+    anchor_wrapped_group,
+    effective_top_level,
+    is_chrome_id,
+    usable_animation_group_id,
+)
 from ..canvas_contract import (
     CanvasContractError,
     parse_project_svg_root,
@@ -112,8 +126,11 @@ from ..native_objects import (
     native_replacement_kind,
     native_marker_transform,
     require_fresh_native_fallback,
+    reserve_source_chart_parts,
     snapshot_native_fallback_freshness,
 )
+from ..native_objects.formula import formula_fallback_xml
+from ..native_objects.inline_formula import wrap_inline_formula_shape
 from ..native_objects.marker_status import native_marker_status_errors
 from ..semantic_markers import is_static_page_frame
 
@@ -711,6 +728,60 @@ def _append_shape_text(
     )
 
 
+_A14_NS = 'http://schemas.microsoft.com/office/drawing/2010/main'
+_A14_MATH_TAG = f'{{{_A14_NS}}}m'
+# Generated txBody fragments rely on the slide's prefixes; bind them to parse.
+_TXBODY_PREFIXES = (
+    'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" '
+    f'xmlns:a="{DRAWINGML_NS}" xmlns:a14="{_A14_NS}" '
+    'xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"'
+)
+
+
+def _txbody_has_office_math(txbody_xml: str) -> bool:
+    try:
+        body = re.sub(r'^\s*<\?xml[^>]*\?>', '', txbody_xml)
+        root = ET.fromstring(f'<root {_TXBODY_PREFIXES}>{body}</root>')
+    except ET.ParseError:
+        return False
+    return any(node.tag == _A14_MATH_TAG for node in root.iter())
+
+
+def _with_office_math_fallback(
+    elem: ET.Element,
+    restored: ShapeResult,
+    geometry: ShapeResult,
+    ctx: ConvertContext,
+) -> ShapeResult:
+    """Give a shape's Office Math text its visible SVG text as MCE Fallback."""
+    # The copy is a plain picture of the shape: fresh id, no placeholder role.
+    carrier_xml = re.sub(
+        r'<p:cNvPr id="\d+"',
+        f'<p:cNvPr id="{ctx.next_id()}"',
+        geometry.xml,
+        count=1,
+    )
+    carrier_xml = re.sub(r'<p:ph\b[^>]*/>', '', carrier_xml)
+    results = [ShapeResult(xml=carrier_xml, bounds_emu=geometry.bounds_emu)]
+    for child in elem:
+        if (
+            child.get('data-pptx-part') is None
+            and child.tag.replace(f'{{{SVG_NS}}}', '') in {'text', 'g'}
+        ):
+            result = convert_element(child, ctx)
+            if result:
+                results.append(result)
+    fallback_xml = formula_fallback_xml(
+        results,
+        ctx,
+        _xml_escape(shape_display_name(elem, 'Formula')),
+    )
+    return ShapeResult(
+        xml=wrap_inline_formula_shape(restored.xml, fallback_xml),
+        bounds_emu=restored.bounds_emu,
+    )
+
+
 def _make_semantic_geometry_carrier_visible(element: ET.Element) -> None:
     """Remove authoring-only hiding from a semantic geometry carrier clone."""
     for name in ('visibility', 'display', 'pointer-events'):
@@ -739,33 +810,20 @@ def _semantic_shape_text_body(
     shape: ET.Element,
     ctx: ConvertContext,
 ) -> str | None:
-    texts = [
-        child
-        for child in shape
-        if child.tag.replace(f'{{{SVG_NS}}}', '') == 'text'
-    ]
-    nested_texts = [
-        child
-        for child in shape.iter()
-        if child.tag.replace(f'{{{SVG_NS}}}', '') == 'text'
-    ]
-    if nested_texts != texts:
-        raise SvgNativeConversionError(
-            'Semantic shape text must be one direct SVG text component'
-        )
-    if not texts:
+    metadata = _txbody_metadata(shape)
+    if metadata is not None:
+        preserved = _decode_unchanged_txbody(shape, metadata)
+        if preserved is not None:
+            return preserved[0]
+    try:
+        component = semantic_shape_text_component(shape)
+    except ValueError as exc:
+        raise SvgNativeConversionError(str(exc)) from exc
+    if component is None:
         return None
-    if len(texts) != 1:
-        raise SvgNativeConversionError(
-            'Semantic shape requires at most one paragraph-based text component'
-        )
     frame = shape.get('data-pptx-frame')
-    if frame is None:
-        raise SvgNativeConversionError(
-            'Semantic shape text requires data-pptx-frame on its owner'
-        )
 
-    text = copy.deepcopy(texts[0])
+    text = copy.deepcopy(component)
     text.set('data-pptx-frame', frame)
     for name in (
         'data-pptx-shape-id',
@@ -822,9 +880,16 @@ def _convert_semantic_shape(
         'data-pptx-shape-name',
         'data-pptx-shape-scope',
         'data-name',
+        'data-ph-type',
+        'data-pptx-placeholder-index',
+        'data-pptx-placeholder-size',
+        'data-pptx-placeholder-orientation',
     ):
         if carrier.get(name) is None and shape.get(name) is not None:
             carrier.set(name, str(shape.get(name)))
+    if carrier.get('data-name') is None and shape.get('id'):
+        # The carrier path becomes the native object; keep the group's name.
+        carrier.set('data-name', str(shape.get('id')))
 
     if shape.get('data-pptx-geometry-kind') == 'custom':
         for name in (
@@ -840,7 +905,12 @@ def _convert_semantic_shape(
             'Semantic shape geometry carrier produced no native shape'
         )
     text_body = _semantic_shape_text_body(shape, ctx)
-    return _append_shape_text(geometry, text_body) if text_body else geometry
+    if not text_body:
+        return geometry
+    restored = _append_shape_text(geometry, text_body)
+    if _txbody_has_office_math(text_body):
+        return _with_office_math_fallback(shape, restored, geometry, ctx)
+    return restored
 
 
 def _restore_placeholder_sp_pr(
@@ -887,9 +957,71 @@ def _restore_placeholder_sp_pr(
         raise SvgNativeConversionError(
             'placeholder spPr metadata can only attach to p:sp'
         )
+    decoded = _complete_placeholder_preset_adjustments(decoded, sp_pr)
     return ShapeResult(
         xml=pattern.sub(lambda _match: decoded, shape.xml, count=1),
         bounds_emu=shape.bounds_emu,
+    )
+
+
+def _complete_placeholder_preset_adjustments(
+    decoded: str,
+    sp_pr: ET.Element,
+) -> str:
+    """Rewrite only a partially authored preset avLst in validated spPr XML."""
+    prst_geom = sp_pr.find(f'{{{DRAWINGML_NS}}}prstGeom')
+    if prst_geom is None:
+        return decoded
+    av_lst = prst_geom.find(f'{{{DRAWINGML_NS}}}avLst')
+    prst = prst_geom.get('prst')
+    if av_lst is None or not prst:
+        return decoded
+
+    authored: list[tuple[str, str]] = []
+    for guide in av_lst:
+        name = guide.get('name')
+        formula = guide.get('fmla')
+        if (
+            guide.tag != f'{{{DRAWINGML_NS}}}gd'
+            or name is None
+            or formula is None
+        ):
+            return decoded
+        authored.append((name, formula))
+
+    try:
+        completed = complete_preset_adjustments(prst, authored)
+    except UnknownPresetShapeError:
+        return decoded
+    authored_names = [name for name, _formula in authored]
+    defined_names = {name for name, _formula in completed}
+    if (
+        not 0 < len(authored) < len(completed)
+        or len(set(authored_names)) != len(authored_names)
+        or not set(authored_names).issubset(defined_names)
+    ):
+        return decoded
+
+    av_lst_pattern = re.compile(
+        r'(?P<open><(?P<qname>(?:[A-Za-z_][\w.-]*:)?avLst)\s*>)'
+        r'.*?'
+        r'(?P<close></(?P=qname)\s*>)',
+        re.DOTALL,
+    )
+    matches = list(av_lst_pattern.finditer(decoded))
+    if len(matches) != 1:
+        return decoded
+    match = matches[0]
+    prefix = match.group('qname')[:-len('avLst')]
+    guide_xml = ''.join(
+        f'<{prefix}gd name="{_xml_escape(name)}" '
+        f'fmla="{_xml_escape(formula)}"/>'
+        for name, formula in completed
+    )
+    return (
+        decoded[:match.end('open')]
+        + guide_xml
+        + decoded[match.start('close'):]
     )
 
 
@@ -1078,7 +1210,11 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     Uses identity coordinate mapping (chOff/chExt == off/ext) so child shapes
     keep their absolute slide coordinates unchanged.
     """
-    exact_graphic_frame = _roundtrip_graphic_frame(elem, ctx)
+    ctx.parent_by_id.update({id(child): elem for child in elem})
+    hidden_reason = svg_hidden_reason(elem, ctx.parent_by_id, preserve_native_carriers=True)
+    if hidden_reason == 'display:none':
+        return None
+    exact_graphic_frame = _roundtrip_graphic_frame(elem, ctx) if hidden_reason is None else None
     if exact_graphic_frame is not None:
         return exact_graphic_frame
 
@@ -1107,16 +1243,14 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
         if has_explicit_semantics
         else is_chrome_id(elem_id)
     )
+    # Chrome — by name or by static role/placeholder marker — stays out of
+    # automatic animation, but an explicit sidecar entry animates it: a
+    # background field can pan, a cover band can slide. Only a structural
+    # layer (master/layout) is beyond reach, because it is not on the slide.
     should_animate_group = (
         ctx.depth == 0
         and elem_id
-        and (
-            not is_chrome
-            or (
-                not has_explicit_semantics
-                and elem_id in ctx.animation_group_overrides
-            )
-        )
+        and (not is_chrome or elem_id in ctx.animation_group_overrides)
         and elem.get('data-pptx-layer') is None
     )
     visual_children = [
@@ -1180,7 +1314,7 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
             "the subtree as ordinary SVG"
         )
 
-    if _native_replacement_enabled(elem, child_ctx):
+    if hidden_reason is None and _native_replacement_enabled(elem, child_ctx):
         native_result = convert_native_object(elem, child_ctx)
         if native_result:
             ctx.sync_from_child(child_ctx)
@@ -1190,7 +1324,7 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
                     ctx.anim_targets.append((int(shape_match.group(1)), elem_id))
             return native_result
 
-    if elem.get(SEMANTIC_OBJECT_ATTRIBUTE) == SEMANTIC_SHAPE_KIND:
+    if hidden_reason is None and elem.get(SEMANTIC_OBJECT_ATTRIBUTE) == SEMANTIC_SHAPE_KIND:
         geometry_ctx = child_ctx
         if transform and not native_subtree_active:
             geometry_ctx = ctx.child(
@@ -1213,12 +1347,13 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
         return semantic_result
 
     if (
-        elem.get('data-pptx-object') in {'shape', 'connector'}
+        hidden_reason is None
+        and elem.get('data-pptx-object') in {'shape', 'connector'}
         and elem.get('data-pptx-prst') is not None
     ):
         _require_unchanged_preset_preview(elem)
 
-    preserved_text = preserved_native_text_body(elem)
+    preserved_text = preserved_native_text_body(elem) if hidden_reason is None else None
     if preserved_text is not None:
         geometry_carrier, native_text = preserved_text
         geometry_ctx = child_ctx
@@ -1241,6 +1376,11 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
             native_text,
         )
         restored = _restore_placeholder_sp_pr(restored, elem)
+        if _txbody_has_office_math(native_text):
+            restored = _with_office_math_fallback(
+                elem, restored, geometry_result, geometry_ctx,
+            )
+            ctx.sync_from_child(geometry_ctx)
         if should_animate_group and elem_id:
             shape_match = re.search(r'<p:cNvPr id="(\d+)"', restored.xml)
             if shape_match:
@@ -1277,6 +1417,9 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     explicit_native_group = elem.get('data-pptx-object') == 'group'
     if (
         len(child_results) == 1
+        # A fallback rotation still belongs to this group. Keep its container
+        # so the pivot compensation below runs even for a single text child.
+        and (matrix_supported or not angle_deg)
         and not explicit_native_group
         and (
             not should_animate_group
@@ -1370,7 +1513,7 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
 
     return ShapeResult(xml=f'''<p:grpSp>
 <p:nvGrpSpPr>
-<p:cNvPr id="{group_id}" name="Group {group_id}"/>
+<p:cNvPr id="{group_id}" name="{_xml_escape(shape_display_name(elem, f'Group {group_id}'))}"/>
 <p:cNvGrpSpPr/>
 <p:nvPr/>
 </p:nvGrpSpPr>
@@ -1389,7 +1532,11 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
 
 def convert_a(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     """Convert one standard SVG anchor into a clickable DrawingML object."""
-    result = convert_g(elem, ctx)
+    # A bare anchor around one <g> is transparent: the group converts at the
+    # anchor's own depth, so a top-level <a href><g id> stays an animation
+    # anchor, and the click lands on its leaves.
+    wrapped = anchor_wrapped_group(elem)
+    result = convert_g(wrapped if wrapped is not None else elem, ctx)
     if result is None:
         return None
     return apply_shape_hyperlink(result, ctx, svg_hyperlink_href(elem))
@@ -1509,6 +1656,9 @@ def _extract_background_candidate(
         tag = child.tag.replace(f'{{{SVG_NS}}}', '')
         if tag in _NON_VISUAL_TAGS:
             continue
+        hidden_reason = svg_hidden_reason(child, ctx.parent_by_id, preserve_native_carriers=True)
+        if hidden_reason and (tag != 'g' or hidden_reason == 'display:none'):
+            continue
 
         if tag == 'rect' and _is_full_canvas_rect(child, ctx, canvas):
             bg_xml = _background_xml_from_rect(child, ctx)
@@ -1519,6 +1669,11 @@ def _extract_background_candidate(
         if tag != 'g':
             return '', None
         if child.get('transform') or child.get('filter') or child.get('clip-path'):
+            return '', None
+        if child.get('data-pptx-shape-id') is not None:
+            # A source-identified object (including the round-trip
+            # native-restore placeholder for an unchanged full-canvas picture)
+            # must stay a shape so its native original can take its place.
             return '', None
         style_overrides = _extract_inheritable_styles(child)
         local_opacity = get_element_opacity(child)
@@ -1533,6 +1688,8 @@ def _extract_background_candidate(
         if len(visual_children) != 1:
             return '', None
         only_child = visual_children[0]
+        if svg_hidden_reason(only_child, ctx.parent_by_id, preserve_native_carriers=True):
+            return '', None
         only_tag = only_child.tag.replace(f'{{{SVG_NS}}}', '')
         if only_tag == 'rect' and _is_full_canvas_rect(only_child, child_ctx, canvas):
             bg_xml = _background_xml_from_rect(only_child, child_ctx)
@@ -1602,6 +1759,8 @@ def _geometry_trace_metadata(elem: ET.Element, result: ShapeResult) -> dict[str,
     """Describe the native geometry decision for conversion diagnostics."""
     xml = result.xml.lstrip()
     if xml.startswith('<p:grpSp>'):
+        if native_replacement_kind(elem) == 'chart' and '<p:graphicFrame>' in xml:
+            return {'output_geometry': 'native-object', 'fidelity': 'native-normalized'}
         return {'output_geometry': 'group', 'fidelity': 'visual-only'}
     if xml.startswith('<p:pic>'):
         return {'output_geometry': 'picture', 'fidelity': 'native-normalized'}
@@ -1678,6 +1837,35 @@ def _geometry_trace_metadata(elem: ET.Element, result: ShapeResult) -> dict[str,
     return {'output_geometry': 'unknown', 'fidelity': 'visual-only'}
 
 
+def collect_hidden_visuals(root: ET.Element) -> list[tuple[ET.Element, str]]:
+    """List suppressed visual objects while preserving native transport carriers."""
+    parents = {id(child): parent for parent in root.iter() for child in parent}
+    definitions, _duplicates = project_definition_index(root)
+    hidden: list[tuple[ET.Element, str]] = []
+
+    def visit(element: ET.Element) -> bool:
+        tag = _local_tag(element)
+        if tag in _NON_VISUAL_TAGS:
+            return False
+        reason = svg_hidden_reason(element, parents, preserve_native_carriers=True)
+        clip_reason = empty_clip_path_reason(element, definitions, parents)
+        reason = reason or clip_reason
+        hidden_before_children = len(hidden)
+        children_visible = [visit(child) for child in element]
+        container = tag in {'g', 'a', 'svg'}
+        if container and reason != 'display:none' and clip_reason is None:
+            if any(children_visible):
+                return True
+            if reason is None and tag != 'svg' and len(hidden) > hidden_before_children:
+                reason = 'hidden descendants'
+        if reason:
+            hidden.append((element, reason))
+        return reason is None and (not container or any(children_visible))
+
+    visit(root)
+    return hidden
+
+
 def convert_element(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     """Dispatch an SVG element to the appropriate converter."""
     tag = elem.tag.replace(f'{{{SVG_NS}}}', '')
@@ -1718,10 +1906,27 @@ def convert_element(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None
         if adjustments:
             event['adjustments'] = dict(sorted(adjustments.items()))
         event.update(metadata)
+        if (
+            ctx.depth == 0
+            and elem_id
+            and elem_id in ctx.animation_group_overrides
+        ):
+            # Chrome promotion into layouts/masters must leave an explicitly
+            # animated group on its slide.
+            event['animation_override'] = True
         ctx.trace_events.append(event)
 
     if elem.get('data-pptx-part') == 'geometry-detail':
         trace('skip', reason='render-only-preset-geometry-detail')
+        return None
+
+    hidden_reason = svg_hidden_reason(elem, ctx.parent_by_id, preserve_native_carriers=True)
+    clip_reason = empty_clip_path_reason(elem, ctx.defs, ctx.parent_by_id)
+    if clip_reason:
+        trace('skip', reason=clip_reason)
+        return None
+    if hidden_reason and (tag not in {'g', 'a'} or hidden_reason == 'display:none'):
+        trace('skip', reason=hidden_reason)
         return None
 
     converter = _CONVERTERS.get(tag)
@@ -1733,7 +1938,8 @@ def convert_element(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None
                 result = apply_shape_hyperlink(result, ctx, shape_hyperlink)
         except Exception as e:
             trace('error', error=str(e))
-            raise SvgNativeConversionError(f'Failed to convert <{tag}>: {e}') from e
+            label = f'<{tag} id="{elem_id}">' if elem_id else f'<{tag}>'
+            raise SvgNativeConversionError(f'Failed to convert {label}: {e}') from e
         if result:
             shape_match = re.search(r'<p:cNvPr id="(\d+)"', result.xml)
             metadata: dict[str, Any] = {}
@@ -1831,6 +2037,7 @@ def convert_svg_to_slide_shapes(
     promote_background: bool = True,
     text_flow: str | None = None,
     dangerous_nonconforming_export: bool = False,
+    package_parts: PackagePartRegistry | None = None,
 ) -> tuple[
     str,
     dict[str, bytes],
@@ -1879,6 +2086,8 @@ def convert_svg_to_slide_shapes(
             Parsing, resource, conversion, and package failures remain blocking.
         resource_root: Explicit project boundary for local images and icons.
             Omit only for direct library calls that require legacy inference.
+        package_parts: Shared native-part registry for the complete export,
+            including the template/source package and previously rebuilt slides.
 
     Returns:
         (slide_xml, media_files, rel_entries, anim_targets,
@@ -2214,6 +2423,7 @@ def convert_svg_to_slide_shapes(
 
     defs = collect_defs(root)
     source_shape_id_map = _build_source_shape_id_map(root)
+    root_opacity = get_element_opacity(root)
     ctx = ConvertContext(
         defs=defs,
         reserved_shape_ids=frozenset(source_shape_id_map.values()),
@@ -2236,16 +2446,20 @@ def convert_svg_to_slide_shapes(
         theme_font_spec=theme_font_spec,
         theme_color_spec=theme_color_spec,
         primary_language=primary_language,
+        package_parts=package_parts if package_parts is not None else PackagePartRegistry(),
         inherited_styles=_extract_inheritable_styles(root),
+        opacity_multiplier=1.0 if root_opacity is None else root_opacity,
+        parent_by_id={id(child): parent for parent in root.iter() for child in parent},
         text_font_sizes=text_font_sizes,
         text_letter_spacings=text_letter_spacings,
     )
-
+    if native_objects:
+        reserve_source_chart_parts(root, ctx)
     shapes: list[str] = []
     converted = 0
     skipped = 0
     has_top_level_group = any(
-        child.tag.replace(f'{{{SVG_NS}}}', '') == 'g'
+        effective_top_level(child).tag.replace(f'{{{SVG_NS}}}', '') == 'g'
         for child in root
     )
     background_xml, background_skip_id = (
@@ -2270,25 +2484,24 @@ def convert_svg_to_slide_shapes(
             continue
         if id(child) == background_skip_id:
             continue
-        result = convert_element(child, ctx)
+        try:
+            result = convert_element(child, ctx)
+        except SvgNativeConversionError as exc:
+            raise SvgNativeConversionError(f'{svg_path.name}: {exc}') from exc
         if result:
             shapes.append(result.xml)
             converted += 1
             m = re.search(r'<p:cNvPr id="(\d+)"', result.xml)
-            elem_id = child.get('id')
-            role = child.get('data-pptx-role')
-            placeholder = child.get('data-pptx-placeholder')
+            unit = effective_top_level(child)
+            elem_id = unit.get('id')
+            role = unit.get('data-pptx-role')
+            placeholder = unit.get('data-pptx-placeholder')
             has_explicit_semantics = role is not None or placeholder is not None
-            structurally_static = (
-                child.get('data-pptx-layer') is not None
-                or (
-                    has_explicit_semantics
-                    and is_static_page_frame(role, placeholder)
-                )
-            )
+            structurally_static = unit.get('data-pptx-layer') is not None
             legacy_chrome = (
-                not has_explicit_semantics
-                and is_chrome_id(elem_id)
+                is_static_page_frame(role, placeholder)
+                if has_explicit_semantics
+                else is_chrome_id(elem_id)
             )
             explicit_legacy_override = (
                 elem_id is not None

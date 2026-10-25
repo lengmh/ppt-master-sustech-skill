@@ -87,6 +87,15 @@ _CUSTOM_REFERENCE_CATALOGS = (
     ),
 )
 
+# Display names the registry carried before it was aligned with
+# references/canvas-formats.md; locks written against them still validate.
+_LEGACY_CANVAS_NAMES = {
+    "xiaohongshu": ("小红书",),
+    "moments": ("Moments/Instagram",),
+    "story": ("Story/Vertical",),
+    "banner": ("Horizontal Banner",),
+}
+
 _MARKDOWN_H2_RE = re.compile(r"^##[ \t]+(.+?)[ \t]*$", re.MULTILINE)
 _MARKDOWN_SUBHEADING_RE = re.compile(r"^#{3,6}[ \t]+(.+?)[ \t]*$", re.MULTILINE)
 _MARKDOWN_DATA_LINE_RE = re.compile(
@@ -840,6 +849,20 @@ def _validate_condition(
     return errors
 
 
+_PAGE_COUNT_ROW_RE = re.compile(
+    r"^\|[ \t]*Page Count[ \t]*\|[ \t]*([0-9]+)[ \t]*\|",
+    flags=re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _declared_page_count(section: Mapping[str, object] | None) -> int | None:
+    """Return the exact integer §I Page Count, or None when absent or not exact."""
+    if section is None:
+        return None
+    match = _PAGE_COUNT_ROW_RE.search(str(section.get("body", "")))
+    return int(match.group(1)) if match else None
+
+
 def _validate_slides(
     *,
     markdown_name: str,
@@ -862,6 +885,13 @@ def _validate_slides(
         return [f"{markdown_name} schema: content outline has no Slide blocks"]
 
     errors: list[str] = []
+    declared = _declared_page_count(matched.get("project_information"))
+    if declared is not None and declared != len(heading_matches):
+        errors.append(
+            f"{markdown_name} schema: §I Page Count is {declared} but the "
+            f"content outline has {len(heading_matches)} Slide block(s); "
+            "the two must match"
+        )
     required_fields = slide_contract.get("required_fields", [])
     if not isinstance(required_fields, list):
         return errors
@@ -1206,9 +1236,14 @@ def _validate_spec_lock_relations(
     if canvas is not None:
         expected_format = str(canvas["name"])
         expected_viewbox = str(canvas["viewbox"])
+        accepted_formats = {
+            expected_format,
+            format_key,
+            *_LEGACY_CANVAS_NAMES.get(format_key, ()),
+        }
         if (
             "format" in canvas_fields
-            and _normalize_schema_value(canvas_fields["format"]) != expected_format
+            and _normalize_schema_value(canvas_fields["format"]) not in accepted_formats
         ):
             errors.append(
                 f"{markdown_name} schema: canvas.format must be '{expected_format}'"
@@ -1226,7 +1261,27 @@ def _validate_spec_lock_relations(
 def validate_markdown_schema(markdown_path: Path, schema_path: Path) -> list[str]:
     """Validate one existing Markdown artifact against a versioned schema."""
     try:
-        text = markdown_path.read_text(encoding="utf-8-sig")
+        # Candidate validation removes exactly one BOM, as utf-8-sig did here.
+        text = markdown_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        return [f"Schema validation could not read {markdown_path.name}: {exc}"]
+
+    return validate_markdown_text(text, schema_path, markdown_path=markdown_path)
+
+
+def validate_markdown_text(
+    text: str,
+    schema_path: Path,
+    *,
+    markdown_path: Path = Path("design_spec.md"),
+) -> list[str]:
+    """Validate a candidate without reading or writing its Markdown file.
+
+    The path supplies diagnostic names and a base for schema-declared asset
+    references. A design-spec schema never loads the execution lock.
+    """
+    text = text.removeprefix("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
+    try:
         schema = _load_markdown_schema(schema_path)
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
         return [f"Schema validation could not read {markdown_path.name}: {exc}"]

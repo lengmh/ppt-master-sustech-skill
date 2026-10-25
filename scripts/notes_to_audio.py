@@ -45,7 +45,7 @@ from pptx_workspace import (
     AUTHORING_SVG_FLAT_DIR,
     ROUNDTRIP_MANIFEST_PATH,
 )
-from slide_roster import discover_slide_svgs
+from slide_roster import discover_slide_svgs, sort_slide_paths
 from tts_backends import (
     backend_cosyvoice,
     backend_edge,
@@ -93,11 +93,15 @@ def _load_tts_env_file() -> None:
     ))
 
 
+# A Markdown heading needs a space after the hashes; "#1 revenue grew" is speech.
+_ATX_HEADING_RE = re.compile(r" {0,3}#{1,6}(?:[ \t]|$)")
+
+
 def spoken_text(markdown: str) -> str:
     """Return narration text exactly from notes, except Markdown headings."""
     lines: list[str] = []
     for raw in markdown.splitlines():
-        if raw.lstrip().startswith("#"):
+        if _ATX_HEADING_RE.match(raw):
             continue
         line = raw.rstrip()
         if not line.strip():
@@ -151,7 +155,7 @@ def _expected_note_roster(project: Path) -> list[NoteRosterEntry]:
     svg_files = discover_slide_svgs(project / "svg_output")
     if svg_files:
         aliases: dict[int, list[Path]] = {}
-        for path in sorted(notes_dir.glob("*.md")):
+        for path in sort_slide_paths(notes_dir.glob("*.md")):
             match = re.search(r"slide[_]?(\d+)", path.stem)
             if match:
                 aliases.setdefault(int(match.group(1)), []).append(path)
@@ -255,7 +259,7 @@ def _expected_note_roster(project: Path) -> list[NoteRosterEntry]:
             note_path=path,
             output_stem=path.stem,
         )
-        for path in sorted(notes_dir.glob("*.md"))
+        for path in sort_slide_paths(notes_dir.glob("*.md"))
         if path.name != "total.md"
     ]
 
@@ -283,6 +287,8 @@ def _provider_manifest_details(
     if backend.provider == "edge":
         return "edge-tts", {
             "rate": args.rate,
+            "pitch": args.pitch,
+            "volume": args.volume,
         }
     if backend.provider == "elevenlabs":
         return args.elevenlabs_model, {
@@ -380,6 +386,8 @@ async def _generate_edge_jobs(
     *,
     voice: str,
     rate: str,
+    pitch: str = "+0Hz",
+    volume: str = "+0%",
     subtitle_max_chars: int,
     concurrency: int,
 ) -> list[BaseException | None]:
@@ -393,6 +401,8 @@ async def _generate_edge_jobs(
                 job.output_path,
                 voice=voice,
                 rate=rate,
+                pitch=pitch,
+                volume=volume,
                 subtitle_path=subtitle_dir / f"{job.output_path.stem}.srt",
                 subtitle_max_chars=subtitle_max_chars,
             )
@@ -407,7 +417,26 @@ async def _generate_edge_jobs(
     ]
 
 
-def main() -> int:
+def _normalize_voice_option_args(argv: list[str]) -> list[str]:
+    """Keep signed voice values from being interpreted as argparse options."""
+    normalized: list[str] = []
+    index = 0
+    while index < len(argv):
+        option = argv[index]
+        if (
+            option in {"--rate", "--pitch", "--volume"}
+            and index + 1 < len(argv)
+            and re.fullmatch(r"-\d+(?:\.\d+)?(?:%|Hz)?", argv[index + 1])
+        ):
+            normalized.append(f"{option}={argv[index + 1]}")
+            index += 2
+        else:
+            normalized.append(option)
+            index += 1
+    return normalized
+
+
+def main(argv: list[str] | None = None) -> int:
     _load_tts_env_file()
 
     parser = argparse.ArgumentParser(
@@ -436,6 +465,14 @@ def main() -> int:
         "--rate",
         default="+0%",
         help='edge-tts speaking rate, e.g. "+0%%", "-10%%", "+15%%" (default: +0%%). Ignored by cloud providers.',
+    )
+    parser.add_argument(
+        "--pitch", default="+0Hz",
+        help="edge-tts pitch adjustment (default: +0Hz). Ignored by cloud providers.",
+    )
+    parser.add_argument(
+        "--volume", default="+0%",
+        help="edge-tts volume adjustment (default: +0%%). Ignored by cloud providers.",
     )
     parser.add_argument(
         "--concurrency",
@@ -560,7 +597,9 @@ def main() -> int:
     parser.add_argument("--list-common-voices", action="store_true", help="print a curated voice list and exit")
     parser.add_argument("--list-voices", action="store_true", help="query provider voices and exit")
     parser.add_argument("--locale", default=None, help='filter --list-voices by locale, e.g. "zh-CN"')
-    args = parser.parse_args()
+    args = parser.parse_args(_normalize_voice_option_args(
+        sys.argv[1:] if argv is None else argv
+    ))
 
     if args.list_common_voices:
         backend_edge.print_common_voices()
@@ -742,6 +781,8 @@ def main() -> int:
                 subtitle_dir,
                 voice=args.voice,
                 rate=args.rate,
+                pitch=args.pitch,
+                volume=args.volume,
                 subtitle_max_chars=args.subtitle_max_chars,
                 concurrency=args.concurrency,
             ))

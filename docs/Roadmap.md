@@ -1,10 +1,10 @@
 # PPT Master SUSTech Enhancement Roadmap
 
-> Last updated: 2026-09-02
-> Current release line: `r6.1.0-v0.4.0`
-> Upstream baseline: `hugohe3/ppt-master@v6.1.0` (`c40bca58e168fcef2facdc7612cc352d1233679b`)
-> Post-tag tracked range: `v6.1.0..c40bca58e168fcef2facdc7612cc352d1233679b` (zero commits)
-> Absorbed release range: `snapshot:cad57e4a45d8664bf4830d85711d355dc2600455=>c40bca58e168fcef2facdc7612cc352d1233679b`
+> Last updated: 2026-10-25
+> Current release line: `r6.7.3-v0.4.0`
+> Upstream baseline: `hugohe3/ppt-master@v6.7.3` (`622bf0148bca4f697b0184322c7e2aa2a04520a2`)
+> Post-tag tracked range: `v6.7.3..523e5bd972f94c3cac8742fec0d54d43824a17bb` (two commits)
+> Absorbed release range: `c40bca58e168fcef2facdc7612cc352d1233679b..523e5bd972f94c3cac8742fec0d54d43824a17bb`
 
 ## Purpose
 
@@ -21,15 +21,15 @@ Whenever version metadata changes, observable behavior changes, or upstream code
 
 | Layer | Meaning | Current State |
 |---|---|---|
-| Baseline | Official upstream release tag used as the release base | `v6.1.0` / `c40bca58e168fcef2facdc7612cc352d1233679b` |
-| Post-tag tracking | Extra upstream commits after the baseline | None; `tracked_commit` equals the tag commit |
-| Release disclosure | Snapshot disclosure of upstream content absorbed since the previous published cutoff | `snapshot:cad57e4a45d8664bf4830d85711d355dc2600455=>c40bca58e168fcef2facdc7612cc352d1233679b` |
+| Baseline | Official upstream release tag used as the release base | `v6.7.3` / `622bf0148bca4f697b0184322c7e2aa2a04520a2` |
+| Post-tag tracking | Extra upstream commits after the baseline | Two approved native roundtrip fixes through `523e5bd9` |
+| Release disclosure | Ancestry range absorbed since the previous published cutoff | `c40bca58e168fcef2facdc7612cc352d1233679b..523e5bd972f94c3cac8742fec0d54d43824a17bb` |
 | Overlay | SUSTech local behavior, release identity, templates, and workflow extensions | Preserved on top of the formal baseline |
 
 Rule of thumb:
 
 - `RELEASE_META.json.upstream.commit` records the baseline tag commit.
-- `RELEASE_META.json.upstream.tracked_commit` records the extra upstream cutoff; for this tag-only release it equals the baseline commit.
+- `RELEASE_META.json.upstream.tracked_commit` records the extra upstream cutoff; for this release it includes two approved post-tag commits.
 - `RELEASE_META.json.upstream.absorbed_range` records the disclosure range since the previous published cutoff.
 - SUSTech-only capabilities are treated as overlay and must be checked explicitly during each upstream fusion.
 
@@ -160,7 +160,7 @@ Key files:
 Current rules:
 
 - Version format is `r<upstream-version>-v<local-version>`.
-- Current version is `r6.1.0-v0.4.0`.
+- Current source release line is `r6.7.3-v0.4.0`.
 - A Release Artifact always expands to the stable `ppt-master/` root; package verification rejects another root name or extra top-level entries.
 - `scripts/template_brief_lock.py` remains in the Release Artifact for existing-artifact read compatibility and does not create new locks.
 
@@ -312,7 +312,7 @@ Fusion guard:
 
 ### 7. v6.1.0 Fixed Snapshot Fusion
 
-The current line adopts the formal `v6.1.0@c40bca58` tag with no post-tag upstream commits. The previous published upstream cutoff `cad57e4a` and v6.1 tag do not form a continuous ancestry range, so the absorbed disclosure is `snapshot:cad57e4a=>c40bca58`, not a Git range.
+The previous release adopted the formal `v6.1.0@c40bca58` tag with no post-tag upstream commits. The previous published upstream cutoff `cad57e4a` and v6.1 tag do not form a continuous ancestry range, so the absorbed disclosure is `snapshot:cad57e4a=>c40bca58`, not a Git range.
 
 Absorbed skill-root changes include:
 
@@ -343,7 +343,7 @@ Key files:
 
 Current rules:
 
-- The public command surface for `r6.1.0-v0.4.0` is `scan` / `apply`.
+- The public command surface for `r6.7.3-v0.4.0` is `scan` / `apply`.
 - Safe MVP semantics include Object Slot matching, hero freeze, weak-canonical restraint, safe field gating, report output, and OOXML namespace-preserving PPTX writes.
 
 Fusion guard:
@@ -392,13 +392,20 @@ Before accepting a future upstream update, verify:
 - [ ] Only explicitly released capabilities enter the Public Capability Projection and release package.
 - [ ] Native object export, chart workbook generation, and source-intake changes remain present.
 
+## v6.7.3 Release Adaptation
+
+- Adopted upstream prompt-audit contracts, with standalone-root path mapping and unchanged numeric budgets. Retained local advisory grammar and the 76-entry chart registry.
+- Adapted SUSTech text frames and three guidance baselines; kept font sizes, placeholders, images and historical brief-lock unchanged. Compressed duplicate design-spec prose without removing identity or usage rules.
+- Full regression: 952 tests and 1350 subtests passed. Browser navigation/edit/draft restore/save and actual PowerPoint 16.0 eight-slide preview passed.
+- New development checkout: `/home/sustech/workspace/ppt-master-sustech`. The former checkout under `.ai-toolbox/skills/ppt-master` and public checkout remain untouched.
+
 ## Release Line Status
 
-As of 2026-09-02:
+As of 2026-10-24:
 
-- Current source release line: `r6.1.0-v0.4.0`
+- Current source release line: `r6.7.3-v0.4.0`.
 - `ppt_text_normalize` Safe MVP first enters the formal capability release line at `r2.8.0-v0.2.0`
-- `r6.1.0-v0.4.0` is the current SUSTech line on the upstream v6.1 architecture and continues local version `v0.4.0`.
+- `r6.7.3-v0.4.0` continues local version `v0.4.0` on upstream v6.7.3 plus the approved cutoff.
 - For this release, `ppt_text_normalize` public wording is conservative: `scan` / `apply` only.
 
 Release pages:

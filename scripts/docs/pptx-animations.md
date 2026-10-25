@@ -41,8 +41,8 @@ One resolved row contains these fields:
 | Trigger shape | Optional different top-level group; maps to PowerPoint `On Click of` |
 | Duration | Finite positive schedule duration; scalable native behavior trees preserve their internal timing ratios |
 | Delay | Finite non-negative row offset; shape-trigger rows use it as `TriggerDelayTime` |
-| Order | Positive integer sidecar order; ties retain stable SVG group order, then `effects[]` index |
-| Effect options | Effect-specific `direction`, `amount`, `color`, `font_name` (one installed PowerPoint face, required for Change Font; not a CSS list), `relative`, or `size` values from PowerPoint `EffectParameters` |
+| Order | Positive integer sidecar order; ties retain stable SVG group order, then `effects[]` index; a group with no sidecar `order` follows the nearest listed group before it in SVG order (and precedes every listed group when none precedes it), so a headline above the numbered body enters first |
+| Effect options | Effect-specific `direction`, `amount`, `color`, `font_name` (one installed PowerPoint face, required for Change Font; not a CSS list), `relative`, or `size` values from PowerPoint `EffectParameters`; an edge `direction` (`up` / `right` / `down` / `left`) names the side the effect starts from, PowerPoint's From Top / From Right / From Bottom / From Left |
 | Timing options | Repeat count/span, auto-reverse, rewind, accelerate/decelerate, bounce-end ratio, and restart policy |
 | Completion / cue | Optional dim/hide behavior and packaged `.m4a`/`.mp3`/`.wav` sound |
 
@@ -148,14 +148,7 @@ top-level group that itself lacks `data-pptx-layer`, `data-pptx-role`, and
 | Target state | Behavior |
 |---|---|
 | Ordinary content group | Animatable; a legacy block resolves one row and `effects[]` may resolve several rows against the same final shape |
-| Legacy chrome-like id | Skipped unless explicitly named in `animations.json` |
-| Explicit sidecar group override | May override only the legacy chrome-name heuristic |
-| `data-pptx-layer` or explicit static role/placeholder | Structural and never animatable |
-
-An explicit sidecar entry cannot turn a Master/Layout/Slide structural layer or
-an explicitly marked static page-frame role/placeholder into an animation
-target. This boundary preserves PPTX structure even when a legacy id resembles
-content.
+| Chrome-like ids, static roles/placeholders, and structural exclusions | See [`animations.md`](../../references/animations.md) §5 for defaults and explicit sidecar overrides |
 
 ---
 
@@ -301,10 +294,10 @@ animation-to-video contract.
 | `groups.<id>.effects[]` | Non-empty ordered array for a multi-duty lifecycle; every row names `effect`; cannot coexist with legacy single-effect fields in the same group |
 | `groups.<id>.effect` | Backward-compatible single-row form; old short names are read-only compatibility inputs |
 | `effects[].trigger` / legacy `trigger` | Row-specific Start mode; omitted values inherit `animation.trigger` |
-| `order` | Page-wide order for ordinary rows; ties keep SVG group order, then `effects[]` index; `trigger_shape` rows keep relative order in separate interactive sequences; SVG layer order never changes |
+| `order` | Page-wide order for ordinary rows; ties keep SVG group order, then `effects[]` index; an unlisted animated group inherits the order of the nearest listed group above it in SVG order (0 before the first); `trigger_shape` rows keep relative order in separate interactive sequences; SVG layer order never changes |
 | `delay` | Row-specific seconds added to the resolved Start or shape trigger |
 | `duration` | Per-row schedule duration; scalable native trees keep internal ratios, while `entrance_appear` and instantaneous presets keep their authored duration and use the value for `after-previous` spacing |
-| `effect_options` | Effect-specific parameters (`direction`, `amount`, `color`, `font_name`, `relative`, `size`) limited to what the selected effect supports (`pptx_animations.py --describe <effect>`); requires an explicit canonical `effect` in the same block or row; `font_name` is one target-installed face |
+| `effect_options` | Effect-specific parameters (`direction`, `amount`, `color`, `font_name`, `relative`, `size`) limited to what the selected effect supports (`pptx_animations.py --describe <effect>`; `direction` is the way the motion travels — PowerPoint names the origin edge, so `right` is its "From Left"); requires an explicit canonical `effect` in the same block or row; `font_name` is one target-installed face |
 | `trigger_shape` | Different top-level group id for native **On Click of**; row-only, not inherited; implies `on-click` and accepts an explicit row `trigger` only when it is also `on-click` |
 | `repeat_count` / `repeat_duration` | Repeat count or total repeat span; mutually exclusive |
 | `auto_reverse`, `rewind` | Reverse each cycle and/or restore the pre-animation state |
@@ -313,4 +306,4 @@ animation-to-video contract.
 | `after_effect` | `none`, `dim` with `color`, `hide`, or `hide-on-next-click` |
 | `sound` | Object-animation cue: project-relative or absolute `.m4a` / `.mp3` / `.wav` on low-level inputs; bundled selections use the synced project-relative `.wav` path |
 
-An unlisted SVG inherits the resolved deck-wide settings; a listed slide may contain only the `transition`, `animation`, `groups`, or `morph` fields it overrides; chrome groups (`bg` / `*-header` / `*-footer` / `*-decor` / `nav` / `watermark` / `logo` / `pagenumber`) are pinned to `none` unless explicitly named without a structural marker; a group carrying `data-pptx-layer` or a static role/placeholder marker never animates.
+An unlisted SVG inherits the resolved deck-wide settings; a listed slide may contain only the `transition`, `animation`, `groups`, or `morph` fields it overrides. The chrome-name heuristic matches an id equal to, or holding a `-`/`_`-separated token from, `bg`, `background`, `header`, `footer`, `decor`, `decoration`, `decorations`, `chrome`, `nav`, `watermark`, `logo`, `pagenumber`, `pagenum`, `slidenumber`, `slidenum`, `rule`; `list-groups` names the excluded ids at the end of each slide line. A marker-free `*-header` / `*-footer` group whose text reaches the page's median font size is read as the title block and stays an ordinary target. For chrome defaults, explicit sidecar overrides, and structural exclusions, see [`animations.md`](../../references/animations.md) §5.

@@ -104,3 +104,39 @@ class TestDesignSpecSkeletonCheck(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _qualified_brand_workspace(tmp_path):
+    import shutil
+    source = Path(__file__).resolve().parents[2] / "templates/brands/anthropic"
+    workspace = tmp_path / "project"
+    shutil.copytree(source, workspace)
+    spec = workspace / "templates/design_spec.md"
+    spec.rename(spec.with_name("design_spec.brand.anthropic.md"))
+    return workspace
+
+
+def test_qualified_brand_workspace_uses_upstream_validation(tmp_path):
+    from template_quality_checker import check_template_dir
+    workspace = _qualified_brand_workspace(tmp_path)
+    result = check_template_dir(workspace)
+    assert result["passed"], result["errors"]
+    assert not (workspace / "brief_lock.json").exists()
+
+
+def test_qualified_brand_rejects_identity_mismatch(tmp_path):
+    from template_quality_checker import check_template_dir
+    workspace = _qualified_brand_workspace(tmp_path)
+    spec = workspace / "templates/design_spec.brand.anthropic.md"
+    spec.rename(spec.with_name("design_spec.brand.wrong.md"))
+    result = check_template_dir(workspace)
+    assert not result["passed"]
+    assert any("filename id" in error for error in result["errors"])
+
+
+def test_qualified_brand_explicit_legacy_audit_still_requires_lock(tmp_path):
+    from template_quality_checker import check_template_dir
+    workspace = _qualified_brand_workspace(tmp_path)
+    result = check_template_dir(workspace, require_brief_lock=True)
+    assert not result["passed"]
+    assert "Missing brief_lock.json" in result["errors"]

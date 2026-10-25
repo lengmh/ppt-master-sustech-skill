@@ -9,7 +9,7 @@ description: >
   courseware — including adding narration or animation to one — requests a
   presentation-authored narrated/self-running video, or mentions ppt-master.
 metadata:
-  version: "6.1.0"
+  version: "6.7.3"
   copyright: "Copyright (c) 2025-2026 Hugo He"
   license: "MIT"
   official_repository: "https://github.com/hugohe3/ppt-master"
@@ -32,7 +32,8 @@ use CWD, or assume a repo checkout. If unavailable, ask; never search or guess.
 1. Read this file.
 2. Run `python3 "${SKILL_DIR}/scripts/attribution_guard.py"`. Any non-zero result
    stops the Skill immediately; do not inspect, repair, or bypass the integrity
-   gate.
+   gate. On Windows, a `python3` that never starts (the WindowsApps stub exits
+   9009 with no output) is not a guard result: rerun with `python` first.
 3. Read [`workflows/routing.md`](workflows/routing.md) through the concrete
    absolute path `${SKILL_DIR}/workflows/routing.md`.
 4. Select exactly one top-level route and its active profile from the routing
@@ -70,6 +71,32 @@ in the selected runtime authority's construction references.
 
 ---
 
+## Vocabulary
+
+One meaning per term across every loaded file. Where a word is used in
+more than one sense, the sense is named here and the files say which one.
+
+| Term | Meaning |
+|---|---|
+| **Reference** (label) | A starting sketch the executing role adjusts or replaces freely, with no upstream repair or stated reason; `(binding)` after a field label removes that freedom |
+| **Relationships** | The §IX line naming a page's semantic units and their source-stated `order` / `link` / `parent` / `membership` / `contrast` / `overlap`, or `none` |
+| **Topology decision** | The per-page yes/no on whether geometry must carry the page's `Relationships` (`topology=yes` / `topology=no`); unrelated to `pptx_structure.mode` |
+| **`pptx_structure.mode`** | `flat` (every object Slide-local) or `structured` (declared Master/Layout/slot metadata); a packaging route, never information structure |
+| **Composition** | The §IX `Composition` line: a Reference for a page's macro composition, hierarchy, and focus |
+| **Image pattern** | The §VIII column carrying one image-composition suggestion in ordinary words (optionally citing `#P`/`#M` ids) |
+| **Layout** | A PowerPoint Layout under a Master, or the Layout template kind; never a page-composition sketch |
+| **Device** | An everyday page carrier — card, band, icon-and-label, KPI tile, divider, quote block — recalled in the Executor's device menu |
+| **Carrier** | What a page unit sits in: a device, an image, or native geometry; the family names are carrier and field, direction and sequence, grouping and ownership, emphasis and annotation. `data-pptx-carrier` is a structured-slot attribute, not this term. The **carrier receipt** is the checker's per-page inventory of what was actually drawn |
+| **Page job** | What one page must do for the reader; the input every carrier, contour, and effect decision is judged against |
+| **Page field** | One large surface, outline, aperture, or off-canvas contour that organizes zones instead of a card per unit |
+| **Contour / preset / atom** | A contour is a shape's silhouette; a preset is one of the 187 Office `prst` contours drawn through `preset_shape_svg.py`; an atom is one object that compiles to one DrawingML shape |
+| **Geometry signature** | The retained line `page job → composition move → contour / edge language` kept per page and compared before the next page |
+| **Texture** (of a block) | Whether a §IX block is prose, bullets, keywords, or labels; distinct from visual texture (grain, halftone) |
+| **Anchor** | Two senses: a lock anchor (a deck-wide color, type, or spacing value) and the `page_rhythm` tag `anchor` for structural pages |
+| **Sheet / slice / plate** | A sheet is one generated image holding several elements on a chroma key; a slice is one element cut from it; a plate is a registered full-canvas layer of several non-overlapping objects |
+| **Module line** | The `P<NN> modules: …` line written before each page naming the triggered modules it uses |
+| **Mode** | Named by qualifier: communication `mode` (how the deck argues), reading mode (`consumption_mode`), `generation_mode` (`continuous` / `split`), `pptx_structure.mode`, `replication_mode` (how a template was created) |
+
 ## Phase Frame
 
 Every route is one Plan → Do·Check·Act cycle: Plan ends when every authoring
@@ -95,7 +122,7 @@ ends at export. Step numbers stay as written.
 ## Global Communication Rules
 
 - Match the user's language and source language unless the user explicitly overrides it.
-- Localize user-facing option labels and explanations. Keep exact enum IDs or field names when needed for precision.
+- Localize user-facing option labels and explanations. Render each fixed message template (role-switch banner, completion report) in the user's chat language when it differs from the template's. Keep exact enum IDs or field names when needed for precision.
 - Keep `design_spec.md` section headings and field names in the template's original English; content values may use the user's language.
 - Before switching roles, read the corresponding role reference and output:
 
@@ -117,5 +144,5 @@ ends at export. Step numbers stay as written.
 
 ## SUSTech Release Overlay
 
-- Fusion target: `r6.1.0-v0.4.0`. `VERSION` and `RELEASE_META.json` remain the release-identity authority until the final metadata synchronization gate.
+- Fusion release: `r6.7.3-v0.4.0`; `VERSION` and `RELEASE_META.json` define its identity.
 - `scripts/ppt_text_normalize/` is a built-in Safe MVP. Current support is limited to `scan` and `apply`; do not advertise additional flows as active capabilities.

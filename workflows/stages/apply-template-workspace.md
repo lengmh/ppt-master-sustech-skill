@@ -8,7 +8,7 @@ description: Generate-PPTX runbook for validating and installing selected Brand,
 
 ## 1. Gate and Normalize Inputs
 
-🚧 **GATE**: Default Stage 1 confirmed a non-free selection, or Quick received exact roots directly from the user/current Create Template handoff — in Quick that input is the complete selection authority (no Confirm UI, no `template_options.json` / `template_selection.json` / `template_handoff.json`). Every selected input resolves to one current contract:
+🚧 **GATE**: Default Stage 1 confirmed a non-free selection, or Quick received exact roots directly from the user/current Create Template handoff — in Quick that input is the complete selection authority (no Confirm UI recommendations or selection receipt). Every selected input resolves to one current contract:
 
 | Input shape | Spec and SVG source | Asset source |
 |---|---|---|
@@ -22,13 +22,13 @@ Spec naming and kind declaration follow [`templates/README.md`](../../templates/
 | `library` | The normalized root exactly equals `templates/<kind_dir>/<id>/` derived from an entry in that kind's `*_index.json` |
 | `explicit` | The user or Create Template supplied an exact root not registered at that canonical index-derived root |
 
-Read library choices only from the four `*_index.json` files; never scan kind directories or promote an unregistered directory into the catalog. The label changes discovery provenance only, never validation, precedence, or installation.
+Library roots come from the four indexes ([`routing.md`](../routing.md) §7); the label changes discovery provenance only, never validation, precedence, or installation.
 
 **Selection cardinality**: at most one root per kind; all four kinds may coexist. A multi-kind explicit root contributes all its specs atomically and combines only with non-overlapping kinds; reject duplicate kinds before validation.
 
 **Hard rule — raw source boundary**: a raw PPTX is not a template workspace. Raw PPTX plus new content uses [`edit-native-pptx`](../edit-native-pptx.md); a reusable template request runs [`create-template`](../create-template.md) first, whose validated root becomes a Stage-1 candidate preselected only when it is the sole supplied root. Never add Master/Layout/placeholder structure directly to an existing PPTX or SVG project.
 
-**Current-contract gate**: reject flat-root, semantic-legacy, or incomplete structured packages (old baseline/distillation metadata, incomplete Master identity, legacy direct atomic placeholders); create a new workspace through Create Template, from the original PPTX when native topology must be preserved.
+**Current-contract gate**: reject a flat-root, semantic-legacy, or incomplete structured package under [`pptx-structure-interface.md`](../../references/pptx-structure-interface.md) §3; a new workspace comes from Create Template.
 
 ## 2. Read the Matching Schema
 
@@ -44,12 +44,12 @@ Read [`templates/README.md`](../../templates/README.md), then only the README fo
 A Layout created with `mirror` stays eligible only when its source is brand-neutral and application-neutral; keep a branded or application-bearing source as a Deck or re-author it through `standard` / `fidelity`. Before mapping any workspace, run the shared package validator from its root — Brand/Style are roster-free, the active structure validates its roster, a shadowed Deck still validates its contract; any error blocks installation:
 
 ```bash
-python3 skills/ppt-master/scripts/svg_quality_checker.py "<workspace_root>/templates" --template-mode --canonical-authoring
+python3 ${SKILL_DIR}/scripts/svg_quality_checker.py "<workspace_root>/templates" --template-mode --canonical-authoring
 ```
 
 ## 3. Structured Preflight
 
-Before copying a Deck or Layout workspace (Brand and Style skip this), inspect every SVG root and slot: every page declares root Master/Layout keys and picker names; Master/Layout visuals are direct atoms, not layer `<g>` wrappers; every non-composite slot is a top-level `<g>` with positive bounds and exactly one compatible carrier; a composite region uses an explicit `object` proxy; zero-slot Layouts are valid; the contract is current — reject a legacy contract instead of repairing it in the target project.
+Before copying a Deck or Layout workspace (Brand and Style skip this), inspect every SVG root and slot against [`pptx-structure-interface.md`](../../references/pptx-structure-interface.md) §2, and reject a legacy contract (§3) instead of repairing it in the target project.
 
 ## 4. Install Each Distinct Root Once
 
@@ -67,6 +67,12 @@ Validate each normalized root once. The effective structural owner is Layout whe
 | `style` | Direction/method without identity, prototypes, or structure; Style-only and Style + Brand stay flat, Style + Layout/Deck follows that owner; Style never activates visual review |
 | `layout` | Reusable structure, precedence over Deck; Default plans against its prototypes, Quick reads the roster and authors its Master/Layout/slot contract directly |
 | `deck` | Descriptive application context and identity; structure and prototype roster only when no Layout is selected |
+
+**Command**: the mapping, provenance line, asset copy, collision and duplicate-kind refusal, and completion receipt below are one run of the install tool (add `--dry-run` to review the mapping first; `--skip-validation` only when the §2 checker already ran on that root in this turn); [`template-tools.md`](../../scripts/docs/template-tools.md#apply_templatepy) owns its behavior:
+
+```bash
+python3 ${SKILL_DIR}/scripts/apply_template.py <project_path> --root <workspace_root> [--root <workspace_root> ...]
+```
 
 **Atomic install preflight**: resolve every source and destination path; enumerate the union mapping across all roots and across `templates/`, `images/`, `icons/`, mapping each source file at most once; resolve Layout-over-Deck precedence before building the map so the shadowed roster never enters it; reject every destination collision and duplicate kind before writing; write the accepted mapping once — never recursive copy as an implicit conflict policy. An input equal to the target project is consumed in place; if a selected Layout supersedes its in-place Deck roster, stage the mapping and replace the roster atomically.
 
@@ -105,4 +111,4 @@ Each installed file keeps its own frontmatter `kind` and `<id>`; nothing is rela
 - [x] Every kind schema passed preflight; structured SVG checks ran only for Layout/Deck inputs
 - [x] Duplicate kinds and destination collisions were rejected before one atomic install; Layout-over-Deck precedence selected exactly one active roster
 - [x] `<project_path>/templates/` and portable sibling assets are complete and the only downstream template source
-- [ ] **Next**: Default completes the template-selection handoff and continues [`generate-pptx.md`](../generate-pptx.md) Step 4 Stage 2; Quick returns to [`quick-generate`](../profiles/quick-generate.md) §2
+- [ ] **Next**: Default continues [`generate-pptx.md`](../generate-pptx.md) Step 4 Stage 2 after the server verifies selection and installation; Quick returns to [`quick-generate`](../profiles/quick-generate.md) §2

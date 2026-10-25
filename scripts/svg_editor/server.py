@@ -19,6 +19,8 @@ Dependencies:
 
 import argparse
 import atexit
+import functools
+import hashlib
 import html
 import json
 import logging
@@ -30,8 +32,8 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
-import webbrowser
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Iterable, Optional
@@ -44,6 +46,9 @@ logger = logging.getLogger('svg_editor')
 LIVE_PREVIEW_DIR_NAME = 'live_preview'
 LOCK_FILE_NAME = 'lock.json'
 LEGACY_LOCK_FILE_NAME = '.live_preview.lock'
+# Unapplied staged work, rewritten after every staging change (issue #319).
+DRAFT_FILE_NAME = 'draft.json'
+DRAFT_VERSION = 1
 
 # Local — sys.path injection for sibling module (code-style.md §3)
 _SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -67,6 +72,8 @@ from server_common import (  # noqa: E402
     clear_lock as _clear_lock,
     find_free_port as _find_free_port,
     lock_pid as _lock_pid,
+    open_preview_browser,
+    plain_request_log,
     popen_detached as _popen_detached,
     process_alive as _process_alive,
     read_lock as _read_lock,
@@ -77,6 +84,8 @@ from server_common import (  # noqa: E402
 configure_utf8_stdio()
 
 from annotations import (  # noqa: E402
+    SVG_NS,
+    XLINK_NS,
     assign_temp_ids,
     is_editable_attr,
     parse_annotations,
@@ -108,7 +117,7 @@ _SLIDE_CACHE_LOCK = threading.Lock()
 _SLIDE_CACHE: dict = {}  # path -> (mtime, (content, warnings))
 
 _LIST_CACHE_LOCK = threading.Lock()
-_LIST_CACHE: dict = {}  # path -> (mtime, annotation_count_on_disk)
+_LIST_CACHE: dict = {}  # path -> (mtime, (annotation_count_on_disk, ok, error))
 
 # Keep live preview on a separate range from Confirm UI so a stale preview tab
 # cannot send ``/api/shutdown`` to a later Confirm UI process.
@@ -339,6 +348,38 @@ def _append_annotation_log(project_path: Path, record: dict) -> None:
     _append_live_preview_log(project_path, ANNOTATION_LOG_NAME, record)
 
 
+def _file_digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _register_svg_namespaces() -> None:
+    """Bind the SVG namespace to the default prefix right before serializing.
+
+    The ElementTree prefix map is process-global and ``pptx_ooxml.ooxml``
+    (imported via ``svg_to_pptx``) claims the default prefix for its own
+    namespace at import, so without this the slide comes out as ``<ns0:svg>``.
+    Call it under ``state_lock``: registration briefly removes the mapping, so
+    a concurrent serialization could otherwise still emit ``ns0:``.
+    """
+    ET.register_namespace('', SVG_NS)
+    ET.register_namespace('xlink', XLINK_NS)
+
+
+def _atomic_replace(path: Path, write) -> None:
+    """Write through ``write(tmp_path)`` and swap the result into ``path``.
+
+    A crash mid-write leaves the original file intact instead of a truncated
+    SVG or draft.
+    """
+    tmp = path.with_name(f'.{path.name}.{os.getpid()}.tmp')
+    try:
+        write(tmp)
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
 def _find_by_id(root: ET.Element, element_id: str) -> Optional[ET.Element]:
     for elem in root.iter():
         if elem.get('id') == element_id:
@@ -450,12 +491,178 @@ def create_app(
     # but are written to svg_output/ only by /api/save-all.
     app.config['PENDING_EDITS'] = {}
 
-    # Idle timeout: auto-shutdown if no one connects within idle_timeout seconds
-    app.config['LAST_REQUEST_TIME'] = time.time()
+    # Per-file staging baseline: {filename: {'digest': sha256 of the SVG the
+    # staged work was built on, 'annotations': its on-disk annotation map}}.
+    # The digest keeps a restored draft from replaying onto a changed SVG,
+    # where renumbered _edit_N ids would point at different elements.
+    app.config['DRAFT_BASES'] = {}
+
+    # Serializes every read-modify-write of the staged state and its draft.
+    state_lock = threading.RLock()
+
+    def _with_state_lock(view):
+        @functools.wraps(view)
+        def wrapper(*args, **kwargs):
+            with state_lock:
+                return view(*args, **kwargs)
+        return wrapper
+
+    def _note_base(name: str, svg_file: Path, disk_annotations: Optional[dict] = None) -> None:
+        base = app.config['DRAFT_BASES'].setdefault(name, {'digest': None, 'annotations': None})
+        if base['digest'] is None:
+            base['digest'] = _file_digest(svg_file)
+        if disk_annotations is not None and base['annotations'] is None:
+            base['annotations'] = dict(disk_annotations)
+
+    def _draft_pages() -> dict:
+        """Pages whose staged state differs from what is on disk."""
+        annotations = app.config['ANNOTATIONS']
+        pending_edits = app.config['PENDING_EDITS']
+        pages = {}
+        for name in sorted(set(annotations) | set(pending_edits)):
+            base = app.config['DRAFT_BASES'].get(name) or {}
+            entry: dict = {}
+            if name in annotations and annotations[name] != base.get('annotations'):
+                entry['annotations'] = annotations[name]
+            if pending_edits.get(name):
+                entry['edits'] = pending_edits[name]
+            if entry:
+                entry['digest'] = base.get('digest')
+                pages[name] = entry
+        return pages
+
+    def _persist_draft() -> bool:
+        """Mirror the staged state to live_preview/draft.json; False on failure."""
+        draft_file = _draft_file(project_path)
+        pages = _draft_pages()
+        try:
+            if not pages:
+                draft_file.unlink(missing_ok=True)
+                return True
+            payload = json.dumps(
+                {'version': DRAFT_VERSION, 'pages': pages},
+                ensure_ascii=False, indent=2,
+            ).encode('utf-8')
+            draft_file.parent.mkdir(parents=True, exist_ok=True)
+            _atomic_replace(draft_file, lambda tmp: tmp.write_bytes(payload))
+        except OSError as exc:
+            logger.warning('draft save failed: %s', exc)
+            return False
+        return True
+
+    def _restore_page(name: str, entry) -> Optional[dict]:
+        """Load one draft page into memory; None when it no longer applies."""
+        if not isinstance(entry, dict) or not isinstance(entry.get('digest'), str):
+            return None
+        anns = entry.get('annotations')
+        edits = entry.get('edits') or []
+        if anns is not None and not (
+            isinstance(anns, dict)
+            and all(isinstance(k, str) and isinstance(v, str) for k, v in anns.items())
+        ):
+            return None
+        if not isinstance(edits, list) or not all(isinstance(e, dict) for e in edits):
+            return None
+        svg_file = _safe_svg_path(name)
+        if svg_file is None or not svg_file.exists():
+            return None
+        try:
+            if _file_digest(svg_file) != entry['digest']:
+                return None
+            root = ET.parse(str(svg_file)).getroot()
+            materialize_inline_geometry_properties(root)
+        except (OSError, ET.ParseError, GeometryStyleError):
+            return None
+        assign_temp_ids(root)
+        disk_annotations = {
+            item['element_id']: item['annotation']
+            for item in parse_annotations(root)
+        }
+        ok, _reason = _apply_edit_records(root, edits)
+        if not ok:
+            return None
+        app.config['DRAFT_BASES'][name] = {
+            'digest': entry['digest'],
+            'annotations': disk_annotations,
+        }
+        if anns is not None:
+            app.config['ANNOTATIONS'][name] = dict(anns)
+        if edits:
+            app.config['PENDING_EDITS'][name] = edits
+        return {'annotations': anns is not None, 'edits': len(edits)}
+
+    def _restore_draft() -> dict:
+        """Reload a draft left by a previous server; set aside what no longer fits."""
+        status = {'restored': {}, 'conflicts': [], 'conflict_file': None, 'unreadable': False}
+        draft_file = _draft_file(project_path)
+        if not draft_file.exists():
+            return status
+        aside = draft_file.with_name(f'draft_conflict_{time.strftime("%Y%m%d-%H%M%S")}.json')
+        try:
+            data = json.loads(draft_file.read_text(encoding='utf-8'))
+            pages = data.get('pages') if isinstance(data, dict) else None
+            if data.get('version') != DRAFT_VERSION or not isinstance(pages, dict):
+                raise ValueError('unrecognized draft format')
+        except (OSError, ValueError, AttributeError) as exc:
+            logger.warning('draft unreadable, set aside as %s: %s', aside.name, exc)
+            try:
+                os.replace(draft_file, aside)
+                status['conflict_file'] = aside.name
+            except OSError as move_exc:
+                logger.warning('draft set-aside failed: %s', move_exc)
+            status['unreadable'] = True
+            return status
+
+        conflicts = {}
+        for name, entry in pages.items():
+            restored = _restore_page(name, entry) if isinstance(name, str) else None
+            if restored is None:
+                conflicts[name] = entry
+            else:
+                status['restored'][name] = restored
+        if conflicts:
+            status['conflicts'] = sorted(str(name) for name in conflicts)
+            try:
+                payload = json.dumps(
+                    {'version': DRAFT_VERSION, 'pages': conflicts},
+                    ensure_ascii=False, indent=2,
+                ).encode('utf-8')
+                _atomic_replace(aside, lambda tmp: tmp.write_bytes(payload))
+                status['conflict_file'] = aside.name
+            except OSError as exc:
+                # Leave draft.json untouched so the conflicting pages survive.
+                logger.warning('draft conflict set-aside failed: %s', exc)
+                return status
+        if status['restored'] or conflicts:
+            logger.info(
+                'draft: restored %d page(s), set aside %d',
+                len(status['restored']), len(conflicts),
+            )
+        _persist_draft()
+        return status
+
+    # Idle timeout: auto-shutdown if no one connects within idle_timeout seconds.
+    # Monotonic time keeps a wall-clock jump (resume from sleep, NTP step) from
+    # counting as idleness on platforms whose monotonic clock pauses in suspend.
+    app.config['LAST_REQUEST_TIME'] = time.monotonic()
 
     @app.before_request
     def _update_activity():
-        app.config['LAST_REQUEST_TIME'] = time.time()
+        allowed_hosts = {PUBLIC_HOST, 'localhost', '::1', '[::1]'}
+        host = request.headers.get('Host', '').lower()
+        if host.startswith('[') or host.count(':') == 1:
+            host = re.sub(r':\d+$', '', host)
+        if host not in allowed_hosts:
+            return jsonify({'error': 'Forbidden Host header'}), 403
+        origin = request.headers.get('Origin')
+        if origin is not None:
+            try:
+                origin_host = urllib.parse.urlsplit(origin).hostname
+            except ValueError:
+                origin_host = None
+            if origin_host not in allowed_hosts:
+                return jsonify({'error': 'Forbidden Origin header'}), 403
+        app.config['LAST_REQUEST_TIME'] = time.monotonic()
 
     def _exit_with_lock_release(code: int = 0) -> None:
         lf = app.config.get('LOCK_FILE')
@@ -470,11 +677,12 @@ def create_app(
             return
         while True:
             time.sleep(10)
-            elapsed = time.time() - app.config['LAST_REQUEST_TIME']
+            elapsed = time.monotonic() - app.config['LAST_REQUEST_TIME']
             if elapsed > idle_timeout:
                 logger.info('idle for %ds, shutting down', idle_timeout)
-                # Flask dev server has no clean shutdown; data is safe
-                # because idle timeout only fires when no requests are in flight.
+                # Flask dev server has no clean shutdown. Every acknowledged
+                # staging change is already mirrored to draft.json, so the next
+                # start restores it.
                 _exit_with_lock_release(0)
 
     watchdog = threading.Thread(target=_idle_watchdog, daemon=True)
@@ -488,7 +696,8 @@ def create_app(
         def _stop():
             time.sleep(0.5)  # Let HTTP response flush before killing the process
             logger.info('shutting down (%s)', reason)
-            # os._exit: save-all already wrote to disk; 0.5s delay ensures response is sent.
+            # os._exit: unapplied work stays in draft.json for the next start;
+            # the 0.5s delay ensures the response is sent.
             _exit_with_lock_release(0)
         threading.Thread(target=_stop, daemon=True).start()
         return jsonify({'status': 'ok'})
@@ -499,8 +708,16 @@ def create_app(
 
     @app.route('/api/config')
     def get_config():
+        with state_lock:
+            pending = {
+                name: {'annotations': 'annotations' in entry, 'edits': len(entry.get('edits') or [])}
+                for name, entry in _draft_pages().items()
+            }
+            # The startup restore report is shown once, not on every reload.
+            startup = app.config.pop('DRAFT_STARTUP', None)
         return jsonify({
             'live': app.config['LIVE_MODE'],
+            'draft': {'pending': pending, 'startup': startup},
         })
 
     @app.route('/api/health')
@@ -558,8 +775,8 @@ def create_app(
 
             ok = True
             error_msg: Optional[str] = None
-            disk_count = _cache_get(_LIST_CACHE, _LIST_CACHE_LOCK, path_str, mtime)
-            if disk_count is None:
+            cached = _cache_get(_LIST_CACHE, _LIST_CACHE_LOCK, path_str, mtime)
+            if cached is None:
                 try:
                     tree = ET.parse(path_str)
                     disk_count = len(parse_annotations(tree.getroot()))
@@ -568,7 +785,9 @@ def create_app(
                     error_msg = f'XML parse error: {exc}'
                     disk_count = 0
                     logger.warning('slide parse failed: %s: %s', svg_file.name, exc)
-                _cache_put(_LIST_CACHE, _LIST_CACHE_LOCK, path_str, mtime, disk_count)
+                _cache_put(_LIST_CACHE, _LIST_CACHE_LOCK, path_str, mtime, (disk_count, ok, error_msg))
+            else:
+                disk_count, ok, error_msg = cached
 
             if svg_file.name in annotations:
                 annotation_count = len(annotations[svg_file.name])
@@ -624,6 +843,7 @@ def create_app(
             item['element_id']: item['annotation']
             for item in parse_annotations(root)
         }
+        _note_base(name, svg_file, annotations[name])
         return annotations[name], None
 
     @app.route('/api/slide/<name>')
@@ -641,7 +861,11 @@ def create_app(
             logger.warning('stat failed: %s: %s', path_str, exc)
             return jsonify({'error': f'Failed to stat SVG: {exc}'}), 500
 
-        pending_edits = app.config['PENDING_EDITS'].get(name) or []
+        with state_lock:
+            pending_edits = [dict(r) for r in app.config['PENDING_EDITS'].get(name) or []]
+            staged_annotations = app.config['ANNOTATIONS'].get(name)
+            if staged_annotations is not None:
+                staged_annotations = dict(staged_annotations)
         cached = None if pending_edits else _cache_get(
             _SLIDE_CACHE, _SLIDE_CACHE_LOCK, path_str, mtime,
         )
@@ -676,7 +900,9 @@ def create_app(
                         tag = tag.split('}', 1)[1]
                     id_to_tag[eid] = tag
             _normalize_preview_hrefs(root)
-            content = ET.tostring(root, encoding='unicode', xml_declaration=False)
+            with state_lock:
+                _register_svg_namespaces()
+                content = ET.tostring(root, encoding='unicode', xml_declaration=False)
             content, warnings = _inline_icons(
                 content,
                 icons_dir,
@@ -688,8 +914,8 @@ def create_app(
                     (content, warnings, disk_annotations, id_to_tag),
                 )
 
-        if name in app.config['ANNOTATIONS']:
-            merged = dict(app.config['ANNOTATIONS'][name])
+        if staged_annotations is not None:
+            merged = staged_annotations
         else:
             merged = {
                 ann['element_id']: ann['annotation']
@@ -715,6 +941,7 @@ def create_app(
         })
 
     @app.route('/api/slide/<name>/annotate', methods=['POST'])
+    @_with_state_lock
     def post_annotate(name: str):
         data = request.get_json()
         if not data or 'element_id' not in data or 'annotation' not in data:
@@ -741,9 +968,11 @@ def create_app(
         return jsonify({
             'status': 'ok',
             'annotations_count': len(annotations),
+            'draft_saved': _persist_draft(),
         })
 
     @app.route('/api/slide/<name>/annotate/<element_id>', methods=['DELETE'])
+    @_with_state_lock
     def delete_annotate(name: str, element_id: str):
         annotations, error = _get_annotation_snapshot(name)
         if error is not None:
@@ -754,9 +983,11 @@ def create_app(
         return jsonify({
             'status': 'ok',
             'annotations_count': len(annotations),
+            'draft_saved': _persist_draft(),
         })
 
     @app.route('/api/slide/<name>/edit', methods=['POST'])
+    @_with_state_lock
     def post_edit(name: str):
         """Stage a direct (AI-free) edit to one element.
 
@@ -867,6 +1098,7 @@ def create_app(
             staged['promote_tspan'] = promote
 
         staged['changes'] = changes
+        _note_base(name, svg_file)
         pending = app.config['PENDING_EDITS'].setdefault(name, [])
         # Coalesce a run of edits to the same element+fields into one undo step
         # so repeated nudges/color tries don't pile up replay work or log noise.
@@ -874,9 +1106,14 @@ def create_app(
             _coalesce_into(pending[-1], staged)
         else:
             pending.append(staged)
-        return jsonify({'status': 'ok', 'undo_depth': len(pending)})
+        return jsonify({
+            'status': 'ok',
+            'undo_depth': len(pending),
+            'draft_saved': _persist_draft(),
+        })
 
     @app.route('/api/slide/<name>/undo', methods=['POST'])
+    @_with_state_lock
     def post_undo(name: str):
         """Drop the most recent staged direct edit on this slide (LIFO)."""
         svg_file = _safe_svg_path(name)
@@ -889,9 +1126,14 @@ def create_app(
         if not stack:
             return jsonify({'status': 'empty', 'undo_depth': 0})
         stack.pop()
-        return jsonify({'status': 'ok', 'undo_depth': len(stack)})
+        return jsonify({
+            'status': 'ok',
+            'undo_depth': len(stack),
+            'draft_saved': _persist_draft(),
+        })
 
     @app.route('/api/save-all', methods=['POST'])
+    @_with_state_lock
     def save_all():
         annotations = app.config['ANNOTATIONS']
         pending_edits = app.config['PENDING_EDITS']
@@ -912,6 +1154,20 @@ def create_app(
                 continue
             if not svg_file.exists():
                 failures.append(f'{filename}: Slide not found')
+                continue
+            # Staged edits and annotations address positional _edit_N ids; if
+            # the SVG changed since staging they would land on other elements.
+            staged_digest = (app.config['DRAFT_BASES'].get(filename) or {}).get('digest')
+            try:
+                changed_on_disk = bool(staged_digest) and _file_digest(svg_file) != staged_digest
+            except OSError as exc:
+                failures.append(f'{filename}: Failed to read SVG: {exc}')
+                continue
+            if changed_on_disk:
+                failures.append(
+                    f'{filename}: SVG changed on disk after these changes were staged; '
+                    'reload the slide and redo them'
+                )
                 continue
 
             try:
@@ -943,8 +1199,18 @@ def create_app(
                 elem.attrib.pop('data-edit-target', None)
                 elem.attrib.pop('data-edit-annotation', None)
 
-            for element_id, annotation_text in anns.items():
-                set_annotation(root, element_id, annotation_text)
+            missing = [
+                element_id
+                for element_id, annotation_text in anns.items()
+                if not set_annotation(root, element_id, annotation_text)
+            ]
+            if missing:
+                # Keep the page staged (and in the draft) instead of dropping
+                # annotations whose target element no longer exists.
+                failures.append(
+                    f'{filename}: Annotation target not found: {", ".join(missing)}'
+                )
+                continue
 
             # Strip transient _edit_N ids from elements that are NOT user-annotated.
             # Only annotated elements need to keep their id so the AI can locate them
@@ -952,8 +1218,11 @@ def create_app(
             annotated_ids = set(anns.keys())
             strip_unused_temp_ids(root, annotated_ids)
 
+            _register_svg_namespaces()
             try:
-                tree.write(str(svg_file), encoding='UTF-8', xml_declaration=True)
+                _atomic_replace(svg_file, lambda tmp: tree.write(
+                    str(tmp), encoding='UTF-8', xml_declaration=True,
+                ))
             except OSError as exc:
                 failures.append(f'{filename}: Failed to write SVG: {exc}')
                 continue
@@ -983,14 +1252,20 @@ def create_app(
             modified.append(filename)
             annotations.pop(filename, None)
             pending_edits.pop(filename, None)
+            app.config['DRAFT_BASES'].pop(filename, None)
 
+        draft_saved = _persist_draft()
         if failures:
             return jsonify({
                 'error': 'Failed to save: ' + '; '.join(failures),
                 'files_modified': modified,
+                'draft_saved': draft_saved,
             }), 500
 
-        return jsonify({'status': 'ok', 'files_modified': modified})
+        return jsonify({'status': 'ok', 'files_modified': modified, 'draft_saved': draft_saved})
+
+    # Route helpers above (_safe_svg_path) must exist before the restore runs.
+    app.config['DRAFT_STARTUP'] = _restore_draft()
 
     return app
 
@@ -1001,6 +1276,10 @@ def _runtime_dir(project_path: Path) -> Path:
 
 def _lock_file(project_path: Path) -> Path:
     return _runtime_dir(project_path) / LOCK_FILE_NAME
+
+
+def _draft_file(project_path: Path) -> Path:
+    return _runtime_dir(project_path) / DRAFT_FILE_NAME
 
 
 def _legacy_live_lock(project_path: Path) -> Optional[dict]:
@@ -1065,26 +1344,35 @@ def _wait_for_ready(
     proc: subprocess.Popen,
     project_path: Path,
     timeout: int = STARTUP_TIMEOUT,
-) -> bool:
-    """Wait until this project's detached live-preview server responds."""
+) -> int:
+    """Wait until this project's detached live-preview server responds.
+
+    Returns the server pid recorded in the project lock, or 0 on timeout.
+    ``proc.pid`` is not used for identity: on Windows a venv ``python.exe``
+    may be a launcher whose child is the real interpreter.
+    """
     deadline = time.time() + timeout
     health_url = _server_url(port, '/api/health')
     last_error = ''
     while time.time() < deadline:
         if proc.poll() is not None:
             logger.error('live preview exited during startup (code=%s)', proc.returncode)
-            return False
+            return 0
         try:
             with urllib.request.urlopen(health_url, timeout=1) as response:
                 data = json.load(response)
+                lock = _read_lock(_lock_file(project_path))
+                server_pid = _lock_pid(lock)
                 if (
                     response.status == 200
                     and isinstance(data, dict)
                     and data.get('service') == 'live_preview'
                     and data.get('project') == str(project_path)
-                    and data.get('pid') == proc.pid
+                    and lock is not None
+                    and lock.get('port') == port
+                    and data.get('pid') == server_pid
                 ):
-                    return True
+                    return server_pid
                 last_error = 'health response belongs to another service or project'
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
             last_error = str(exc)
@@ -1095,21 +1383,11 @@ def _wait_for_ready(
         timeout,
         f' (last error: {last_error})' if last_error else '',
     )
-    return False
+    return 0
 
 
 def _open_browser(url: str) -> bool:
-    """Best-effort browser launch after the local server is reachable."""
-    try:
-        if os.name == 'nt':
-            os.startfile(url)  # type: ignore[attr-defined]
-            return True
-        return bool(webbrowser.open(url))
-    except OSError as exc:
-        logger.warning('browser auto-open failed: %s', exc)
-    except webbrowser.Error as exc:
-        logger.warning('browser auto-open failed: %s', exc)
-    return False
+    return open_preview_browser(url, logger=logger)
 
 
 def _reuse_running_server(
@@ -1209,6 +1487,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         format='[%(asctime)s] [%(levelname)s] svg_editor: %(message)s',
         datefmt='%H:%M:%S',
     )
+    plain_request_log()
 
     if args.port is not None:
         try:
@@ -1291,12 +1570,13 @@ def main(argv: Optional[list[str]] = None) -> int:
             logger.error('cannot write live preview log: %s (%s)', log_path, exc)
             return 1
         url = _server_url(port)
-        if not _wait_for_ready(port, proc, project_path):
+        server_pid = _wait_for_ready(port, proc, project_path)
+        if not server_pid:
             if proc.poll() is None:
                 proc.terminate()
             logger.error('live preview failed to become reachable: %s (log: %s)', url, log_path)
             return 1
-        logger.info('started live preview in background: %s (pid=%s)', url, proc.pid)
+        logger.info('started live preview in background: %s (pid=%s)', url, server_pid)
         logger.info('log: %s', log_path)
         if not args.no_browser and not _open_browser(url):
             logger.info('browser did not auto-open; open %s manually', url)

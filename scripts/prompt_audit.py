@@ -55,6 +55,9 @@ _AUTHORITY_TERMS_RE = re.compile(
 )
 _EXTERNAL_SCHEMES = ("http://", "https://", "mailto:", "data:", "javascript:")
 _SEVERITY_ORDER = {"error": 0, "warning": 1}
+_SCHEMA_PROJECTION_ROLES = frozenset(
+    {"producer", "consumer", "reference", "compatibility"}
+)
 
 
 class AuditError(RuntimeError):
@@ -107,6 +110,17 @@ def _read_utf8(path: Path) -> str:
         raise AuditError(f"Cannot read UTF-8 file {path}: {exc}") from exc
 
 
+def _validate_fixed_budget(label: str, budget: Any) -> None:
+    """Require durable rounded ceilings instead of current-count ratchets."""
+    if not isinstance(budget, int) or isinstance(budget, bool) or budget < 1:
+        raise AuditError(f"{label} must be a positive integer")
+    increment = 250 if budget < 10_000 else 1_000 if budget < 100_000 else 5_000
+    if budget % increment:
+        raise AuditError(
+            f"{label} must use a fixed {increment}-token increment, got {budget}"
+        )
+
+
 def load_manifest(path: Path) -> dict[str, Any]:
     """Load and validate the prompt-audit manifest."""
     try:
@@ -128,21 +142,29 @@ def load_manifest(path: Path) -> dict[str, Any]:
             raise AuditError(f"Manifest is missing required key: {key}")
     if raw["audit_only"] is not True or raw["runtime_consumed"] is not False:
         raise AuditError("Manifest must remain audit-only and excluded from runtime loading")
-    if raw["budget_policy"] != "current_growth_ceiling":
-        raise AuditError("Manifest budget_policy must remain current_growth_ceiling")
+    if raw["budget_policy"] != "fixed_upper_bound":
+        raise AuditError("Manifest budget_policy must remain fixed_upper_bound")
     if raw["encoding"] != "o200k_base":
         raise AuditError("Manifest encoding must remain o200k_base")
     documents = raw["documents"]
     if not isinstance(documents, dict):
         raise AuditError("documents must be an object")
-    if not isinstance(documents.get("max_tokens"), int) or documents["max_tokens"] < 1:
-        raise AuditError("documents.max_tokens must be a positive integer")
+    _validate_fixed_budget("documents.max_tokens", documents.get("max_tokens"))
     for key in ("load_sets", "file_budgets", "duplicates", "coverage"):
         if key in raw and not isinstance(raw[key], dict):
             raise AuditError(f"{key} must be an object")
     for key in ("authority_edges", "registries", "schema_grammars"):
         if key in raw and not isinstance(raw[key], list):
             raise AuditError(f"{key} must be an array")
+    for file_path, budget in raw.get("file_budgets", {}).items():
+        _validate_fixed_budget(f"file_budgets.{file_path}", budget)
+    for name, load_set in raw.get("load_sets", {}).items():
+        if not isinstance(load_set, dict):
+            raise AuditError(f"load_sets.{name} must be an object")
+        _validate_fixed_budget(
+            f"load_sets.{name}.max_tokens",
+            load_set.get("max_tokens"),
+        )
 
     schema_configs = raw.get("schema_grammars", [])
     for index, config in enumerate(schema_configs):
@@ -171,6 +193,76 @@ def load_manifest(path: Path) -> dict[str, Any]:
             raise AuditError(
                 f"{label}.scan must be a non-empty array of path patterns"
             )
+        accepted = config.get("accepted", [])
+        if not isinstance(accepted, list):
+            raise AuditError(f"{label}.accepted must be an array")
+        accepted_fields: set[str] = set()
+        for accepted_index, entry in enumerate(accepted):
+            accepted_label = f"{label}.accepted[{accepted_index}]"
+            field_name = entry.get("field") if isinstance(entry, dict) else None
+            owner_fingerprint = (
+                entry.get("owner_fingerprint") if isinstance(entry, dict) else None
+            )
+            projections = entry.get("projections") if isinstance(entry, dict) else None
+            if (
+                not isinstance(entry, dict)
+                or not isinstance(field_name, str)
+                or not field_name.strip()
+                or not isinstance(owner_fingerprint, str)
+                or re.fullmatch(r"[0-9a-f]{12}", owner_fingerprint) is None
+                or not isinstance(projections, list)
+                or not projections
+            ):
+                raise AuditError(
+                    f"{accepted_label} requires field, a 12-hex owner_fingerprint, "
+                    "and non-empty projections"
+                )
+            if field_name in accepted_fields:
+                raise AuditError(
+                    f"{label}.accepted repeats field {field_name!r}"
+                )
+            accepted_fields.add(field_name)
+            projection_paths: set[str] = set()
+            for projection_index, projection in enumerate(projections):
+                projection_label = (
+                    f"{accepted_label}.projections[{projection_index}]"
+                )
+                reason = (
+                    projection.get("reason")
+                    if isinstance(projection, dict)
+                    else None
+                )
+                projection_path = (
+                    projection.get("path")
+                    if isinstance(projection, dict)
+                    else None
+                )
+                if (
+                    not isinstance(projection, dict)
+                    or not isinstance(projection_path, str)
+                    or not projection_path.strip()
+                    or projection.get("role") not in _SCHEMA_PROJECTION_ROLES
+                    or not isinstance(projection.get("fingerprint"), str)
+                    or re.fullmatch(
+                        r"[0-9a-f]{12}", projection["fingerprint"]
+                    )
+                    is None
+                    or not isinstance(reason, str)
+                    or not reason.strip()
+                    or "\n" in reason
+                    or "\r" in reason
+                ):
+                    raise AuditError(
+                        f"{projection_label} requires path, role "
+                        "(producer|consumer|reference|compatibility), a 12-hex "
+                        "fingerprint, and a one-line reason"
+                    )
+                if projection_path in projection_paths:
+                    raise AuditError(
+                        f"{accepted_label}.projections repeats path "
+                        f"{projection_path!r}"
+                    )
+                projection_paths.add(projection_path)
 
     exempt_entries = raw.get("coverage", {}).get("exempt", [])
     if not isinstance(exempt_entries, list):
@@ -1050,23 +1142,6 @@ def _registry_ids(
         )
         return set(matched_ids), source, duplicates, matched_ids
 
-    if kind == "numbered_markdown":
-        pattern = config.get("entry_pattern")
-        if not isinstance(pattern, str):
-            raise AuditError(f"Registry {config.get('name')} needs entry_pattern")
-        try:
-            regex = re.compile(pattern, re.MULTILINE)
-        except re.error as exc:
-            raise AuditError(f"Invalid registry entry_pattern: {exc}") from exc
-        matched_ids = [
-            int(match.group("id"))
-            for match in regex.finditer(_read_utf8(root / source))
-        ]
-        duplicates = sorted(
-            item for item, count in Counter(matched_ids).items() if count > 1
-        )
-        return set(matched_ids), source, duplicates, matched_ids
-
     if kind == "directory":
         pattern = config.get("glob")
         excludes = config.get("exclude", [])
@@ -1095,10 +1170,89 @@ def _registry_ids(
         if isinstance(value, dict):
             return set(value), source, [], None
         if isinstance(value, list):
+            id_field = config.get("id_field")
+            if id_field is not None:
+                if not isinstance(id_field, str) or not id_field:
+                    raise AuditError(
+                        f"Registry {config.get('name')} id_field must be a non-empty string"
+                    )
+                matched_ids: list[str] = []
+                for index, item in enumerate(value):
+                    if not isinstance(item, dict):
+                        raise AuditError(
+                            f"Registry {config.get('name')} item {index} is not an object"
+                        )
+                    item_id = item.get(id_field)
+                    if not isinstance(item_id, str) or not item_id.strip():
+                        raise AuditError(
+                            f"Registry {config.get('name')} item {index} has no "
+                            f"non-empty {id_field!r}"
+                        )
+                    matched_ids.append(item_id.strip())
+                duplicates = sorted(
+                    item
+                    for item, count in Counter(matched_ids).items()
+                    if count > 1
+                )
+                return set(matched_ids), source, duplicates, matched_ids
             return set(range(len(value))), source, [], None
         raise AuditError(f"Registry key {key} in {source} is not a collection")
 
+    if kind == "line_collection":
+        values = [
+            line.strip()
+            for line in _read_utf8(root / source).splitlines()
+            if line.strip()
+        ]
+        duplicates = sorted(
+            item for item, count in Counter(values).items() if count > 1
+        )
+        return set(values), source, duplicates, values
+
     raise AuditError(f"Unsupported registry kind: {kind}")
+
+
+def _registry_projection_ids(
+    root: Path,
+    registry_name: str,
+    config: dict[str, Any],
+) -> tuple[set[str], str, list[str]] | None:
+    """Extract one declared Markdown projection of canonical registry ids."""
+    projection = config.get("projection")
+    if projection is None:
+        return None
+    if not isinstance(projection, dict):
+        raise AuditError(
+            f"Registry {registry_name} projection must be an object"
+        )
+    source = projection.get("source")
+    if not isinstance(source, str) or not (root / source).is_file():
+        raise AuditError(
+            f"Registry {registry_name} projection has missing source: {source}"
+        )
+    pattern = projection.get("entry_pattern")
+    if not isinstance(pattern, str):
+        raise AuditError(
+            f"Registry {registry_name} projection needs entry_pattern"
+        )
+    try:
+        regex = re.compile(pattern, re.MULTILINE)
+    except re.error as exc:
+        raise AuditError(
+            f"Invalid registry projection entry_pattern: {exc}"
+        ) from exc
+    if "id" not in regex.groupindex:
+        raise AuditError(
+            f"Registry {registry_name} projection entry_pattern needs an id group"
+        )
+    matched_ids = [
+        match.group("id")
+        for match in regex.finditer(_read_utf8(root / source))
+    ]
+    duplicates = sorted(
+        item for item, count in Counter(matched_ids).items() if count > 1
+    )
+    return set(matched_ids), source, duplicates
 
 
 def _registry_count_claims(paragraph: Paragraph, nouns: list[str]) -> list[int]:
@@ -1123,7 +1277,7 @@ def audit_registries(
     paragraphs: list[Paragraph],
     documents: list[Document],
 ) -> tuple[list[dict[str, Any]], list[Finding]]:
-    """Compare live registry membership with numeric documentation claims."""
+    """Compare live registry membership with documentation claims."""
     findings: list[Finding] = []
     reports: list[dict[str, Any]] = []
 
@@ -1143,6 +1297,39 @@ def audit_registries(
                     path=source,
                 )
             )
+        projection = _registry_projection_ids(root, name, config)
+        projection_source: str | None = None
+        projection_ids: set[str] | None = None
+        projection_duplicates: list[str] = []
+        if projection is not None:
+            projection_ids, projection_source, projection_duplicates = projection
+            for duplicate_id in projection_duplicates:
+                findings.append(
+                    Finding(
+                        severity="error",
+                        code="REGISTRY_PROJECTION_ID_DUPLICATE",
+                        message=(
+                            f"{name} projection repeats id {duplicate_id!r}"
+                        ),
+                        path=projection_source,
+                    )
+                )
+            canonical_ids = {str(item) for item in ids}
+            missing_ids = sorted(canonical_ids - projection_ids)
+            extra_ids = sorted(projection_ids - canonical_ids)
+            if missing_ids or extra_ids:
+                findings.append(
+                    Finding(
+                        severity="error",
+                        code="REGISTRY_PROJECTION_MISMATCH",
+                        message=(
+                            f"{name} projection differs from its registry; "
+                            f"missing={missing_ids}, extra={extra_ids}"
+                        ),
+                        path=projection_source,
+                    )
+                )
+        expected_order: list[str] | None = None
         expected_ids: set[str] | None = None
         if config.get("kind") == "structured_markdown":
             expected_order = _structured_registry_expected_order(config)
@@ -1358,57 +1545,6 @@ def audit_registries(
                             )
                         )
                 continue
-            if not registry_context or kind != "numbered_markdown":
-                continue
-            numeric_ids = {int(item) for item in ids}
-            id_pattern = re.compile(r"#([1-9]\d*)\b")
-            range_pattern = re.compile(r"#([1-9]\d*)\s*[-–]\s*#?([1-9]\d*)\b")
-            for match in id_pattern.finditer(paragraph.text):
-                claimed_id = int(match.group(1))
-                if claimed_id not in numeric_ids:
-                    findings.append(
-                        Finding(
-                            severity="error",
-                            code="REGISTRY_ID_MISSING",
-                            message=f"{name} references missing id #{claimed_id}",
-                            path=paragraph.path,
-                            line=paragraph.line,
-                        )
-                    )
-
-            ranges = sorted(
-                tuple(sorted((int(match.group(1)), int(match.group(2)))))
-                for match in range_pattern.finditer(paragraph.text)
-            )
-            comprehensive = re.search(
-                r"\b(all|every|entire|full|file is split)\b",
-                paragraph.normalized,
-            )
-            if ranges and comprehensive:
-                merged: list[list[int]] = []
-                for start, end in ranges:
-                    if not merged or start > merged[-1][1] + 1:
-                        merged.append([start, end])
-                    else:
-                        merged[-1][1] = max(merged[-1][1], end)
-                declared_count = sum(end - start + 1 for start, end in merged)
-                covers_ids = all(
-                    any(start <= item <= end for start, end in merged)
-                    for item in numeric_ids
-                )
-                if declared_count != len(numeric_ids) or not covers_ids:
-                    findings.append(
-                        Finding(
-                            severity="error",
-                            code="REGISTRY_RANGE_MISMATCH",
-                            message=(
-                                f"{name} comprehensive ranges cover {declared_count} ids; "
-                                f"registry contains {len(numeric_ids)}"
-                            ),
-                            path=paragraph.path,
-                            line=paragraph.line,
-                        )
-                    )
 
         reports.append(
             {
@@ -1421,30 +1557,223 @@ def audit_registries(
                 "expected_entries": len(expected_ids) if expected_ids is not None else None,
                 "index_labels": index_labels,
                 "index_targets": index_targets,
+                "projection": (
+                    {
+                        "source": projection_source,
+                        "entries": len(projection_ids),
+                        "duplicate_ids": projection_duplicates,
+                    }
+                    if projection_ids is not None
+                    else None
+                ),
                 "claims": sorted(claims, key=lambda item: (item["path"], item["line"])),
             }
         )
     return sorted(reports, key=lambda item: item["name"]), findings
 
 
-def _has_schema_grammar_signal(line: str, schema_field: str) -> bool:
-    heading = _SCHEMA_HEADING_RE.match(line)
-    return bool(
-        (heading and heading.group(1) == schema_field)
-        or re.search(r"\b(formats?|grammars?|schemas?|syntaxes?|keys?|values?)\b", line, re.I)
-        or re.search(r"P<NN>\s*:", line)
-        or re.search(rf"{re.escape(schema_field)}\s*[:=]", line)
-        or re.search(rf'"{re.escape(schema_field)}"\s*:', line)
-        or (" | " in line and re.search(r"<[^>]+>", line))
+def _schema_fingerprint(payload: Any) -> str:
+    serialized = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
     )
+    return hashlib.sha1(serialized.encode("utf-8")).hexdigest()[:12]
+
+
+def _schema_field_pattern(schema_field: str) -> re.Pattern[str]:
+    return re.compile(
+        rf"(?<![A-Za-z0-9_]){re.escape(schema_field)}(?![A-Za-z0-9_])"
+    )
+
+
+def _schema_owner_fragments(value: Any, schema_field: str) -> list[dict[str, Any]]:
+    """Extract stable, field-local fragments from a JSON schema owner."""
+    field_re = _schema_field_pattern(schema_field)
+    negative_field_re = re.compile(
+        rf"\(\?!{re.escape(schema_field)}(?:\\?\$)?\)"
+    )
+    fragments: list[dict[str, Any]] = []
+
+    def walk(item: Any, path: tuple[str, ...]) -> None:
+        if isinstance(item, dict):
+            direct_rule = any(
+                isinstance(child, str)
+                and field_re.search(negative_field_re.sub("", child))
+                for key, child in item.items()
+                if key != schema_field
+            )
+            if direct_rule:
+                fragments.append(
+                    {
+                        "kind": "rule",
+                        "path": "/".join(path),
+                        "value": item,
+                    }
+                )
+                return
+
+            for key, child in item.items():
+                child_path = (*path, str(key))
+                if key == schema_field:
+                    fragments.append(
+                        {
+                            "kind": "definition",
+                            "path": "/".join(child_path),
+                            "value": child,
+                        }
+                    )
+                    continue
+                walk(child, child_path)
+            return
+
+        if not isinstance(item, list):
+            return
+        for child in item:
+            if isinstance(child, str) and child == schema_field:
+                fragments.append(
+                    {
+                        "kind": "membership",
+                        "path": "/".join(path),
+                        "value": child,
+                    }
+                )
+                continue
+            child_path = path
+            if isinstance(child, dict):
+                semantic_id = child.get("id")
+                if isinstance(semantic_id, str) and semantic_id:
+                    child_path = (*path, f"id={semantic_id}")
+            walk(child, child_path)
+
+    walk(value, ())
+    unique = {
+        json.dumps(
+            fragment,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ): fragment
+        for fragment in fragments
+    }
+    return [unique[key] for key in sorted(unique)]
+
+
+def _schema_owner_fingerprint(
+    source_path: Path,
+    source_text: str,
+    schema_field: str,
+) -> str:
+    """Fingerprint only the owner's field-related contract fragments."""
+    if source_path.suffix.casefold() == ".json":
+        try:
+            payload = json.loads(source_text)
+        except json.JSONDecodeError as exc:
+            raise AuditError(f"Invalid JSON schema owner {source_path}: {exc}") from exc
+
+        fragments = _schema_owner_fragments(payload, schema_field)
+        if not fragments:
+            raise AuditError(
+                f"Schema owner {source_path} has no fingerprintable contract "
+                f"for {schema_field}"
+            )
+        return _schema_fingerprint(fragments)
+
+    field_re = _schema_field_pattern(schema_field)
+    lines: list[str] = []
+    in_fence = False
+    for line in source_text.splitlines():
+        if _FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if not in_fence and field_re.search(line):
+            lines.append(line.strip())
+    if not lines:
+        raise AuditError(
+            f"Schema owner {source_path} has no fingerprintable contract "
+            f"for {schema_field}"
+        )
+    return _schema_fingerprint(lines)
+
+
+def _has_schema_grammar_signal(line: str, schema_field: str) -> bool:
+    """Detect field-local grammar text without treating unrelated key prose as syntax."""
+    heading = _SCHEMA_HEADING_RE.match(line)
+    if heading and heading.group(1) == schema_field:
+        return True
+
+    field_re = _schema_field_pattern(schema_field)
+    for match in field_re.finditer(line):
+        before = line[max(0, match.start() - 160) : match.start()]
+        after = line[match.end() : match.end() + 240]
+        context = f"{before} {schema_field} {after}"
+        if re.match(r'''\s*[`*'\"]*\s*[:=]''', after):
+            return True
+        if re.search(
+            r"\b(?:"
+            r"grammars?|syntaxes?|formats?|schemas?|key formats?|"
+            r"allowed values?|one of|uses? one|accepts? only|followed by"
+            r")\b",
+            context,
+            re.I,
+        ):
+            return True
+        if re.search(r"\bas\s+`?<[^>]+>", context, re.I):
+            return True
+        if re.search(r"(?:P<NN>|<[^>\n]+>)\s*:", context):
+            return True
+        if re.search(
+            r"\b(?:writes?|written|records?|recorded|declares?|declared|"
+            r"projects?|projected|assigns?|assigned|emits?|emitted|authors?|"
+            r"authored)\b.{0,140}$",
+            before,
+            re.I,
+        ):
+            return True
+        if re.search(
+            r"^.{0,140}\b(?:is|are|must be|may be)?\s*(?:written|recorded|"
+            r"declared|projected|assigned|emitted|authored)\b",
+            after,
+            re.I,
+        ):
+            return True
+    return False
+
+
+def _schema_projection(
+    schema_field: str,
+    path: str,
+    sites: list[dict[str, Any]],
+) -> dict[str, Any]:
+    fingerprint = _schema_fingerprint(
+        {
+            "field": schema_field,
+            # Keep upstream fingerprint identity while resolving files at this standalone root.
+            "path": "skills/ppt-master/" + path,
+            "lines": [site["text"] for site in sites],
+        }
+    )
+    return {
+        "path": path,
+        "fingerprint": fingerprint,
+        "definition_candidates": [
+            {
+                "line": site["line"],
+                "excerpt": site["text"].strip()[:240],
+            }
+            for site in sites
+        ],
+    }
 
 
 def audit_schema_grammars(
     root: Path,
     configs: list[dict[str, Any]],
     documents: list[Document],
+    manifest_label: str,
 ) -> tuple[list[dict[str, Any]], list[Finding]]:
-    """Surface fields with grammar-like definitions in multiple non-owner files."""
+    """Surface open grammar projections and validate accepted projections."""
     findings: list[Finding] = []
     results: list[dict[str, Any]] = []
     document_map = {document.path: document for document in documents}
@@ -1461,10 +1790,11 @@ def audit_schema_grammars(
             fields = sorted(str(item) for item in configured_fields)
         else:
             raise AuditError("schema_grammars fields must be a list when present")
-        scan_patterns = config.get(
-            "scan",
-            ["references/**/*.md", "workflows/**/*.md", "templates/**/*.md"],
-        )
+        scan_patterns = config.get("scan", ["**/*.md"])
+        accepted_by_field = {
+            str(entry["field"]): entry for entry in config.get("accepted", [])
+        }
+        processed_accepted_fields: set[str] = set()
 
         for schema_field in fields:
             owner_defines_field = any(
@@ -1479,7 +1809,12 @@ def audit_schema_grammars(
                 raise AuditError(
                     f"Schema owner {source} does not define configured field {schema_field}"
                 )
-            sites: list[dict[str, Any]] = []
+            owner_fingerprint = _schema_owner_fingerprint(
+                root / source,
+                source_text,
+                schema_field,
+            )
+            sites_by_path: dict[str, list[dict[str, Any]]] = defaultdict(list)
             field_re = re.compile(rf"(?<![A-Za-z0-9_]){re.escape(schema_field)}(?![A-Za-z0-9_])")
             for path, document in sorted(document_map.items()):
                 if path == source or not _matches_any(path, scan_patterns):
@@ -1493,34 +1828,166 @@ def audit_schema_grammars(
                         continue
                     if not _has_schema_grammar_signal(line, schema_field):
                         continue
-                    sites.append(
+                    sites_by_path[path].append(
                         {
-                            "path": path,
                             "line": line_number,
-                            "excerpt": line.strip()[:240],
+                            "text": line,
                         }
                     )
 
-            unique_files = sorted({site["path"] for site in sites})
-            if not unique_files:
+            projections = {
+                path: _schema_projection(schema_field, path, sites)
+                for path, sites in sorted(sites_by_path.items())
+            }
+            accepted_config = accepted_by_field.get(schema_field)
+            if accepted_config is not None:
+                processed_accepted_fields.add(schema_field)
+            owner_matches = bool(
+                accepted_config is not None
+                and accepted_config["owner_fingerprint"] == owner_fingerprint
+            )
+            if accepted_config is not None and not owner_matches:
+                findings.append(
+                    Finding(
+                        severity="error",
+                        code="SCHEMA_ACCEPTED_STALE",
+                        message=(
+                            f"schema_grammars accepted owner fingerprint for "
+                            f"{schema_field} is stale; expected "
+                            f"{accepted_config['owner_fingerprint']}, current "
+                            f"{owner_fingerprint}"
+                        ),
+                        path=manifest_label,
+                        related=[source],
+                    )
+                )
+
+            configured_projections = {
+                projection["path"]: projection
+                for projection in (
+                    accepted_config.get("projections", [])
+                    if accepted_config is not None
+                    else []
+                )
+            }
+            open_projections: list[dict[str, Any]] = []
+            accepted_projections: list[dict[str, Any]] = []
+            stale_projections: list[dict[str, Any]] = []
+            for path, projection in projections.items():
+                configured = configured_projections.get(path)
+                projection_matches = bool(
+                    configured is not None
+                    and configured["fingerprint"] == projection["fingerprint"]
+                )
+                if owner_matches and projection_matches:
+                    accepted_projections.append(
+                        {
+                            **projection,
+                            "role": configured["role"],
+                            "reason": configured["reason"],
+                        }
+                    )
+                    continue
+
+                if configured is None:
+                    open_projections.append(projection)
+                    first_line = projection["definition_candidates"][0]["line"]
+                    findings.append(
+                        Finding(
+                            severity="warning",
+                            code="SCHEMA_MULTIDEF_CANDIDATE",
+                            message=(
+                                f"{source} owns {schema_field}, but this file carries "
+                                "an unaccepted grammar-like projection"
+                            ),
+                            path=path,
+                            line=first_line,
+                            related=[source],
+                        )
+                    )
+                    continue
+
+                stale_projections.append(
+                    {
+                        **projection,
+                        "role": configured["role"],
+                        "reason": configured["reason"],
+                        "expected_fingerprint": configured["fingerprint"],
+                        "stale_reason": (
+                            "owner_fingerprint" if not owner_matches else "fingerprint"
+                        ),
+                    }
+                )
+                if owner_matches and not projection_matches:
+                    findings.append(
+                        Finding(
+                            severity="error",
+                            code="SCHEMA_ACCEPTED_STALE",
+                            message=(
+                                f"schema_grammars accepted projection fingerprint "
+                                f"for {schema_field} at {path} is stale; expected "
+                                f"{configured['fingerprint']}, current "
+                                f"{projection['fingerprint']}"
+                            ),
+                            path=manifest_label,
+                            related=[source, path],
+                        )
+                    )
+
+            if owner_matches:
+                for path, configured in configured_projections.items():
+                    if path in projections:
+                        continue
+                    stale_projections.append(
+                        {
+                            "path": path,
+                            "fingerprint": None,
+                            "definition_candidates": [],
+                            "role": configured["role"],
+                            "reason": configured["reason"],
+                            "expected_fingerprint": configured["fingerprint"],
+                            "stale_reason": "missing",
+                        }
+                    )
+                    findings.append(
+                        Finding(
+                            severity="error",
+                            code="SCHEMA_ACCEPTED_STALE",
+                            message=(
+                                f"schema_grammars accepted projection for "
+                                f"{schema_field} at {path} no longer exists"
+                            ),
+                            path=manifest_label,
+                            related=[source, path],
+                        )
+                    )
+
+            if not projections and accepted_config is None:
                 continue
             results.append(
                 {
                     "field": schema_field,
                     "owner": source,
-                    "definition_candidates": sites,
+                    "owner_fingerprint": owner_fingerprint,
+                    "open": open_projections,
+                    "accepted": accepted_projections,
+                    "stale": stale_projections,
                 }
             )
+
+        for schema_field in sorted(
+            set(accepted_by_field) - processed_accepted_fields
+        ):
             findings.append(
                 Finding(
-                    severity="warning",
-                    code="SCHEMA_MULTIDEF_CANDIDATE",
+                    severity="error",
+                    code="SCHEMA_ACCEPTED_STALE",
                     message=(
-                        f"owns {schema_field}, but {len(unique_files)} non-owner "
-                        "files carry grammar-like text for it"
+                        f"schema_grammars accepted field {schema_field} is no "
+                        "longer configured for this owner"
                     ),
-                    path=source,
-                    related=unique_files,
+                    path=manifest_label,
+                    related=[source],
                 )
             )
     results.sort(key=lambda item: item["field"])
@@ -1654,14 +2121,6 @@ def run_audit(
                 message=f"Found {exact_total} cross-file exact paragraph groups",
             )
         )
-    if near_total:
-        findings.append(
-            Finding(
-                severity="warning",
-                code="DUPLICATE_NEAR_CANDIDATES",
-                message=f"Found {near_total} cross-file near-duplicate paragraph pairs",
-            )
-        )
 
     references, reference_findings = extract_references(root, documents)
     findings.extend(reference_findings)
@@ -1705,6 +2164,7 @@ def run_audit(
         root,
         manifest.get("schema_grammars", []),
         documents,
+        manifest_label,
     )
     findings.extend(schema_findings)
 
@@ -1763,7 +2223,7 @@ def render_text(report: dict[str, Any]) -> str:
     lines = [
         "PPT Master Prompt Audit",
         "=======================",
-        "Manifest: audit-only | runtime loading: disabled | budgets: current growth ceilings",
+        "Manifest: audit-only | runtime loading: disabled | budgets: fixed upper bounds",
         (
             f"Corpus: {summary['files']} files | {summary['tokens']} tokens "
             f"(budget {summary['max_tokens']})"
@@ -1793,6 +2253,11 @@ def render_text(report: dict[str, Any]) -> str:
 
     references = report["references"]
     duplicates = report["duplicates"]
+    schema_open = sum(len(item["open"]) for item in report["schema_grammars"])
+    schema_accepted = sum(
+        len(item["accepted"]) for item in report["schema_grammars"]
+    )
+    schema_stale = sum(len(item["stale"]) for item in report["schema_grammars"])
     near_summary = (
         (
             f"{duplicates['near_total']} near pair(s) + "
@@ -1818,7 +2283,10 @@ def render_text(report: dict[str, Any]) -> str:
                 f"  authority candidates: {len(references['authority_candidates'])} edge(s), "
                 f"{len(references['authority_candidate_cycles'])} candidate cycle(s)"
             ),
-            f"  schema multi-definition candidates: {len(report['schema_grammars'])}",
+            (
+                f"  schema grammar projections: {schema_open} open + "
+                f"{schema_accepted} accepted + {schema_stale} stale"
+            ),
         ]
     )
     if duplicates["exact"]:

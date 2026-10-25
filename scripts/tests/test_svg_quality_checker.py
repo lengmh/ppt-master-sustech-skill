@@ -36,7 +36,175 @@ def _empty_result() -> dict:
     return {'errors': [], 'warnings': []}
 
 
+class LeadingInlineRunParagraphTests(unittest.TestCase):
+    def test_first_line_opening_with_an_inline_run_is_a_paragraph(self) -> None:
+        svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">'
+            '<text x="460" y="318" font-size="18">'
+            '<tspan font-weight="bold">Trigger</tspan> — already chronically absent'
+            '<tspan x="460" dy="26"><tspan font-weight="bold">Action</tspan> — case review</tspan>'
+            '<tspan x="460" dy="26"><tspan font-weight="bold">Owner</tspan> — coordinator</tspan>'
+            '</text></svg>'
+        )
+        root = ET.fromstring(svg)
+        text_el = next(iter(root))
+        classified = checker_module._classify_paragraph_block(text_el, preserve_line_breaks=True)
+        self.assertIsNotNone(classified)
+        _base, _extras, _breaks, line_groups, synthetic_first = classified
+        self.assertEqual(len(line_groups), 3)
+        self.assertIsNotNone(synthetic_first)
+
+
+class TextPictureFillReferenceTests(unittest.TestCase):
+    def test_text_picture_fill_pattern_image_counts_as_a_rendered_reference(self) -> None:
+        svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">'
+            '<defs>'
+            '<pattern id="titleTexture" data-pptx-text-image-fill="stretch" '
+            'patternUnits="objectBoundingBox" patternContentUnits="objectBoundingBox" '
+            'width="1" height="1">'
+            '<image href="../images/title_fill.png" x="0" y="0" width="1" height="1" '
+            'preserveAspectRatio="none"/></pattern>'
+            '<pattern id="unused" data-pptx-text-image-fill="stretch" '
+            'patternUnits="objectBoundingBox" width="1" height="1">'
+            '<image href="../images/unused.png" width="1" height="1"/></pattern>'
+            '</defs>'
+            '<text x="80" y="200" font-size="96" fill="url(#titleTexture)">Title</text>'
+            '</svg>'
+        )
+        root = ET.fromstring(svg)
+        images = SVGQualityChecker._text_image_fill_images(root)
+        self.assertEqual(
+            [image.get('href') for image in images],
+            ['../images/title_fill.png'],
+        )
+        # The generic visible-image scan still ignores <defs>, so the
+        # pattern image is a placement only through the text fill path.
+        _root, _parents, visible = SVGQualityChecker._visible_image_elements(root)
+        self.assertEqual(visible, [])
+
+
 class SVGQualityCheckerBoundsTests(unittest.TestCase):
+    @staticmethod
+    def _text_bounds(root: ET.Element, *, include_headroom: bool = False) -> tuple:
+        text = root.find(f'.//{{{SVG_NS}}}text')
+        parents = {id(child): parent for parent in root.iter() for child in parent}
+        sizes = checker_module._resolve_project_font_sizes(root)
+        spacings = checker_module._resolve_project_letter_spacings(root, sizes)
+        return SVGQualityChecker._estimated_text_bounds(
+            text, parents, sizes, spacings, include_headroom=include_headroom,
+        )
+
+    def test_inline_dx_triggers_module_and_canvas_overflow_for_each_anchor(self) -> None:
+        for anchor, x in (('start', 1200), ('middle', 1200), ('end', 100)):
+            with self.subTest(anchor=anchor):
+                root = _parse_svg(
+                    '<g id="title" data-pptx-bounds="80 70 1190 80">'
+                    f'<text x="{x}" y="110" text-anchor="{anchor}" font-size="24">'
+                    'A<tspan dx="400">B</tspan></text></g>',
+                    'font-family="Arial"', view_box='0 0 1280 720',
+                )
+                result = _empty_result()
+                SVGQualityChecker()._check_text_bounds(root, result)
+                self.assertTrue(any('root viewBox on the horizontal axis' in error
+                                    for error in result['errors']), result)
+                self.assertFalse(any('Cannot verify' in warning for warning in result['warnings']), result)
+                root.find(f'.//{{{SVG_NS}}}text').set('x', '600')
+                root.find(f'{{{SVG_NS}}}g').set('data-pptx-bounds', '580 70 90 80')
+                module_result = _empty_result()
+                SVGQualityChecker()._check_text_bounds(root, module_result)
+                self.assertTrue(any('data-pptx-bounds on the horizontal axis' in error
+                                    for error in module_result['errors']), module_result)
+
+    def test_inline_dx_uses_signed_advances_and_preserves_anchor(self) -> None:
+        for anchor in ('start', 'middle', 'end'):
+            for headroom in (False, True):
+                with self.subTest(anchor=anchor, headroom=headroom):
+                    template = (
+                        f'<text x="600" y="110" text-anchor="{anchor}" font-size="24">'
+                        'A<tspan dx="{dx}">B</tspan></text>'
+                    )
+                    bounds = {}
+                    for dx in (0, 400, -400):
+                        root = _parse_svg(template.format(dx=dx), 'font-family="Arial"')
+                        bounds[dx] = self._text_bounds(root, include_headroom=headroom)
+                        self.assertIsNotNone(bounds[dx])
+                    left0, _top, right0, _bottom = bounds[0]
+                    left, _top, right, _bottom = bounds[400]
+                    self.assertAlmostEqual((right - left) - (right0 - left0), 400)
+                    if anchor == 'start':
+                        self.assertAlmostEqual(left, 600)
+                    elif anchor == 'middle':
+                        self.assertAlmostEqual((left + right) / 2, 600)
+                    else:
+                        self.assertAlmostEqual(right, 600)
+                    single = _parse_svg(
+                        f'<text x="600" y="110" text-anchor="{anchor}" font-size="24">A</text>',
+                        'font-family="Arial"',
+                    )
+                    self.assertEqual(bounds[-400], self._text_bounds(single, include_headroom=headroom))
+
+    def test_end_anchor_negative_dx_has_no_false_overflow(self) -> None:
+        root = _parse_svg(
+            '<g id="title" data-pptx-bounds="1100 70 180 80">'
+            '<text x="1270" y="110" text-anchor="end" font-size="24">'
+            'ABCD<tspan dx="-20">EFGH</tspan></text></g>',
+            'font-family="Arial"', view_box='0 0 1280 720',
+        )
+        result = _empty_result()
+        SVGQualityChecker()._check_text_bounds(root, result)
+        self.assertEqual(result, _empty_result())
+
+    def test_inline_dx_measures_cjk_links_empty_spans_and_line_start(self) -> None:
+        for content in (
+            '中<tspan dx="400">文</tspan>',
+            'A<a href="https://example.com"><tspan dx="400">B</tspan></a>',
+            '<tspan dx="400">B</tspan>',
+            '<tspan dx="400"/><tspan>B</tspan>',
+            '<tspan dx="250">A<tspan dx="150">B</tspan>C</tspan>D',
+        ):
+            with self.subTest(content=content):
+                root = _parse_svg(
+                    f'<text x="1200" y="110" font-size="24">{content}</text>',
+                    'font-family="Arial"', view_box='0 0 1280 720',
+                )
+                bounds = self._text_bounds(root)
+                self.assertIsNotNone(bounds)
+                self.assertGreater(bounds[2], 1600)
+                result = _empty_result()
+                SVGQualityChecker()._check_text_bounds(root, result)
+                self.assertTrue(any('root viewBox' in error for error in result['errors']), result)
+
+    def test_non_scalar_and_percentage_dx_remain_unmeasurable(self) -> None:
+        for dx in ('20%', '10 20', '10,20', 'calc(20 + 30)'):
+            with self.subTest(dx=dx):
+                root = _parse_svg(
+                    f'<text x="1200" y="110" font-size="24">A<tspan dx="{dx}">B</tspan></text>',
+                    'font-family="Arial"', view_box='0 0 1280 720',
+                )
+                self.assertIsNone(self._text_bounds(root))
+                result = _empty_result()
+                SVGQualityChecker()._check_text_bounds(root, result)
+                self.assertTrue(any('Cannot verify root viewBox bounds' in warning
+                                    for warning in result['warnings']), result)
+
+    def test_positioned_lines_count_starter_and_inline_dx_once(self) -> None:
+        root = _parse_svg(
+            '<text x="100" y="110" font-size="24">'
+            '<tspan x="100" dx="10">A</tspan><tspan dx="400">B</tspan>'
+            '<tspan x="100" dx="-5" dy="30">C</tspan><tspan dx="-20">D</tspan></text>',
+            'font-family="Arial"',
+        )
+        parents = {id(child): parent for parent in root.iter() for child in parent}
+        sizes = checker_module._resolve_project_font_sizes(root)
+        spacings = checker_module._resolve_project_letter_spacings(root, sizes)
+        lines = SVGQualityChecker._resolved_text_lines(root[0], parents, sizes, spacings)
+        self.assertIsNotNone(lines)
+        self.assertEqual([(line[1], line[2]) for line in lines], [(110, 110), (95, 140)])
+        self.assertEqual([
+            [run['_inline_dx'] for run in line[3] if '_inline_dx' in run] for line in lines
+        ], [[400], [-20]])
+
     def test_leading_direct_text_and_positioned_tspans_are_estimable(self) -> None:
         root = _parse_svg(
             '<g id="module" data-pptx-bounds="0 0 1000 1000">'
@@ -288,3 +456,56 @@ class SVGQualityCheckerBoundsTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class NoCropStretchMeasurementTests(unittest.TestCase):
+    def test_nested_crop_frame_geometry_and_measured_deviation(self) -> None:
+        root = ET.fromstring(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">'
+            '<svg x="140" y="60" width="180" height="180" '
+            'viewBox="0.6 0.3 0.24 0.16" preserveAspectRatio="none" '
+            'overflow="hidden">'
+            '<image href="../images/tree.jpg" x="0" y="0" width="1" height="1" '
+            'preserveAspectRatio="none"/></svg>'
+            '<image href="../images/tree.jpg" x="0" y="0" width="405" '
+            'height="720" preserveAspectRatio="none"/>'
+            '</svg>'
+        )
+        parent_by_id = {
+            id(child): parent for parent in root.iter() for child in list(parent)
+        }
+        images = list(root.iter('{http://www.w3.org/2000/svg}image'))
+        nested = SVGQualityChecker._image_frame_geometry(images[0], root, parent_by_id)
+        plain = SVGQualityChecker._image_frame_geometry(images[1], root, parent_by_id)
+        self.assertEqual(nested, (180.0, 180.0, 0.24, 0.16))
+        self.assertEqual(plain, (405.0, 720.0, 1.0, 1.0))
+        # A 900x1600 source: the 0.24x0.16 crop is 216x256 px, so a square
+        # frame distorts it, while the plain 405x720 frame keeps 9:16 exactly.
+        self.assertGreater(
+            SVGQualityChecker._stretch_deviation(nested, (900, 1600)), 0.1
+        )
+        self.assertAlmostEqual(
+            SVGQualityChecker._stretch_deviation(plain, (900, 1600)), 0.0
+        )
+        self.assertIsNone(SVGQualityChecker._stretch_deviation(nested, None))
+
+
+class ForbiddenAttributeTests(unittest.TestCase):
+    def _errors(self, body: str) -> list[str]:
+        from svg_quality.svg_contracts import check_forbidden_elements
+
+        svg = f'<svg xmlns="http://www.w3.org/2000/svg">{body}</svg>'
+        result = {"errors": [], "warnings": []}
+        check_forbidden_elements(svg, ET.fromstring(svg), result)
+        return result["errors"]
+
+    def test_text_and_data_attributes_are_not_forbidden_attributes(self) -> None:
+        for body in ('<g data-class="content"/>', "<text>class=Customer</text>",
+                     "<text>onload=initialize</text>", "<text>@import url(theme.css);</text>"):
+            with self.subTest(body=body):
+                self.assertEqual(self._errors(body), [])
+
+    def test_real_class_and_event_attributes_still_fail(self) -> None:
+        self.assertTrue(self._errors('<g class="a"/>'))
+        self.assertTrue(self._errors('<rect onclick="x()"/>'))
+        self.assertTrue(self._errors("<style>@import url(theme.css);</style>"))

@@ -1,75 +1,91 @@
 # Chart Expression Vocabulary
 
-This is the complete planning-side map of the 33 canonical Chart references.
-Choose from the page's actual information relationship, then retain the exact
-`chart/<key>` identifier. This file deliberately contains no SVG construction,
-data-binding, coordinate, label-placement, styling, or export instructions;
-those decisions belong to Executor after selection.
+The live SUSTech registry has 76 references: 33 upstream numeric charts plus 43 retained visual templates. Select for the actual relationship, retaining the exact `chart/<key>`. These are descriptions, not rankings, quotas, or constraints; zero selections is valid. Construction, binding, styling and export belong to Executor.
 
-**Reference — not a constraint**: each description states what the visual
-encoding represents. It is not a ranking, recommendation, threshold, quota, or
-substitute for judgment from the current data and communication goal. Zero
-Chart selections remains valid.
+## Numeric charts
 
-## 1. Change over time
-
-| Canonical reference | Encoded relationship |
+| Reference | Relationship |
 |---|---|
-| `chart/line_chart` | Values positioned along a continuous axis, with connected marks showing change or direction. |
-| `chart/area_chart` | A continuous series whose filled area emphasizes magnitude across the axis. |
-| `chart/stacked_area_chart` | Multiple filled series whose layers encode both total magnitude and changing composition. |
-| `chart/dual_axis_line_chart` | Two continuous series measured on separate value scales. |
-| `chart/stock_chart` | Open, high, low, and close values across ordered dates. |
-| `chart/waterfall_chart` | Sequential positive and negative contributions connecting a starting value to an ending value. |
+| `chart/line_chart` | Connected values over a continuous axis. |
+| `chart/area_chart` | Filled continuous series emphasizing magnitude. |
+| `chart/stacked_area_chart` | Layered series showing totals and composition. |
+| `chart/dual_axis_line_chart` | Continuous series on separate value scales. |
+| `chart/stock_chart` | Open, high, low, close across dates. |
+| `chart/waterfall_chart` | Sequential contributions between starting and ending totals. |
+| `chart/column_chart` | Category values as vertical lengths. |
+| `chart/horizontal_bar_chart` | Category values as horizontal lengths. |
+| `chart/grouped_bar_chart` | Series side by side within categories. |
+| `chart/stacked_bar_chart` | Category totals split into value-driven segments. |
+| `chart/butterfly_chart` | Two datasets mirrored around one category axis. |
+| `chart/dumbbell_chart` | Paired values joined to expose gaps. |
+| `chart/pareto_chart` | Descending contributions with cumulative share. |
+| `chart/bullet_chart` | Actual values, targets, and performance bands. |
+| `chart/progress_bar_chart` | Completion as filled portions of bounded tracks. |
+| `chart/gauge_chart` | One bounded value on a circular domain. |
+| `chart/histogram_chart` | Frequencies across contiguous numeric bins. |
+| `chart/box_plot_chart` | Median, quartiles, spread, and outliers. |
+| `chart/scatter_chart` | Two numeric variables as x/y position. |
+| `chart/bubble_chart` | Two position variables plus magnitude as size. |
+| `chart/heatmap_chart` | Row-column values as color intensity. |
+| `chart/radar_chart` | Multiple measures on radial axes. |
+| `chart/matrix_2x2` | Two numeric dimensions, optionally magnitude as radius. |
+| `chart/pie_chart` | Parts of a whole as sector angles. |
+| `chart/donut_chart` | Parts of a whole around an open center. |
+| `chart/pie_of_pie_chart` | Selected parts expanded into a second pie. |
+| `chart/bar_of_pie_chart` | Selected parts expanded into a stacked bar. |
+| `chart/treemap_chart` | Parts or hierarchy as nested rectangular areas. |
+| `chart/sunburst_chart` | Hierarchy as radial levels and angular spans. |
+| `chart/funnel_chart` | Sequential values as stage widths. |
+| `chart/sankey_chart` | Magnitude between nodes as connection width. |
+| `chart/gantt_chart` | Tasks positioned and sized by time. |
+| `chart/word_cloud` | Term weight as type size. |
 
-## 2. Category comparison and rank
+## Retained SUSTech visual templates
 
-| Canonical reference | Encoded relationship |
-|---|---|
-| `chart/column_chart` | Category values encoded by vertical length from a shared baseline. |
-| `chart/horizontal_bar_chart` | Category values encoded by horizontal length from a shared baseline. |
-| `chart/grouped_bar_chart` | Multiple series placed side by side within shared categories. |
-| `chart/stacked_bar_chart` | Category totals divided into value-driven component lengths. |
-| `chart/butterfly_chart` | Two datasets mirrored around one shared category axis. |
-| `chart/dumbbell_chart` | Two values per item joined to expose their gap and direction. |
-| `chart/pareto_chart` | Descending category contributions paired with their cumulative share. |
+These diagram, table and framework references remain indexed for existing callers; they are not all numeric charts. Exact selection summaries remain in `charts_index.json`.
 
-## 3. Target and progress
-
-| Canonical reference | Encoded relationship |
-|---|---|
-| `chart/bullet_chart` | Actual values, targets, and optional performance bands on compact linear scales. |
-| `chart/progress_bar_chart` | Bounded completion values encoded as filled portions of linear tracks. |
-| `chart/gauge_chart` | One bounded value positioned against a circular or semicircular domain and reference marks. |
-
-## 4. Distribution and multivariable relationship
-
-| Canonical reference | Encoded relationship |
-|---|---|
-| `chart/histogram_chart` | Observation frequency encoded across contiguous numeric bins. |
-| `chart/box_plot_chart` | Median, quartiles, spread, and outliers summarized for one or more groups. |
-| `chart/scatter_chart` | Two numeric variables encoded by x/y position. |
-| `chart/bubble_chart` | Two variables encoded by x/y position and a third by mark size. |
-| `chart/heatmap_chart` | Values at row-column intersections encoded by color intensity. |
-| `chart/radar_chart` | Multiple measures positioned on radial axes for one or more entities. |
-| `chart/matrix_2x2` | Items positioned by two numeric dimensions, with optional magnitude encoded by radius. |
-
-## 5. Part-to-whole and hierarchy
-
-| Canonical reference | Encoded relationship |
-|---|---|
-| `chart/pie_chart` | Flat parts of one whole encoded by sector angle and area. |
-| `chart/donut_chart` | Flat parts of one whole encoded around an open center. |
-| `chart/pie_of_pie_chart` | One composition with selected parts expanded into a secondary pie. |
-| `chart/bar_of_pie_chart` | One composition with selected parts expanded into a secondary stacked bar. |
-| `chart/treemap_chart` | Hierarchical or grouped parts encoded as nested rectangular areas. |
-| `chart/sunburst_chart` | Hierarchical parts encoded as concentric radial levels and angular spans. |
-
-## 6. Flow, schedule, and weighted text
-
-| Canonical reference | Encoded relationship |
-|---|---|
-| `chart/funnel_chart` | Ordered stage values encoded as changing widths through a conversion sequence. |
-| `chart/sankey_chart` | Magnitude moving between nodes encoded by connection width. |
-| `chart/gantt_chart` | Tasks positioned and sized by dates or durations along a time axis. |
-| `chart/word_cloud` | Term weight or frequency encoded by type size. |
+| Reference |
+|---|
+| `chart/agenda_list` |
+| `chart/arc_anchored_list` |
+| `chart/basic_table` |
+| `chart/chevron_chain_with_tail` |
+| `chart/chevron_process` |
+| `chart/circular_stages` |
+| `chart/client_server_flow` |
+| `chart/comparison_columns` |
+| `chart/comparison_table` |
+| `chart/concentric_circles` |
+| `chart/consulting_table` |
+| `chart/feature_matrix_table` |
+| `chart/financial_statement_table` |
+| `chart/fishbone_diagram` |
+| `chart/harvey_balls_table` |
+| `chart/hub_inward_arrows` |
+| `chart/hub_spoke` |
+| `chart/icon_grid` |
+| `chart/isometric_stairs` |
+| `chart/journey_map` |
+| `chart/kpi_cards` |
+| `chart/labeled_card` |
+| `chart/layered_architecture` |
+| `chart/mind_map` |
+| `chart/module_composition` |
+| `chart/numbered_steps` |
+| `chart/pipeline_with_stages` |
+| `chart/process_flow` |
+| `chart/project_schedule_table` |
+| `chart/pros_cons_chart` |
+| `chart/pyramid_chart` |
+| `chart/pyramid_isometric` |
+| `chart/quadrant_bubble_scatter` |
+| `chart/quadrant_text_bullets` |
+| `chart/roadmap_vertical` |
+| `chart/segmented_wheel` |
+| `chart/snake_flow` |
+| `chart/team_roster` |
+| `chart/timeline` |
+| `chart/top_down_tree` |
+| `chart/venn_diagram` |
+| `chart/vertical_list` |
+| `chart/vertical_pillars` |

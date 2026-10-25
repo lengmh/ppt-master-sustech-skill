@@ -10,13 +10,13 @@ Context-independent: persisted project artifacts replace the planning session's 
 
 ## When to Run
 
-The user opens a new chat naming a project path with continuation intent — "继续生成 projects/<name>", "resume execution projects/<name>", or a project path plus any 继续 / 恢复 / 接着做 semantic. **Prerequisite**: planning completed in that project, verified by file presence in Step 1; never auto-trigger planning on missing state.
+The user opens a new chat naming a project path with continuation intent — "继续生成 projects/<name>", "resume execution projects/<name>", or a project path plus any other request, in any language, to continue or resume. **Prerequisite**: planning completed in that project, verified by file presence in Step 1; never auto-trigger planning on missing state.
 
 ---
 
 ## Step 1: Sanity check
 
-`<project_path>/design_spec.md` (approved narrative and §IX outline) and `<project_path>/spec_lock.md` (execution anchors and routing contract) must both exist; their complete reads happen after the Executor role core loads. If either is missing, stop and recover through [`failure-recovery.md`](../governance/failure-recovery.md) §3 — never enter Step 6, treat an orphan lock as authority, or invent a replacement.
+`<project_path>/design_spec.md` (approved narrative and §IX outline) and `<project_path>/spec_lock.md` (execution anchors and routing contract) must both exist; their complete reads happen after the Executor role core loads. When `<project_path>/spec_review/` exists, run `python3 ${SKILL_DIR}/scripts/check_spec_annotations.py <project_path>`; a pending comment or an unacknowledged direct edit means the Design Spec moved after the lock was authored — return to [`refine-spec`](refine-spec.md) Step 2 before any execution. If either file is missing, stop and recover through [`failure-recovery.md`](../governance/failure-recovery.md) §3 — never enter Step 6, treat an orphan lock as authority, or invent a replacement.
 
 ---
 
@@ -40,7 +40,7 @@ python3 skills/ppt-master/scripts/visualization_recall.py validate <family/key> 
 python3 skills/ppt-master/scripts/visualization_recall.py validate --legacy-bare <legacy-key> [...]
 ```
 
-Then continue the documented Step 6–7 pipeline exactly as `generate-pptx.md` lists it: read the frozen `notes/total.md` once when §X declares a final/literal script; when mid-deck, read the latest completed SVG and current image metadata after their paths are verified; read the Step 6 construction core and one locked preset file or only the exact `*_references` of a custom, never reopening the mode or visual-style catalogs; load only the branches the condition table selects; make the per-page Structure decision from retained §IX before any geometry; when structured, read the template Design Spec and each selected prototype once. Use `page-context` only for explicit diagnostics or an unresolved path-SHA question ([`artifact-ownership.md`](../../references/artifact-ownership.md) §1), never as a routine pre-page load. Then the quality gate, conditional notes, conditional custom animation, Step 7 (`total_md_split` → `finalize_svg` → `svg_to_pptx`; disabled notes use `--no-notes`), and `generate-audio` when Narration Audio is enabled.
+Then continue the documented Step 6–7 pipeline exactly as `generate-pptx.md` lists it: read the frozen `notes/total.md` once when §X declares a final/literal script; when mid-deck, read the latest completed SVG and current image metadata after their paths are verified; read the Step 6 construction core and one locked preset file or only the exact `*_references` of a custom, never reopening the mode or visual-style catalogs; load only the branches the condition table selects; make the per-page topology decision from retained §IX before any geometry; when structured, read the template Design Spec and each selected prototype once. Use `page-context` only for explicit diagnostics or an unresolved path-SHA question ([`artifact-ownership.md`](../../references/artifact-ownership.md) §1), never as a routine pre-page load. Then the quality gate, conditional notes, conditional custom animation, Step 7 (`total_md_split` → `finalize_svg` → `svg_to_pptx`; disabled notes use `--no-notes`), and `generate-audio` when Narration Audio is enabled.
 
 A newer explicit instruction after final Stage 2 updates only its effective outcome and provenance in `design_spec.md §I`, then resumes at the owning step — no Confirm UI, no lock entry; apply Generate's notes/audio dependency gate before writing and its sidecar suppression rules at export.
 

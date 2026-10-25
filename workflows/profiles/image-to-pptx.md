@@ -10,7 +10,7 @@ description: Quick-only Generate profile for reconstructing one or more source i
 
 **Support boundary — Codex required**: documented and validated for Codex only, because it depends on Codex's native reference-image generation/editing and direct inspection of every derived layer. Other hosts may happen to work; the repository makes no compatibility claim and defines no alternate host or generic image-backend fallback.
 
-**Hard rule — Quick only**: always load [`quick-generate.md`](./quick-generate.md), never `generate-pptx.md`, without the user saying "Quick"; skip Strategist, Confirm UI, template selection, Design Spec, lock, and the Default first-page gate. The main agent decides the reconstruction, prepares all resources, hand-authors SVG, runs the lockless final checker, and exports.
+**Hard rule — Quick only**: always load [`quick-generate.md`](./quick-generate.md), never `generate-pptx.md`, without the user saying "Quick"; skip Strategist, Confirm UI, template selection, Design Spec, lock, and the Default gate cadence. The main agent decides the reconstruction, prepares all resources, hand-authors SVG, runs Quick's checker gates, and exports.
 
 **Hard rule — source surface, not template application**: stay in Quick free design; never install or apply a Brand/Style/Layout/Deck workspace — it would compete with the canonical page geometry. A reusable-system request routes to Create Template.
 
@@ -86,6 +86,8 @@ The reference-image CLI does not inherit source dimensions: pass an explicit mat
 ## 5. Source Evidence without a Quick Plan
 
 Before deciding layers, write `<project_path>/analysis/reconstruction_inventory.json` recording only what is visibly present: original file and normalized page path; page order, source-frame bbox, SHA-256, pixel dimensions; visible regions with stable ids, bboxes, observed family (`text` / `graphic` / `image` / `unknown`), verbatim text where applicable, and confidence; observed sufficiency, boundary completeness, occlusion/contamination, and identity/data verifiability; overlap/z-order observations and unresolved evidence. No final layer choices, prompts, output filenames, or SVG bindings — those stay in active context plus required operational image evidence; context loss restarts the run. Low-confidence text, an uncertain boundary, or an unidentified branded/data graphic is unresolved evidence and blocks delivery.
+
+**Coordinate mapping**: source-frame bboxes use original-file pixels; region bboxes use normalized-page pixels. Map page-derived geometry and text metrics into canvas units with the same uniform scale and placement offset as the registered layers; for matching aspect ratios, `s = canvas width / page width` and the offset is zero. Apply the scale once to source-derived lengths, including font size, stroke width, and radii.
 
 ---
 

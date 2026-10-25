@@ -24,7 +24,7 @@
   <path id="process-arrow-2" d="M 574 248 H 622 L 622 244 L 638 258 L 622 272 L 622 268 H 574 Z" fill="#E3660D" data-pptx-layer="layout" data-pptx-editable="false"/>
   <path id="process-arrow-3" d="M 808 248 H 856 L 856 244 L 872 258 L 856 272 L 856 268 H 808 Z" fill="#E3660D" data-pptx-layer="layout" data-pptx-editable="false"/>
   <rect id="process-object-background" x="72" y="426" width="760" height="240" rx="18" fill="#FFFFFF" stroke="#CECECE" stroke-width="1.5" data-pptx-layer="layout" data-pptx-editable="false"/>
-  <text id="process-object-description" x="452" y="562" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" data-pptx-layer="layout" data-pptx-editable="false">Merged explanation / method details / result block</text>
+  <text id="process-object-description" x="452" y="592" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" data-pptx-layer="layout" data-pptx-editable="false">Merged explanation / method details / result block</text>
   <rect id="process-note-card" x="856" y="426" width="352" height="104" rx="18" fill="#F6EBDF" data-pptx-layer="layout" data-pptx-editable="false"/>
   <text id="process-note-label" x="1032" y="486" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18" data-pptx-layer="layout" data-pptx-editable="false">Method Note / Criteria</text>
   <rect id="process-outcome-card" x="856" y="562" width="352" height="104" rx="18" fill="#FFFFFF" stroke="#CECECE" stroke-width="1.2" data-pptx-layer="layout" data-pptx-editable="false"/>
@@ -32,7 +32,7 @@
   <line id="process-footer-rule" x1="92" y1="688" x2="1188" y2="688" stroke="#CECECE" stroke-width="1" data-pptx-layer="layout" data-pptx-editable="false"/>
   <text id="process-footer-label" x="92" y="704" fill="#9D9D9D" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" data-pptx-layer="layout" data-pptx-editable="false">Southern University of Science and Technology</text>
 
-  <g id="process-title-slot" data-pptx-placeholder="title" data-pptx-bounds="92 20 900 48">
+  <g id="process-title-slot" data-pptx-placeholder="title" data-pptx-bounds="92 20 900 54">
     <text id="process-title-carrier" data-pptx-carrier="true" x="92" y="60" fill="#003F43" font-family="Microsoft YaHei, Arial, sans-serif" font-size="32" font-weight="bold">{{PAGE_TITLE}}</text>
   </g>
   <g id="process-section-slot" data-pptx-placeholder="body" data-pptx-idx="1" data-pptx-bounds="92 80 900 36">
@@ -41,7 +41,7 @@
   <g id="process-object-slot" data-pptx-placeholder="object" data-pptx-idx="2" data-pptx-bounds="72 426 760 240">
     <text id="process-object-carrier" data-pptx-carrier="true" x="452" y="532" text-anchor="middle" fill="#A8A4A1" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22">{{CONTENT_AREA}}</text>
   </g>
-  <g id="process-slide-number-slot" data-pptx-placeholder="slide-number" data-pptx-idx="3" data-pptx-bounds="1108 680 80 28">
+  <g id="process-slide-number-slot" data-pptx-placeholder="slide-number" data-pptx-idx="3" data-pptx-bounds="1108 680 80 32">
     <text id="process-slide-number-carrier" data-pptx-carrier="true" x="1188" y="704" text-anchor="end" fill="#003F43" font-family="Arial, sans-serif" font-size="16" font-weight="bold">{{PAGE_NUM}}</text>
   </g>
 </svg>

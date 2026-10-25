@@ -212,7 +212,7 @@ failure rather than a silent downgrade.
 
 ### 3.2 Deterministic Morph Identity
 
-The generated route may add an explicit `slides.<destination>.morph` block to
+Generate and Edit Native PPTX may add an explicit `slides.<destination>.morph` block to
 bind direct-root SVG groups across adjacent slides. The sidecar stable key is
 lowered to the same top-level `p:cNvPr@name="!!<key>"` on both final
 Slide-local objects. This does not create an Animation Pane row and does not
@@ -231,8 +231,14 @@ roster expectations are then refreshed. Package read-back requires:
   undeclared shared `!!` name on a Morph edge.
 
 Morph without an explicit pair block retains PowerPoint's automatic matching
-behavior. Explicit pairing is generated-route authoring; source-preserving
-round-trip export keeps existing object names and transition XML.
+behavior. Round-trip export preserves source names unless an explicit pair
+assigns a new identity. An endpoint on an unchanged page resolves through its
+imported Slide-local shape id and counts as `patched`, including planned copies.
+When only identity changes, export replaces only the `cNvPr@name` attribute
+value; every other slide XML byte and its relationships stay unchanged. Notes
+and requested motion remain separate overlays. An endpoint without a unique
+native identity fails with its page/object and instructions to edit that page
+as well or pair two edited pages.
 
 ---
 
@@ -242,7 +248,7 @@ round-trip export keeps existing object names and transition XML.
 |---|---|---|---|
 | Generated PPTX CLI | fade, 0.4s; no sound | click | auto-advance maps to both; an optional sidecar sound is project-local |
 | Recorded narration | Preserve resolved enter | narration | none remains visually none |
-| Edit Native PPTX (`svg_to_pptx.py --roundtrip`) | preserve source | preserve source | `-t` or `animations.json` rows replace per output page as an overlay; `--use-narration-timings` derives advance from narration |
+| Edit Native PPTX (`svg_to_pptx.py --roundtrip`) | preserve source | preserve source | Compare enter, advance, and animation against the import baseline separately. `-t` or explicit slide `transition` replaces enter; omission inherits source even with importer `defaults.transition: none`. Effect-only edits retain `advClick` / `advTm`; explicit advance or `--use-narration-timings` replaces advance |
 
 The public `create_pptx_with_native_svg` Python API retains its legacy 0.5s
 default; the generated-deck CLI explicitly passes 0.4s.
@@ -290,6 +296,12 @@ effect prefix without updating these attributes corrupts compatibility.
 **Package timing rule**: when a route writes advTm, set
 ppt/presProps.xml p:presentationPr/p:showPr useTimings=1. Do not write showPr
 into ppt/presentation.xml.
+
+**Kiosk show**: `svg_to_pptx.py --kiosk` writes `p:showPr loop="1"` with a
+`p:kiosk` child (PowerPoint's "Browsed at a kiosk"): the show loops until
+Escape and ignores click and keyboard advance, so only `advTm` timings and
+hyperlinks move between slides. It leaves `useTimings` to the timing rule, so
+a hyperlink-driven touch guide can be a kiosk show without timed advance.
 
 ---
 

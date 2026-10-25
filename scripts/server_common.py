@@ -3,10 +3,10 @@
 PPT Master - Local Preview Server Helpers
 
 Shared per-project mutual-exclusion (lock) and liveness helpers for the local
-Flask preview servers (`svg_editor/server.py`, `confirm_ui/server.py`). Each
-server keeps its own lock filename and Flask app; this module owns only the
+Flask preview servers (`svg_editor/server.py`, `confirm_ui/server.py`, `spec_review/server.py`). Each
+server keeps its own lock filename and Flask app; this module owns browser dispatch, the
 cross-platform process-liveness check and the claim/read/release lock logic so
-the two servers cannot drift apart.
+the servers cannot drift apart.
 
 Usage:
     from server_common import find_free_port, validate_port
@@ -15,11 +15,17 @@ Dependencies:
     None (only uses standard library)
 """
 
+import base64
 import json
 import logging
 import os
+import platform
+import re
+import shutil
 import socket
 import subprocess
+import sys
+import webbrowser
 from pathlib import Path
 from typing import Optional
 
@@ -28,6 +34,57 @@ from workflow_transcript import DISABLE_TRANSCRIPT_ENV
 
 MIN_PORT = 1
 MAX_PORT = 65535
+
+
+# Windows PowerShell as mounted inside WSL; probed when ``[interop]
+# appendWindowsPath=false`` keeps interop but drops Windows dirs from PATH.
+WSL_POWERSHELL = '/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe'
+
+
+def _wsl_powershell() -> Optional[str]:
+    """Return the Windows PowerShell path when running under WSL, else ``None``."""
+    if 'microsoft' not in platform.release().lower():
+        return None
+    found = shutil.which('powershell.exe')
+    if found:
+        return found
+    return WSL_POWERSHELL if os.access(WSL_POWERSHELL, os.X_OK) else None
+
+
+def open_preview_browser(url: str, logger: Optional[logging.Logger] = None) -> bool:
+    """Ask the host OS to open a preview URL; this does not verify window visibility.
+
+    ``BROWSER`` keeps its usual ``webbrowser`` meaning everywhere. Without it,
+    WSL asks Windows PowerShell for the Windows default browser: WSL's ``gio``
+    may exist without an HTTP handler, and ``webbrowser`` reports success as
+    soon as that child spawns. Every other host uses ``webbrowser`` unchanged.
+    """
+    log = logger or logging.getLogger(__name__)
+    try:
+        powershell = None if os.environ.get('BROWSER') else _wsl_powershell()
+        if powershell:
+            # Keep the URL as data, including quotes, ampersands and non-ASCII text.
+            encoded_url = base64.b64encode(url.encode('utf-8')).decode('ascii')
+            script = (
+                "$ErrorActionPreference = 'Stop'; "
+                "$u = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"
+                + encoded_url + "')); Start-Process -FilePath $u"
+            )
+            command = base64.b64encode(script.encode('utf-16le')).decode('ascii')
+            result = subprocess.run(
+                [powershell, '-NoProfile', '-NonInteractive', '-EncodedCommand', command],
+                capture_output=True, timeout=15, check=False,
+            )
+            if result.returncode:
+                detail = result.stderr.decode('utf-8', errors='replace').strip()
+                raise OSError(f'PowerShell exited {result.returncode}: {detail}')
+        elif not webbrowser.open(url):
+            raise OSError('no browser accepted the URL')
+        log.info('browser launch request accepted by OS: %s', url)
+        return True
+    except (OSError, subprocess.TimeoutExpired, webbrowser.Error) as exc:
+        log.warning('browser launch failed: %s; open %s manually', exc, url)
+        return False
 
 
 def validate_port(port: int) -> int:
@@ -63,6 +120,31 @@ def find_free_port(preferred: int, host: str = '127.0.0.1', span: int = 50) -> i
     raise RuntimeError(
         f'no free TCP port on {host} in range {preferred}..{last_port}'
     )
+
+
+_ANSI_SGR = re.compile(r'\x1b\[[0-9;]*m')
+
+
+class _PlainRequestLog(logging.Filter):
+    """Strip werkzeug's ANSI request styling from log arguments."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple):
+            record.args = tuple(
+                _ANSI_SGR.sub('', arg) if isinstance(arg, str) else arg
+                for arg in record.args
+            )
+        return True
+
+
+def plain_request_log() -> None:
+    """Keep request lines free of terminal colour when stderr is not a terminal.
+
+    werkzeug styles request lines unconditionally on POSIX; a detached server
+    writes them to its component ``server.log``, where the escapes are noise.
+    """
+    if not sys.stderr.isatty():
+        logging.getLogger('werkzeug').addFilter(_PlainRequestLog())
 
 
 def popen_detached(

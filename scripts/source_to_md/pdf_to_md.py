@@ -5,12 +5,16 @@ Uses PyMuPDF to extract PDF text content and convert to Markdown format.
 Supports heading levels, bold, italic, and list detection.
 """
 
+from __future__ import annotations
+
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import sys
+import unicodedata
 from pathlib import Path
 from collections import Counter
 
@@ -24,11 +28,17 @@ from _conversion_profile import write_conversion_profile_best_effort  # noqa: E4
 
 configure_utf8_stdio()
 
-try:
-    import fitz  # PyMuPDF
-except ImportError:
-    print("[ERROR] PyMuPDF not installed. Run: pip install PyMuPDF", file=sys.stderr)
-    sys.exit(1)
+# Help must not depend on the optional conversion packages: a stdlib-only
+# interpreter still gets the argparse usage (docs/rules/code-style.md §4).
+_HELP_REQUESTED = __name__ == "__main__" and any(
+    arg in {"-h", "--help"} for arg in sys.argv[1:]
+)
+if not _HELP_REQUESTED:
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        print("[ERROR] PyMuPDF not installed. Run: pip install PyMuPDF", file=sys.stderr)
+        sys.exit(1)
 
 FONT_BODY_SIZE = 12
 FONT_H1_SIZE = 24
@@ -36,6 +46,7 @@ FONT_H2_SIZE = 18
 FONT_H3_SIZE = 14
 HEADER_FOOTER_SAMPLE_LIMIT = 40
 HEADER_FOOTER_EDGE_SAMPLE_SIZE = 20
+HEADER_FOOTER_BAND_RATIO = 0.15
 CONTROL_CHARS_RE = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f]')
 
 
@@ -124,6 +135,10 @@ def get_heading_level(size: float, size_map: dict, text: str = "",
     if len(text) > 80:
         return 0
 
+    # Exclusion: a bullet-led line is a list item, whatever its glyph size
+    if text[:1] in _BULLET_GLYPHS:
+        return 0
+
     # Exclusion: complete sentences ending with punctuation
     sentence_endings = '.。!！?？'
     if text and text[-1] in sentence_endings:
@@ -176,12 +191,77 @@ def format_span_text(text: str, flags: int) -> str:
     return text
 
 
+# Bullet glyphs a PDF sets as their own span; ``·`` (U+00B7) is common in
+# fact sheets, and a stray control character often follows the glyph.
+_BULLET_GLYPHS = '•●○◦▪▸►·‧∙・'
+
+
+def is_bullet_glyph_span(text: str) -> bool:
+    """Return whether a span holds only a bullet glyph (plus spaces / control characters)."""
+    stripped = re.sub(r'[\s\x00-\x1f]+', '', text)
+    return len(stripped) == 1 and stripped in _BULLET_GLYPHS
+
+
+# Below this many extracted text characters per page the PDF has no usable
+# text layer; a scan renders as one image per page and nothing else.
+SCANNED_PDF_TEXT_CHARS_PER_PAGE = 40
+
+
+def scanned_pdf_warnings(markdown: str, page_count: int, image_count: int) -> list[str]:
+    """Return a warning when the Markdown holds page images but almost no text.
+
+    ``[Done] Success`` with an empty Markdown body is worse than a failure:
+    a downstream reader takes the file as the converted source and concludes
+    the document has no usable content. The check counts text outside image
+    references and page comments against the page count.
+    """
+    if page_count <= 0:
+        return []
+    text_lines = [
+        line for line in markdown.splitlines()
+        if line.strip() and not line.lstrip().startswith(("![", "<!--"))
+    ]
+    text_chars = sum(len(line.strip()) for line in text_lines)
+    if text_chars >= SCANNED_PDF_TEXT_CHARS_PER_PAGE * page_count:
+        return []
+    if image_count < max(1, page_count // 2):
+        return []
+    return [
+        f"scanned PDF: {text_chars} text characters over {page_count} pages, "
+        f"{image_count} page images; no text layer was extracted, so the "
+        "clauses exist only inside the images (OCR or a text-layer copy is needed)"
+    ]
+
+
+# Two alef forms before a lam ("اإلحصاءات" for "الإحصاءات") is a lam-alef
+# ligature decomposed in the wrong order; well-formed Arabic practically
+# never has it. A run of tatweel marks where glyphs were dropped.
+_BROKEN_LAM_ALEF_RE = re.compile("[\u0627\u0623\u0625\u0622][\u0627\u0623\u0625\u0622]\u0644")
+
+
+def arabic_text_layer_warnings(markdown: str) -> list[str]:
+    """Warn when an Arabic text layer came out in visual order or lost glyphs."""
+    arabic = len(re.findall("[\u0600-\u06ff]", markdown))
+    if arabic < 200:
+        return []
+    broken = len(_BROKEN_LAM_ALEF_RE.findall(markdown))
+    tatweel = markdown.count("\u0640")
+    if broken < 5 and tatweel < arabic // 20:
+        return []
+    return [
+        f"Arabic text layer looks damaged: {broken} reversed lam-alef "
+        f"sequences and {tatweel} tatweel marks in {arabic} Arabic letters; "
+        "words, table cells, and numbers may be out of order or missing "
+        "letters, so check every figure against the PDF itself"
+    ]
+
+
 def detect_list_item(text: str) -> tuple:
     """Detect if the text is a list item. Returns (is_list, list_type, content)."""
     text = text.strip()
 
     ul_patterns = [
-        (r'^[•●○◦▪▸►]\s*', '-'),
+        (rf'^[{_BULLET_GLYPHS}][\s\x00-\x1f]*', '-'),
         (r'^[-–—]\s+', '-'),
         (r'^\*\s+', '-'),
     ]
@@ -190,7 +270,12 @@ def detect_list_item(text: str) -> tuple:
         if match:
             return (True, 'ul', marker + ' ' + text[match.end():])
 
-    ol_pattern = r'^(\d+)[.、)]\s*'
+    # ``83.2%`` at the start of a line is a decimal, not item 83: after a
+    # dot the marker must not be followed by another digit. ``1. 1 职业名称``
+    # (a clause number set with a space, as Chinese standards do) is a
+    # heading path, not item 1 with the text "1 职业名称": a short digit group
+    # right after the marker, followed by a space or CJK, keeps the line as is.
+    ol_pattern = r'^(\d+)(?:[、)]|\.(?!\d)(?!\s*\d{1,2}(?:\.\s*\d+)*[\s\u4e00-\u9fff]))\s*'
     match = re.match(ol_pattern, text)
     if match:
         num = match.group(1)
@@ -215,16 +300,29 @@ def remove_page_footer(text: str) -> str:
     return text.rstrip()
 
 
-def detect_headers_footers(doc: fitz.Document, threshold_ratio: float = 0.6) -> set[str]:
+def _header_footer_band(bbox: fitz.Rect, page_rect: fitz.Rect) -> str | None:
+    """Classify fully contained edge text; keep text crossing a band boundary."""
+    band_height = page_rect.height * HEADER_FOOTER_BAND_RATIO
+    if page_rect.y0 <= bbox.y0 and bbox.y1 <= page_rect.y0 + band_height:
+        return "header"
+    if page_rect.y1 - band_height <= bbox.y0 and bbox.y1 <= page_rect.y1:
+        return "footer"
+    return None
+
+
+def detect_headers_footers(
+    doc: fitz.Document, threshold_ratio: float = 0.6,
+) -> tuple[set[str], set[str]]:
     """
     Detect headers and footers statistically.
 
     Principle: Headers and footers typically appear at fixed positions (top or bottom)
     on each page with the same content. We collect top and bottom text from all pages,
     and if certain text appears more frequently than the threshold, it is treated as noise.
+    Return header and footer noise separately so filtering stays in the matching band.
     """
     if len(doc) < 3:
-        return set()
+        return set(), set()
 
     headers = []
     footers = []
@@ -239,12 +337,6 @@ def detect_headers_footers(doc: fitz.Document, threshold_ratio: float = 0.6) -> 
 
     for i in pages_to_scan:
         page = doc[i]
-        rect = page.rect
-        h = rect.height
-
-        # Define top and bottom regions (15% each)
-        top_rect = fitz.Rect(0, 0, rect.width, h * 0.15)
-        bottom_rect = fitz.Rect(0, h * 0.85, rect.width, h)
 
         # Extract text blocks
         blocks = page.get_text("blocks")
@@ -254,24 +346,46 @@ def detect_headers_footers(doc: fitz.Document, threshold_ratio: float = 0.6) -> 
             if not text:
                 continue
 
-            # Simple spatial determination
-            if b_rect.intersects(top_rect):
+            band = _header_footer_band(b_rect, page.rect)
+            if band == "header":
                 headers.append(text)
-            elif b_rect.intersects(bottom_rect):
+            elif band == "footer":
                 footers.append(text)
 
     # Count frequencies
-    noise_texts = set()
+    header_noise = set()
+    footer_noise = set()
     total_scanned = len(pages_to_scan)
 
-    for collection in [headers, footers]:
+    for collection, noise_texts in [(headers, header_noise), (footers, footer_noise)]:
         counter = Counter(collection)
         for text, count in counter.items():
             # if text appears in > 60% of scanned pages, mark as noise
             if count / total_scanned > threshold_ratio:
                 noise_texts.add(text)
 
-    return noise_texts
+    return header_noise, footer_noise
+
+
+def _is_hangul(char: str) -> bool:
+    return "\uac00" <= char <= "\ud7a3" or "\u1100" <= char <= "\u11ff" or "\u3130" <= char <= "\u318f"
+
+
+def join_wrapped_text(head: str, tail: str) -> str:
+    """Join two wrapped PDF lines.
+
+    Chinese and Japanese wrap between characters, so a break between wide
+    characters takes no space; Korean spaces its words and wraps at them, so
+    a break touching Hangul keeps one.
+    """
+    if (
+        head and tail
+        and unicodedata.east_asian_width(head[-1]) in {"W", "F"}
+        and unicodedata.east_asian_width(tail[0]) in {"W", "F"}
+        and not (_is_hangul(head[-1]) or _is_hangul(tail[0]))
+    ):
+        return head + tail
+    return f"{head} {tail}"
 
 
 def merge_adjacent_headings(elements: list) -> list:
@@ -311,6 +425,8 @@ def merge_adjacent_headings(elements: list) -> list:
             next_el = elements[j]
             if next_el.get("type") != 0 or not next_el.get("is_heading"):
                 break
+            if el.get("is_footer") or next_el.get("is_footer"):
+                break
 
             next_match = re.match(r'^(#{1,6})\s+(.+)$', next_el["content"])
             if not next_match or next_match.group(1) != level:
@@ -322,7 +438,7 @@ def merge_adjacent_headings(elements: list) -> list:
                 break
 
             # Merge
-            title_text += " " + next_text
+            title_text = join_wrapped_text(title_text, next_text)
             j += 1
 
         # Create merged element
@@ -373,6 +489,9 @@ NUMBER_RE = re.compile(r'[-+]?\d+(?:\.\d+)?')
 MODEL_COLUMN_RE = re.compile(r'^[（(]\d+[）)]$')
 TABLE_NOTE_PREFIX = '\u6ce8'
 TABLE_CONTINUATION_Y_RATIO = 0.88
+# A printed page number left between split table parts; trusted only next to a
+# ``<!-- Page N -->`` marker, never on its own.
+PRINTED_PAGE_NUMBER_RE = re.compile(r'\d{1,4}')
 TABLE_SCAN_BOTTOM_RATIO = 0.92
 
 
@@ -794,148 +913,10 @@ def _merge_single_cell_continuations(rows: list[list[str]]) -> list[list[str]]:
     return merged
 
 
-def _looks_like_model_row(row: list[str]) -> bool:
-    """Return whether a row contains model-number table headings."""
-    values = [cell for cell in row[1:] if cell]
-    return len(values) >= 2 and all(MODEL_COLUMN_RE.match(cell) for cell in values)
-
-
-def _looks_like_outcome_row(row: list[str]) -> bool:
-    """Return whether a row contains regression outcome labels."""
-    values = [cell for cell in row[1:] if cell]
-    if len(values) < 2:
-        return False
-    short_values = [cell for cell in values if len(cell) <= 12 and not NUMBER_RE.search(cell)]
-    return len(short_values) == len(values)
-
-
-def _regression_group_labels(row: list[str], data_cols: int) -> list[str]:
-    """Infer repeated group labels for common regression-table headings."""
-    compact = "".join(row)
-    if "总样本" in compact and "国有" in compact and "非国有" in compact and data_cols == 7:
-        return ["总样本"] * 3 + ["国有企业"] * 2 + ["非国有企业"] * 2
-    return [""] * data_cols
-
-
-def _flatten_regression_header(rows: list[list[str]]) -> list[list[str]]:
-    """Flatten multi-line regression headings into one Markdown header row."""
-    if len(rows) < 3:
-        return rows
-
-    if (
-        len(rows) >= 2
-        and rows[0][0]
-        and not any(rows[0][1:])
-        and _looks_like_model_row(rows[1])
-    ):
-        outcome = rows[0][0]
-        header = ["变量"]
-        header.extend(
-            f"{model} {outcome}".strip()
-            for model in rows[1][1:]
-        )
-        return [header] + rows[2:]
-
-    header_offset = 0
-    groups = [""] * (len(rows[0]) - 1)
-    if not _looks_like_model_row(rows[0]) and _looks_like_model_row(rows[1]):
-        header_offset = 1
-        groups = _regression_group_labels(rows[0], len(rows[1]) - 1)
-
-    if not _looks_like_model_row(rows[header_offset]):
-        return rows
-    if len(rows) <= header_offset + 1 or not _looks_like_outcome_row(rows[header_offset + 1]):
-        return rows
-
-    model_row = rows[header_offset]
-    outcome_row = rows[header_offset + 1]
-    header = ["变量"]
-    for idx, model in enumerate(model_row[1:]):
-        pieces = []
-        if idx < len(groups) and groups[idx]:
-            pieces.append(groups[idx])
-        if model:
-            pieces.append(model)
-        if idx + 1 < len(outcome_row) and outcome_row[idx + 1]:
-            pieces.append(outcome_row[idx + 1])
-        header.append(" ".join(pieces).strip())
-    return [header] + rows[header_offset + 2:]
-
-
-def _fix_paired_sample_t_table(rows: list[list[str]]) -> list[list[str]]:
-    """Collapse multi-row paired-sample T-test headings into readable columns."""
-    if not rows or not any("成对差分" in cell for cell in rows[0]):
-        return rows
-    body = [row for row in rows if row and row[0].startswith("对")]
-    if len(body) < 1:
-        return rows
-    header = [
-        "配对",
-        "变量",
-        "均值",
-        "标准差",
-        "均值的标准误",
-        "差分95%置信区间下限",
-        "差分95%置信区间上限",
-        "t",
-        "Df",
-        "Sig.(双侧)",
-    ]
-    fixed_rows = [header]
-    for row in body:
-        fixed_rows.append(row[:len(header)] + [""] * max(0, len(header) - len(row)))
-    return fixed_rows
-
-
-def _fix_variable_definition_table(rows: list[list[str]]) -> list[list[str]]:
-    """Repeat variable-category labels for common variable definition tables."""
-    if not rows or rows[0] != ["变量类型", "变量名称", "符号", "变量说明"]:
-        return rows
-
-    fixed = [rows[0]]
-    for row in rows[1:]:
-        if not any(row):
-            continue
-        name = row[1] if len(row) > 1 else ""
-        symbol = row[2] if len(row) > 2 else ""
-        description = row[3] if len(row) > 3 else ""
-        if not name or not symbol:
-            continue
-
-        if symbol in {"R＆D", "Fixed", "Hc"}:
-            category = "被解释变量"
-        elif symbol == "Vat":
-            category = "解释变量"
-        else:
-            category = "控制变量"
-        fixed.append([category, name, symbol, description])
-    return fixed
-
-
-def _fix_correlation_triangle(rows: list[list[str]]) -> list[list[str]]:
-    """Restore the missing last self-correlation column in triangular tables."""
-    if len(rows) < 4 or not rows[0] or rows[0][0] != "变量":
-        return rows
-    body_names = [row[0] for row in rows[1:] if row and row[0]]
-    header_names = rows[0][1:]
-    if len(body_names) != len(header_names) + 1:
-        return rows
-    missing_name = body_names[-1]
-    fixed = [rows[0] + [missing_name]]
-    for row in rows[1:-1]:
-        fixed.append(row + [""])
-    fixed.append(rows[-1] + ["1"])
-    return fixed
-
-
 def _postprocess_table_rows(rows: list[list[str]]) -> list[list[str]]:
     """Apply Markdown-oriented cleanup to extracted table rows."""
     rows = _merge_label_underscore_rows(rows)
     rows = _merge_single_cell_continuations(rows)
-    rows = _fix_variable_definition_table(rows)
-    rows = _fix_paired_sample_t_table(rows)
-    rows = _flatten_regression_header(rows)
-    rows = _fix_correlation_triangle(rows)
     return rows
 
 
@@ -1027,6 +1008,118 @@ def _add_table_candidate(
 
     bbox = fitz.Rect(tab.bbox)
     _append_table_markdown_candidate(candidates, bbox, markdown, method)
+
+
+ORPHAN_CELL_MAX_CHARS = 24
+ORPHAN_COLUMN_GAP = 12.0
+ORPHAN_ROW_COVERAGE = 0.6
+
+
+def _cluster_orphan_columns(cells: list[tuple[fitz.Rect, str, int]]) -> list[list[int]]:
+    """Group orphan text lines into columns by overlapping x-extents."""
+    ordered = sorted(range(len(cells)), key=lambda idx: cells[idx][0].x0)
+    columns: list[list[int]] = []
+    column_x1 = 0.0
+    for idx in ordered:
+        rect = cells[idx][0]
+        if columns and rect.x0 <= column_x1 + ORPHAN_COLUMN_GAP:
+            columns[-1].append(idx)
+            column_x1 = max(column_x1, rect.x1)
+        else:
+            columns.append([idx])
+            column_x1 = rect.x1
+    return columns
+
+
+def _orphan_side_columns(
+    cells: list[tuple[fitz.Rect, str, int]],
+    row_count: int,
+) -> list[list[str]] | None:
+    """Return per-row cell text for one side of a ruled table, or None."""
+    if not cells:
+        return None
+    covered_rows = {row_index for _rect, _text, row_index in cells}
+    if len(covered_rows) < max(2, math.ceil(row_count * ORPHAN_ROW_COVERAGE)):
+        return None
+    if any(len(text) > ORPHAN_CELL_MAX_CHARS for _rect, text, _row in cells):
+        return None
+
+    columns = _cluster_orphan_columns(cells)
+    table: list[list[str]] = [["" for _ in columns] for _ in range(row_count)]
+    for col_index, members in enumerate(columns):
+        for idx in sorted(members, key=lambda item: cells[item][0].x0):
+            rect, text, row_index = cells[idx]
+            current = table[row_index][col_index]
+            table[row_index][col_index] = f"{current} {text}".strip() if current else text
+    return table
+
+
+def _extend_ruled_table(
+    page: fitz.Page,
+    tab: object,
+    lines: list[tuple[fitz.Rect, str]],
+) -> tuple[fitz.Rect, str] | None:
+    """Re-attach columns that sit outside a partially ruled table's borders.
+
+    Statistical bulletins often rule only the middle columns; PyMuPDF then
+    returns a narrow table and the label and change columns fall out as loose
+    text. Text lines that share a row band with the table but lie fully to its
+    left or right are clustered into extra columns and prepended/appended.
+    """
+    try:
+        raw_rows = tab.extract() or []
+        row_rects = [fitz.Rect(row.bbox) for row in tab.rows]
+    except Exception:
+        return None
+    if len(raw_rows) < 2 or len(row_rects) != len(raw_rows):
+        return None
+
+    table_rect = fitz.Rect(tab.bbox)
+    left: list[tuple[fitz.Rect, str, int]] = []
+    right: list[tuple[fitz.Rect, str, int]] = []
+    for rect, text in lines:
+        if rect.y1 < table_rect.y0 - 2 or rect.y0 > table_rect.y1 + 2:
+            continue
+        center_y = (rect.y0 + rect.y1) / 2
+        row_index = next(
+            (
+                idx for idx, row_rect in enumerate(row_rects)
+                if row_rect.y0 - 2 <= center_y <= row_rect.y1 + 2
+            ),
+            None,
+        )
+        if row_index is None:
+            continue
+        if rect.x1 <= table_rect.x0 + 1:
+            left.append((rect, text, row_index))
+        elif rect.x0 >= table_rect.x1 - 1:
+            right.append((rect, text, row_index))
+        elif not (table_rect.x0 <= rect.x0 and rect.x1 <= table_rect.x1):
+            return None
+
+    left_cols = _orphan_side_columns(left, len(raw_rows))
+    right_cols = _orphan_side_columns(right, len(raw_rows))
+    if left_cols is None and right_cols is None:
+        return None
+
+    rows: list[list[object]] = []
+    for idx, row in enumerate(raw_rows):
+        merged: list[object] = []
+        if left_cols is not None:
+            merged.extend(left_cols[idx])
+        merged.extend(row)
+        if right_cols is not None:
+            merged.extend(right_cols[idx])
+        rows.append(merged)
+
+    markdown = _rows_to_markdown(_clean_table_rows(rows))
+    if not _is_valid_table_markdown(markdown):
+        return None
+
+    bbox = fitz.Rect(table_rect)
+    for rect, _text, _row in (left if left_cols is not None else []) + (right if right_cols is not None else []):
+        bbox |= rect
+    return bbox, markdown
 
 
 def _merge_word_runs(words: list[tuple]) -> list[dict[str, object]]:
@@ -1145,13 +1238,18 @@ def find_page_tables(
 ) -> tuple[list[dict[str, object]], bool]:
     """Find line-detected tables plus caption-guided text tables on one page."""
     candidates: list[dict[str, object]] = []
+    lines = _extract_text_lines(page)
     try:
         for tab in page.find_tables():
-            _add_table_candidate(candidates, tab, "lines")
+            extended = _extend_ruled_table(page, tab, lines)
+            if extended is None:
+                _add_table_candidate(candidates, tab, "lines")
+                continue
+            bbox, markdown = extended
+            _append_table_markdown_candidate(candidates, bbox, markdown, "lines+text")
     except Exception:
         pass
 
-    lines = _extract_text_lines(page)
     for rect, text in lines:
         if not _is_table_caption(text):
             continue
@@ -1217,24 +1315,24 @@ def _compatible_table_headers(first: list[str], second: list[str]) -> bool:
     return first[0] == second[0] and _markdown_col_count(first[0]) > 2
 
 
-def _is_table_continuation_noise(line: str) -> bool:
-    """Allow only page/header noise between split table parts."""
-    text = line.strip()
-    if not text:
-        return True
-    if text.startswith("<!-- Page ") and text.endswith("-->"):
-        return True
-    if re.fullmatch(r'\d+', text):
-        return True
-    if "重庆大学硕士学位论文" in text:
-        return True
-    continuation_labels = [
-        "营改增",
-        "深化增值税改革",
-        "国有企业",
-        "非国有企业",
-    ]
-    return any(label in text for label in continuation_labels)
+def _is_page_marker(text: str) -> bool:
+    """Return whether a stripped line is the converter's page-break marker."""
+    return text.startswith("<!-- Page ") and text.endswith("-->")
+
+
+def _is_table_continuation_gap(lines: list[str]) -> bool:
+    """Return whether only page-break furniture separates two table parts.
+
+    A bare number is a printed page number only when the gap crosses a
+    ``<!-- Page N -->`` marker; anywhere else it is content (a quantity, a year).
+    """
+    texts = [line.strip() for line in lines if line.strip()]
+    if not any(_is_page_marker(text) for text in texts):
+        return not texts
+    return all(
+        _is_page_marker(text) or PRINTED_PAGE_NUMBER_RE.fullmatch(text)
+        for text in texts
+    )
 
 
 def _read_markdown_table_block(lines: list[str], start: int) -> tuple[list[str], int]:
@@ -1257,32 +1355,22 @@ def merge_markdown_continuation_tables(markdown: str) -> str:
             index += 1
             continue
 
-        table, table_end = _read_markdown_table_block(lines, index)
-        search = table_end
+        table, index = _read_markdown_table_block(lines, index)
         while True:
-            between_start = search
-            while search < len(lines) and not _is_markdown_table_line(lines[search]):
-                if not _is_table_continuation_noise(lines[search]):
-                    break
-                search += 1
-
-            if search >= len(lines) or not _is_markdown_table_line(lines[search]):
-                break
-            if any(
-                not _is_table_continuation_noise(line)
-                for line in lines[between_start:search]
-            ):
+            next_start = index
+            while next_start < len(lines) and not _is_markdown_table_line(lines[next_start]):
+                next_start += 1
+            if next_start >= len(lines) or not _is_table_continuation_gap(lines[index:next_start]):
                 break
 
-            next_table, next_end = _read_markdown_table_block(lines, search)
+            next_table, next_end = _read_markdown_table_block(lines, next_start)
             if not _compatible_table_headers(table, next_table):
                 break
 
             table.extend(next_table[2:])
-            search = next_end
+            index = next_end
 
         result.extend(table)
-        index = search if search != table_end else table_end
 
     return "\n".join(result)
 
@@ -1367,10 +1455,12 @@ def extract_pdf_to_markdown(
           f"H1={size_map.get('h1', 'N/A')}, H2={size_map.get('h2', 'N/A')}, H3={size_map.get('h3', 'N/A')}")
 
     print(f"[INFO] Detecting repeated headers/footers...")
-    noise_texts = detect_headers_footers(doc)
-    if noise_texts:
-        print(f"   Found {len(noise_texts)} repeated noise texts (will be removed):")
-        for t in list(noise_texts)[:3]:
+    header_noise, footer_noise = detect_headers_footers(doc)
+    noise_by_band = {"header": header_noise, "footer": footer_noise, None: set()}
+    repeated_texts = header_noise | footer_noise
+    if repeated_texts:
+        print(f"   Found {len(repeated_texts)} repeated noise texts (will be removed):")
+        for t in list(repeated_texts)[:3]:
             print(f"     - {t[:30]}...")
 
     markdown_content = f"# {title}\n\n"
@@ -1443,7 +1533,8 @@ def extract_pdf_to_markdown(
             if block["type"] == 0:
                 # Check if this is noise text to be filtered (whole block match)
                 block_text_full = "".join([span["text"] for line in block["lines"] for span in line["spans"]]).strip()
-                if block_text_full in noise_texts:
+                block_band = _header_footer_band(block_rect, page.rect)
+                if block_text_full in noise_by_band[block_band]:
                     continue
 
                 for line in block["lines"]:
@@ -1463,6 +1554,12 @@ def extract_pdf_to_markdown(
 
                         span_size = span["size"]
                         span_flags = span["flags"]
+
+                        # A bullet glyph set in its own larger span must not
+                        # promote the line to a heading; it is a list marker.
+                        if is_bullet_glyph_span(span_text):
+                            formatted_spans.append(span_text)
+                            continue
 
                         line_size = max(line_size, span_size)
                         line_flags |= span_flags
@@ -1485,14 +1582,22 @@ def extract_pdf_to_markdown(
                         continue
 
                     # Secondary check: line-level noise match (sometimes blocks are split)
-                    if line_text in noise_texts:
+                    band = _header_footer_band(fitz.Rect(line["bbox"]), page.rect)
+                    if line_text in noise_by_band[band]:
                         continue
+
+                    if band == "footer":
+                        line_text = remove_page_footer(line_text)
+                        if not line_text:
+                            continue
 
                     line_text = merge_adjacent_formatting(line_text)
 
                     heading_level = get_heading_level(line_size, size_map, line_text, line_flags)
 
                     is_list, list_type, list_content = detect_list_item(line_text)
+                    if is_list and not list_content.split(' ', 1)[-1].strip():
+                        continue
 
                     if heading_level > 0:
                         prefix = '#' * heading_level + ' '
@@ -1509,7 +1614,8 @@ def extract_pdf_to_markdown(
                         "content": final_text,
                         "is_heading": heading_level > 0,
                         "is_list": is_list,
-                        "is_code": is_code_line
+                        "is_code": is_code_line,
+                        "is_footer": band == "footer",
                     })
 
             elif block["type"] == 1:
@@ -1541,13 +1647,15 @@ def extract_pdf_to_markdown(
                     next_el = page_elements[j]
                     if next_el["type"] != 0:
                         break
+                    if el.get("is_footer") or next_el.get("is_footer"):
+                        break
                     if not should_merge_lines({"content": merged_content, "is_heading": False, "is_list": False}, next_el):
                         break
-                    merged_content += " " + next_el["content"]
+                    merged_content = join_wrapped_text(merged_content, next_el["content"])
                     j += 1
                 merged_elements.append({
                     "type": 0,
-                    "content": remove_page_footer(merged_content),
+                    "content": merged_content,
                     "is_heading": False,
                     "is_list": False
                 })
@@ -1714,6 +1822,7 @@ def extract_pdf_to_markdown(
         if prev_was_code:
             flush_code_block()
 
+    page_count = len(doc)
     doc.close()
 
     markdown_content = merge_markdown_continuation_tables(markdown_content)
@@ -1730,12 +1839,17 @@ def extract_pdf_to_markdown(
                 json.dumps(image_manifest, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
             )
+        warnings = scanned_pdf_warnings(markdown_content, page_count, img_count)
+        warnings += arabic_text_layer_warnings(markdown_content)
+        for warning in warnings:
+            print(f"[WARN] {warning}")
         profile_path = write_conversion_profile_best_effort(
             input_path=pdf_path,
             markdown_path=output_path,
             converter="pdf_to_md.py",
             conversion_type="pdf",
             asset_dir=img_dir,
+            warnings=warnings,
         )
         print(f"[OK] Saved Markdown to: {output_path}")
         if profile_path:
@@ -1744,7 +1858,7 @@ def extract_pdf_to_markdown(
     return markdown_content
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Run the CLI entry point."""
     parser = argparse.ArgumentParser(
         description='PDF to Markdown converter (with structure detection and LLM optimization)',
@@ -1791,7 +1905,7 @@ Structure detection features:
         help=f'DPI for --render-vector-figures output (default: {VECTOR_FIGURE_DPI})',
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     return run_path_batch(
         args.inputs,
