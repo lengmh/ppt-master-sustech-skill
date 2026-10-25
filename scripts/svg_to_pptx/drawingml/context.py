@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any
 from xml.etree import ElementTree as ET
 from dataclasses import dataclass, field
 
+from pptx_ooxml.package import PackagePartRegistry
+
 if TYPE_CHECKING:
     from .theme_colors import ThemeColorSpec
     from .theme_fonts import ThemeFontSpec
@@ -84,12 +86,15 @@ class ConvertContext:
     rel_entries: list[dict[str, str]] = field(default_factory=list)
     package_files: dict[str, bytes] = field(default_factory=dict)
     content_type_overrides: dict[str, str] = field(default_factory=dict)
+    package_parts: PackagePartRegistry = field(default_factory=PackagePartRegistry)
     rel_id_counter: int = 2  # rId1 reserved for slideLayout
     svg_dir: Path | None = None
     # Explicit project boundary for deterministic resource resolution. Public
     # conversion entry points require it; recursive child contexts retain it.
     resource_root: Path | None = None
     inherited_styles: dict[str, str] = field(default_factory=dict)
+    # Shared ancestry for visibility overrides and native geometry carriers.
+    parent_by_id: dict[int, ET.Element] = field(default_factory=dict)
     # Effective SVG font sizes keyed by element identity. Shared resolution
     # keeps relative sizes and em tracking identical across checker/exporter.
     text_font_sizes: dict[int, float] = field(default_factory=dict)
@@ -264,10 +269,12 @@ class ConvertContext:
             rel_entries=self.rel_entries,
             package_files=self.package_files,
             content_type_overrides=self.content_type_overrides,
+            package_parts=self.package_parts,
             rel_id_counter=self.rel_id_counter,
             svg_dir=self.svg_dir,
             resource_root=self.resource_root,
             inherited_styles=merged,
+            parent_by_id=self.parent_by_id,
             text_font_sizes=self.text_font_sizes,
             text_letter_spacings=self.text_letter_spacings,
             opacity_multiplier=self.opacity_multiplier * local_opacity,

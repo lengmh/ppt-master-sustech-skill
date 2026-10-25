@@ -24,6 +24,14 @@ unified `source_to_md.py` dispatcher writes a missing profile before success.
 | Image manifest | `<stem>_files/image_manifest.json` when image metadata is available |
 | Conversion profile | `<stem>.conversion_profile.json` beside the Markdown output when written |
 
+For multi-file or directory inputs, the unified entry and direct PDF, document,
+Excel, and PowerPoint backends allocate distinct Markdown paths within the run.
+Without `-o`, each output stays in its source's directory; with `-o`, outputs
+share that directory. Collisions with inputs or other planned outputs gain
+`_2`, `_3`, etc., reported as `[INFO] Renamed output ...` on stderr. Assets and
+profiles follow the chosen Markdown stem. Separate runs retain the existing
+overwrite behavior for unrelated outputs.
+
 When present, the conversion profile is metadata only: converter, source path,
 Markdown structure counts, asset directory, image manifest path, and image
 count. Downstream PPT workflows still use Markdown and the image manifest as
@@ -58,15 +66,31 @@ Useful options:
   output path is known. With multiple inputs, each successful conversion prints
   its own JSON line after that source finishes.
 - At the unified `source_to_md.py` entry, `--images all|filtered|none`,
-  `--no-images`, and `--filter-images` map to the PDF image mode. The web
-  backend exposes its own direct `--no-images` option described below.
+  `--no-images`, and `--filter-images` map to the PDF image mode.
+  `--no-images` (or `--images none`) also applies to web pages (images stay
+  remote links, no `<stem>_files/`) and is a no-op on Markdown/text.
+- A URL that serves a PDF / Office document (by Content-Type, body magic, or
+  suffix) is saved beside the Markdown and converted by that document's
+  backend; a `.md` / `.txt` URL whose body is not HTML is saved verbatim
+  under a `Source:` header, named by the URL stem.
 - Unknown backend-specific flags are passed through to each selected converter.
 - `-o/--output` selects one Markdown file for one input, or an output directory
   for multiple inputs / directory inputs.
+  A path that names an existing directory, or ends in `/`, is always treated as
+  a directory, even for a single input: the file keeps its default `<stem>.md`
+  name inside it; an extension-less `-o` for one input gains `.md`.
+  Local batch outputs are planned together; input/output collisions gain `_2`,
+  `_3`, etc. suffixes and are reported on stderr. A single-input file `-o`
+  refuses an existing file except its own Markdown/text passthrough.
 
 For multi-source project intake, use `project_manager.py import-sources` with
-all source paths / URLs. For local files, the default is to keep generated
-Markdown and profile outputs beside the original source.
+all source paths / URLs. Same-stem convertible sources receive distinct
+archive names such as `budget_2.xlsm`, so their Markdown, profiles, assets, and
+PPTX intake artifacts stay separate. Pre-existing Markdown and explicitly
+supplied same-stem Markdown still suppress automatic conversion; PPTX intake
+remains separate for each archived deck. See
+[`project.md`](project.md). For standalone local conversion, the default is to
+keep generated Markdown and profiles beside the original source.
 `source_to_md.py` and the backend converters support single files, explicit
 multi-file inputs, and non-recursive directory inputs.
 
@@ -103,18 +127,25 @@ Dependency:
 pip install PyMuPDF
 ```
 
+PyMuPDF is licensed under AGPL-3.0, with a commercial license available from Artifex. It is the only AGPL dependency in this repository and is imported only by this converter, so it can be left uninstalled when no PDF sources are involved. Anyone redistributing PPT Master together with its installed dependencies should review the AGPL terms first.
+
 ## `source_to_md/doc_to_md.py`
 
 Hybrid converter: pure-Python for the common formats, pandoc fallback for the rest.
 
 Native path (no external binary required):
-- `.docx` — via `mammoth`; text-only tables are preserved as pipe Markdown, and OMML / Office Math equations (Word-native or MathType "Convert to Office Math") are rewritten to inline LaTeX. Classic MathType OLE objects carry no OMML and are kept only as their preview image.
+- `.docx` — via `mammoth`; text-only tables (with footnotes) and chart data become pipe Markdown, and OMML / Office Math equations (Word-native or MathType "Convert to Office Math") are rewritten to inline LaTeX. Classic MathType OLE objects carry no OMML and are kept only as their preview image.
 - `.html` / `.htm` — via `markdownify` + `beautifulsoup4`
 - `.epub` — via `ebooklib` + `markdownify`
-- `.ipynb` — via `nbconvert`
+- `.ipynb` — via `nbconvert`; code-cell output images and Markdown attachments
+  use `<output-stem>_files/` with relative Markdown references
 
 Pandoc fallback (only if you need these):
 - `.doc`, `.odt`, `.rtf`, `.tex`/`.latex`, `.rst`, `.org`, `.typ`
+- `.typ` evaluates under pandoc, so a real project file that imports its template,
+  a package, or a custom function fails there; it then (or without pandoc) keeps the
+  source text with `=` headings mapped to Markdown and raw blocks, markup, math, and
+  code calls verbatim, recorded as a conversion-profile warning.
 
 ```bash
 python3 scripts/source_to_md/doc_to_md.py lecture.docx
@@ -138,9 +169,10 @@ pip install mammoth markdownify ebooklib nbconvert beautifulsoup4
 # Windows: https://pandoc.org/installing.html
 ```
 
-All paths produce `<input>.md`. Extracted assets use a sibling `<input>_files/`
+By default, each input produces `<input-stem>.md`, subject to batch collision
+renaming. Extracted assets use a sibling `<output-stem>_files/`
 directory with relative references. Without assets, that directory need not remain.
-The direct backend then attempts `<input>.conversion_profile.json` under the
+The direct backend then attempts `<output-stem>.conversion_profile.json` under the
 shared best-effort sidecar contract.
 
 ## `source_to_md/excel_to_md.py`
@@ -161,13 +193,15 @@ python3 scripts/source_to_md/excel_to_md.py report.xlsx budget.xlsm
 python3 scripts/source_to_md/excel_to_md.py ./workbooks
 python3 scripts/source_to_md/excel_to_md.py ./workbooks -o ./markdown  # explicit separate output directory
 python3 scripts/source_to_md/excel_to_md.py report.xlsm --max-rows 200 --max-cols 40
+python3 scripts/source_to_md/excel_to_md.py report.xlsx --include-hidden  # also export hidden sheets
 ```
 
 Behavior:
 - preserves workbook and sheet structure in Markdown
-- exports visible sheets only
+- exports visible sheets by default; skipped hidden sheets are named in a warning, and `--include-hidden` exports them with a `(hidden)` heading
 - trims empty outer rows and columns
-- propagates merged-cell labels for readable Markdown tables
+- propagates merged-cell values for readable Markdown tables; merged numeric regions are noted below the table (`> Merged cells: A2:A3 (shared value)`) so a shared amount is not counted twice
+- shows percent formats as percentages and keeps leading zeros of zero-padded identifiers; other number formats keep the stored value at Excel's 15-digit precision
 - exports formula cells as cached values; it does not recalculate formulas
 - uses the shared best-effort conversion-profile contract after success
 
@@ -231,7 +265,7 @@ Outputs (per source deck, prefixed by file stem):
 - `<stem>.slide_library.json` — text slots, geometry, native tables, native chart display caches, and SmartArt nodes/connections
 - `source_profile.json` — the single multi-deck index: a compact Strategist-facing digest per deck (over identity, tables, charts, SmartArt, and page types) under `decks[]`, with prefixed artifact pointers
 
-`project_manager.py import-sources` runs this automatically for PPTX/PPTM/PPSX/PPSM/POTX/POTM inputs and stores the bundle directly under `analysis/`. Multi-deck per project: importing several PPTX files gives each its own `<stem>.*` artifacts and a `decks[]` entry in the shared `source_profile.json` index (re-importing the same stem replaces its entry). The beautify profile stays single-deck and reads one chosen deck's `<stem>.*` artifacts.
+`project_manager.py import-sources` runs this automatically for PPTX/PPTM/PPSX/PPSM/POTX/POTM inputs and stores the bundle directly under `analysis/`. Multi-deck per project: each deck uses its archived stem, including any collision suffix, for `<stem>.*` artifacts and its `decks[]` entry in the shared `source_profile.json` index. Re-running intake for an existing archived stem replaces its entry. The beautify profile stays single-deck and reads one chosen deck's `<stem>.*` artifacts.
 
 Usage boundary:
 - Standard generation uses these fields as facts and recommendation candidates; it does not inherit source slide coordinates or page order by default.
@@ -267,7 +301,7 @@ remains strict rather than silently treating the raster preview as the
 template's canonical asset.
 
 Supported `a:hlinkClick` on shape/picture `p:cNvPr` and text `a:rPr` becomes
-the shared SVG `<a href>` form for absolute external URIs and final-roster
+the shared SVG `<a href>` form for absolute external URIs and source-roster
 `#slide-N` jumps. A source shape that also has linked inner runs uses the
 importer-only `data-pptx-shape-hyperlink` transport to avoid nested SVG anchors.
 Unsupported click actions produce a diagnostic; strict import stops.
@@ -342,9 +376,10 @@ replacement timing tree.
 
 ### Native formula reverse import
 
-The importer reconstructs formulas only from the closed OMML vocabulary owned
-by the native formula compiler. One formula-only `a14:m > m:oMathPara` text
-shape becomes a bounded `<g data-pptx-replace-with="formula">` with canonical
+The importer reconstructs formulas from the native compiler's closed OMML
+vocabulary after the import-only color normalization below. One formula-only
+`a14:m > m:oMathPara` text shape becomes a bounded
+`<g data-pptx-replace-with="formula">` with canonical
 LaTeX JSON and a visible linear SVG preview when its carrier is an ungrouped,
 unstyled, unrotated rectangular formula shape. Carrier styling, effects,
 hyperlinks, or placeholder ownership force diagnosed fallback rather than
@@ -354,8 +389,43 @@ Supported `a14:m > m:oMath` zones inside an ordinary paragraph become leaf
 their surrounding text runs. The generated markers pass the same native-object
 and inline-formula validators used by SVG-to-PPTX export.
 
+**Color normalization** applies only to `a:solidFill` directly inside
+`m:r/a:rPr` or `m:ctrlPr/a:rPr`. Each fill must contain exactly one correctly
+namespaced `a:srgbClr` or `a:schemeClr`. The shared color resolver uses the
+caller's effective palette and color map, never a fixed `theme1.xml`, and
+strictly validates color attributes and the supported `alpha`, `alphaMod`,
+and `alphaOff` modifiers even during tolerant import. The importer validates
+resource limits before normalization and changes a copy of the OMML only.
+Resolved RGB replaces the color node before the unchanged compiler validator
+runs. The resolved marker color is the formula's base: block JSON `color` or
+inline run `fill`. Serialization omits run and control colors already supplied
+by that base or an enclosing local color scope. Only changes to the effective
+color become LaTeX `\textcolor` scopes; nested scopes can explicitly restore
+the base color when needed. Theme tokens become current RGB values and lose
+their original theme-token linkage. Re-export applies the exporter's existing anchor mapping
+to marker defaults; local LaTeX color scopes remain explicit RGB overrides.
+
+**Transparency** must remain representable by the destination marker and its
+existing exporter. Inline formulas retain one uniform effective alpha across
+their runs and controls through the marker's `fill` / `fill-opacity` style;
+surrounding runs retain their own opacity. This includes the uniform alpha
+emitted by PPT Master's inline exporter with local color overrides. Alpha
+must fit DrawingML's 1/100000 precision. Mixed alpha, including an opaque run
+or control among translucent ones, is not reconstructed. Block markers keep
+RGB in JSON `color`; their existing exporter emits opaque RGB only, so a
+translucent block formula also takes the diagnosed opaque-`txBody` path.
+Alpha is never discarded to make a formula pass validation.
+
+Canonical read-back uses explicit braces for script bases and argument bodies,
+`\left` / `\right` for delimiter nodes, Unicode glyphs for symbols, `\mathrm`
+for upright math runs, and `\mathop` for function nodes. Insignificant source
+whitespace is not recovered. Recompilation may split or join adjacent runs
+with identical effective styling without changing their text or appearance.
+
 This is normalized semantic read-back, not recovery of the author's original
-LaTeX spelling and not a general Office Math converter. Every OMML root must
+LaTeX spelling and not a general Office Math converter. Multiple color
+children, incorrect namespaces, unresolved theme colors, unsupported modifiers,
+and unknown OMML remain outside the reversible subset. Every normalized root must
 pass the compiler's namespace, element, attribute, structure, size, and depth
 gates, and the reconstructed LaTeX must compile again under the same profile.
 If any formula in one text body falls outside that boundary, tolerant import
@@ -610,6 +680,9 @@ Error: PPTX-to-SVG conversion failed: Invalid DrawingML sRGB color structure
 
 Convert web pages to Markdown and download images locally by default. Use
 `--no-images` to retain remote image links without downloading their files.
+Pages, images, and redirect targets must be public HTTP(S) hosts with valid
+TLS; `--insecure` skips certificate checks, `--allow-private-hosts` admits
+intranet and loopback addresses.
 
 ```bash
 python3 scripts/source_to_md/web_to_md.py https://example.com/article
@@ -627,10 +700,9 @@ block Python's default TLS fingerprint. No extra flags needed. If
 `curl_cffi` is not available, it falls back to plain `requests`.
 
 On success, the converter uses the shared best-effort sidecar contract for
-`<output>.conversion_profile.json` beside the Markdown output.
+`<stem>.conversion_profile.json` beside the Markdown output.
 `--emit-result` is for wrapper scripts that need the actual saved Markdown path
 when the converter derives a title-based filename.
-
 
 ## Image Orientation Review
 

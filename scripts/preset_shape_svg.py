@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Sequence
 
 from console_encoding import configure_utf8_stdio
-from pptx_shapes import CONNECTOR_PRESET_TYPES, get_preset_registry
+from pptx_shapes import CONNECTOR_PRESET_TYPES, FormulaEvaluationError, get_preset_registry
 from pptx_shapes.semantics import get_preset_shape_semantics
 from pptx_to_svg.preset_authoring import render_preset_shape_fragment
 
@@ -55,7 +55,23 @@ _BATCH_ITEM_FIELDS = frozenset({
     "stroke_linejoin",
     "filter_id",
     "adjustments",
+    "adjust",
 })
+
+
+def _batch_adjustments(item: dict[str, object], label: str) -> dict[str, str]:
+    """Accept ``adjustments`` as an object or, like ``render --adjust``, NAME=FORMULA strings."""
+    raw = item.get("adjustments", item.get("adjust", {}))
+    if isinstance(raw, dict):
+        return {str(name): str(formula) for name, formula in raw.items()}
+    if isinstance(raw, str):
+        raw = [raw]
+    if isinstance(raw, list) and all(isinstance(value, str) for value in raw):
+        return _parse_adjustments(raw)
+    raise ValueError(
+        f"{label}.adjustments must be a JSON object keyed by guide name "
+        '({"adj": "val 32000"}) or a list of NAME=FORMULA strings'
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -100,6 +116,23 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Print one flat objective identity view with key geometry facts."
         ),
+    )
+    describe_parser.add_argument(
+        "--frame",
+        nargs=4,
+        type=float,
+        metavar=("X", "Y", "W", "H"),
+        help=(
+            "Also evaluate the text rectangle for this page frame and print it "
+            "as text_rectangle_px (page coordinates, same as render --frame)."
+        ),
+    )
+    describe_parser.add_argument(
+        "--adjust",
+        action="append",
+        default=[],
+        metavar="NAME=FORMULA",
+        help="Adjustment guide used when evaluating --frame (repeatable).",
     )
 
     render_parser = subparsers.add_parser(
@@ -237,6 +270,37 @@ def main(argv: Sequence[str] | None = None) -> int:
         path_count = len(definition.paths)
         connection_site_count = len(definition.connections)
         has_text_rectangle = definition.text_rectangle is not None
+        text_rectangle = (
+            None
+            if definition.text_rectangle is None
+            else {
+                "left": definition.text_rectangle.left,
+                "top": definition.text_rectangle.top,
+                "right": definition.text_rectangle.right,
+                "bottom": definition.text_rectangle.bottom,
+            }
+        )
+        text_rectangle_px = None
+        if args.frame is not None and has_text_rectangle:
+            frame_x, frame_y, frame_w, frame_h = args.frame
+            try:
+                evaluated = registry.evaluate(
+                    args.preset,
+                    frame_w,
+                    frame_h,
+                    adjustments=_parse_adjustments(args.adjust),
+                )
+            except (ValueError, FormulaEvaluationError) as exc:
+                print(f"Error: {exc}", file=sys.stderr)
+                return 1
+            rect = evaluated.text_rectangle
+            if rect is not None:
+                text_rectangle_px = {
+                    "x": round(frame_x + rect.left, 2),
+                    "y": round(frame_y + rect.top, 2),
+                    "width": round(rect.right - rect.left, 2),
+                    "height": round(rect.bottom - rect.top, 2),
+                }
         semantics = get_preset_shape_semantics().describe(args.preset)
         full_payload = {
             "preset": definition.name,
@@ -245,6 +309,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "path_count": path_count,
             "connection_site_count": connection_site_count,
             "has_text_rectangle": has_text_rectangle,
+            "text_rectangle": text_rectangle,
+            "text_rectangle_px": text_rectangle_px,
             "semantics": semantics,
         }
         payload = (
@@ -256,10 +322,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "scope": semantics["scope"],
                 "literal_only": semantics["literal_only"],
                 "adjustments": adjustments,
+                "adjustment_notes": semantics.get("adjustment_notes"),
                 "connector_preset": connector_preset,
                 "path_count": path_count,
                 "connection_site_count": connection_site_count,
                 "has_text_rectangle": has_text_rectangle,
+                "text_rectangle": text_rectangle,
+                "text_rectangle_px": text_rectangle_px,
             }
             if args.compact
             else full_payload
@@ -408,9 +477,7 @@ def _render_batch_items(items: Sequence[object]) -> list[str]:
         frame = raw_item["frame"]
         if not isinstance(frame, list) or len(frame) != 4:
             raise ValueError(f"{label}.frame must be a four-number JSON array")
-        adjustments = raw_item.get("adjustments", {})
-        if not isinstance(adjustments, dict):
-            raise ValueError(f"{label}.adjustments must be a JSON object")
+        adjustments = _batch_adjustments(raw_item, label)
 
         try:
             style = _style_from_values(

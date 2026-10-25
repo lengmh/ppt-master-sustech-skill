@@ -117,28 +117,29 @@ def test_release_metadata_describes_legacy_brief_lock_compatibility() -> None:
     assert "SUSTech template audit" not in notes
 
 
-def test_release_metadata_tracks_v61_fixed_snapshot() -> None:
+def test_release_metadata_tracks_v673_fixed_cutoff() -> None:
     metadata = json.loads(
         (REPO_ROOT / "RELEASE_META.json").read_text(encoding="utf-8")
     )
     upstream = metadata["upstream"]
 
     assert metadata["schema_version"] == 1
-    assert metadata["release_version"] == "r6.1.0-v0.4.0"
+    assert metadata["release_version"] == "r6.7.3-v0.4.0"
+    assert (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip() == metadata["release_version"]
     assert metadata["local"]["version"] == "0.4.0"
     assert upstream == {
         "repo": "hugohe3/ppt-master",
-        "version": "6.1.0",
-        "tag": "v6.1.0",
-        "commit": "c40bca58e168fcef2facdc7612cc352d1233679b",
+        "version": "6.7.3",
+        "tag": "v6.7.3",
+        "commit": "622bf0148bca4f697b0184322c7e2aa2a04520a2",
         "baseline_kind": "tag",
-        "tracked_ref": "refs/tags/v6.1.0",
-        "tracked_commit": "c40bca58e168fcef2facdc7612cc352d1233679b",
-        "tracked_range": "v6.1.0..c40bca58e168fcef2facdc7612cc352d1233679b",
-        "absorbed_from_commit": "cad57e4a45d8664bf4830d85711d355dc2600455",
+        "tracked_ref": "refs/heads/main",
+        "tracked_commit": "523e5bd972f94c3cac8742fec0d54d43824a17bb",
+        "tracked_range": "v6.7.3..523e5bd972f94c3cac8742fec0d54d43824a17bb",
+        "absorbed_from_commit": "c40bca58e168fcef2facdc7612cc352d1233679b",
         "absorbed_range": (
-            "snapshot:cad57e4a45d8664bf4830d85711d355dc2600455"
-            "=>c40bca58e168fcef2facdc7612cc352d1233679b"
+            "c40bca58e168fcef2facdc7612cc352d1233679b"
+            "..523e5bd972f94c3cac8742fec0d54d43824a17bb"
         ),
     }
 

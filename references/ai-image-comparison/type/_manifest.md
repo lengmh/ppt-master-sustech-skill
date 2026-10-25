@@ -10,7 +10,7 @@
 
 ---
 
-### Image 1: infographic.png
+### Image 1: infographic.webp
 
 | Attribute | Value |
 |---|---|
@@ -28,7 +28,7 @@ Clean flat vector illustration, infographic composition with 4 evenly distribute
 
 ---
 
-### Image 2: flowchart.png
+### Image 2: flowchart.webp
 
 | Attribute | Value |
 |---|---|
@@ -46,7 +46,7 @@ Clean flat vector illustration, horizontal flowchart composition with 5 sequenti
 
 ---
 
-### Image 3: framework.png
+### Image 3: framework.webp
 
 | Attribute | Value |
 |---|---|
@@ -64,7 +64,7 @@ Clean flat vector illustration, framework composition with one central node and 
 
 ---
 
-### Image 4: comparison.png
+### Image 4: comparison.webp
 
 | Attribute | Value |
 |---|---|
@@ -82,7 +82,7 @@ Clean flat vector illustration, split-screen comparison composition with a clear
 
 ---
 
-### Image 5: timeline.png
+### Image 5: timeline.webp
 
 | Attribute | Value |
 |---|---|
@@ -100,7 +100,7 @@ Clean flat vector illustration, horizontal timeline composition with a clear hor
 
 ---
 
-### Image 6: scene.png
+### Image 6: scene.webp
 
 | Attribute | Value |
 |---|---|
@@ -118,7 +118,7 @@ Clean flat vector illustration, atmospheric scene composition with environmental
 
 ---
 
-### Image 7: matrix.png
+### Image 7: matrix.webp
 
 | Attribute | Value |
 |---|---|
@@ -136,7 +136,7 @@ Clean flat vector illustration, 2×2 strategic matrix composition with two perpe
 
 ---
 
-### Image 8: cycle.png
+### Image 8: cycle.webp
 
 | Attribute | Value |
 |---|---|
@@ -154,7 +154,7 @@ Clean flat vector illustration, closed-loop cycle composition with 4 step nodes 
 
 ---
 
-### Image 9: funnel.png
+### Image 9: funnel.webp
 
 | Attribute | Value |
 |---|---|
@@ -172,7 +172,7 @@ Clean flat vector illustration, vertical funnel composition with 4 horizontal ba
 
 ---
 
-### Image 10: pyramid.png
+### Image 10: pyramid.webp
 
 | Attribute | Value |
 |---|---|
@@ -190,7 +190,7 @@ Clean flat vector illustration, vertical pyramid composition with 4 horizontal s
 
 ---
 
-### Image 11: map.png
+### Image 11: map.webp
 
 | Attribute | Value |
 |---|---|

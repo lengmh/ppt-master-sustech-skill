@@ -29,11 +29,11 @@
   <text id="cover-brand-card-subtitle" x="910" y="430" fill="#585555" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13"
     data-pptx-layer="layout" data-pptx-editable="false">Official · Academic · Restrained · School-branded</text>
 
-  <g id="cover-title-slot" data-pptx-placeholder="title" data-pptx-bounds="88 176 900 82">
+  <g id="cover-title-slot" data-pptx-placeholder="title" data-pptx-bounds="88 176 900 86">
     <text id="cover-title-carrier" data-pptx-carrier="true" x="88" y="242" fill="#B63742"
       font-family="Microsoft YaHei, Arial, sans-serif" font-size="52" font-weight="bold">{{TITLE}}</text>
   </g>
-  <g id="cover-subtitle-slot" data-pptx-placeholder="subtitle" data-pptx-idx="1" data-pptx-bounds="88 262 900 56">
+  <g id="cover-subtitle-slot" data-pptx-placeholder="subtitle" data-pptx-idx="1" data-pptx-bounds="88 262 900 64">
     <text id="cover-subtitle-carrier" data-pptx-carrier="true" x="88" y="312" fill="#003F43"
       font-family="Microsoft YaHei, Arial, sans-serif" font-size="34" font-weight="bold">{{SUBTITLE}}</text>
   </g>

@@ -11,7 +11,7 @@
   "deck_style_anchor": "Single subject hero composition, vector-illustration rendering: clean flat vector with bold shapes, sharp edges, no gradients, no shadows.",
   "items": [
     {
-      "filename": "cool-corporate.png",
+      "filename": "cool-corporate.webp",
       "purpose": "Palette comparison — cool-corporate",
       "aspect_ratio": "16:9",
       "prompt": "Clean flat vector illustration with bold geometric shapes, sharp edges, no gradients, no shadows, solid flat fills throughout. Subject: a confident professional standing beside an upward growth chart, looking forward. Single dominant subject occupying 60-70% of the canvas (hero composition). Color behavior is restrained-corporate: secondary off-white #F8F9FA occupies 60-70% of the canvas as calm breathing space; primary deep navy #1E3A5F carries the main subject in confident solid blocks; accent gold #D4AF37 appears only in one or two small emphasis points totaling under 5% of the area. No fourth color. Flat solid fills only — no metallic, no glossy reflections. 12-20% inner safe-zone padding. No embedded text labels, no HEX codes visible.",
@@ -19,7 +19,7 @@
       "status": "Generated"
     },
     {
-      "filename": "warm-earth.png",
+      "filename": "warm-earth.webp",
       "purpose": "Palette comparison — warm-earth",
       "aspect_ratio": "16:9",
       "prompt": "Clean flat vector illustration with bold geometric shapes, sharp edges, no gradients, no shadows, solid flat fills throughout. Subject: a confident professional standing beside an upward growth chart, looking forward. Single dominant subject occupying 60-70% of the canvas (hero composition). Color behavior is warm-grounded: secondary warm cream #FEF3C7 carries about 55% of the canvas as soft breathing space; primary deep terracotta #9A3412 anchors the main subject and dominant forms in confident warm tones (about 32%); accent warm gold #D4AF37 appears in small concentrated pops totaling under 13%. Soft warm temperament throughout, no cool tones. 12-20% inner safe-zone padding. No embedded text labels, no HEX codes visible.",
@@ -27,7 +27,7 @@
       "status": "Generated"
     },
     {
-      "filename": "tech-neon.png",
+      "filename": "tech-neon.webp",
       "purpose": "Palette comparison — tech-neon",
       "aspect_ratio": "16:9",
       "prompt": "Clean flat vector illustration with bold geometric shapes, sharp edges, solid flat fills throughout (subtle 8%-opacity glow halos allowed for tech-neon energy). Subject: a confident professional standing beside an upward growth chart, looking forward. Single dominant subject occupying 60-70% of the canvas (hero composition). Color behavior is tech-neon: secondary deep digital navy #0A0E27 covers about 50% of the canvas as the dark field; primary electric blue #0EA5E9 carries the main subject in confident saturated tones (about 35%) with a soft 8%-opacity glow halo around it; accent vivid cyan #06B6D4 appears in 10-15% as small bright pops on the chart, also with implied glow. High contrast between vivid foreground and dark digital background. 12-20% inner safe-zone padding. No embedded text labels, no HEX codes visible.",
@@ -35,7 +35,7 @@
       "status": "Generated"
     },
     {
-      "filename": "editorial-classic.png",
+      "filename": "editorial-classic.webp",
       "purpose": "Palette comparison — editorial-classic",
       "aspect_ratio": "16:9",
       "prompt": "Clean flat vector illustration with bold geometric shapes, sharp edges, no gradients, solid flat fills throughout (subtle 8%-opacity paper grain texture allowed for editorial feel). Subject: a confident professional standing beside an upward growth chart, looking forward. Single dominant subject occupying 60-70% of the canvas (hero composition). Color behavior is editorial-classic: secondary warm cream #FAF7F2 carries the magazine-paper field across about 55% of the canvas with subtle paper-grain texture at 8% opacity; primary deep navy #0F2C4C anchors the dominant subject in confident solid tone (about 30%); accent burnt orange #C2410C appears as a single thin horizontal rule and one small highlight marker totaling under 14%. Magazine-considered composition, deliberate breathing room. 12-20% inner safe-zone padding. No embedded text or readable labels.",
@@ -43,7 +43,7 @@
       "status": "Generated"
     },
     {
-      "filename": "macaron.png",
+      "filename": "macaron.webp",
       "purpose": "Palette comparison — macaron",
       "aspect_ratio": "16:9",
       "prompt": "Clean flat vector illustration with bold rounded geometric shapes (slightly softer corners for macaron warmth), no gradients, solid flat pastel fills with slight hand-painted overshoot beyond outlines. Subject: a confident professional standing beside an upward growth chart, looking forward. Single dominant subject occupying 60-70% of the canvas (hero composition). Color behavior is macaron pastel: warm cream paper background #F5F0E8 covers about 50% of the canvas. The main subject and chart are filled in soft pastel tints — light blue, mint green, lavender, peach (about 40% total area). Accent warm coral #F97316 appears in one or two small emphasis points only (under 10%). Soft, friendly, educational temperament throughout. 12-20% inner safe-zone padding. No embedded text or labels visible.",
@@ -51,7 +51,7 @@
       "status": "Generated"
     },
     {
-      "filename": "mono-ink.png",
+      "filename": "mono-ink.webp",
       "purpose": "Palette comparison — mono-ink",
       "aspect_ratio": "16:9",
       "prompt": "Clean flat vector illustration with bold geometric shapes, sharp edges, no gradients, solid flat fills throughout. Subject: a confident professional standing beside an upward growth chart, looking forward. Single dominant subject occupying 60-70% of the canvas (hero composition). Color behavior is mono-ink: pure white background #FFFFFF (about 55%). All structural elements — figure, chart, lines — in near-black ink #1A1A1A (about 38%). The accent coral red #E8655A is reserved as the semantic emphasis accent, appearing in 1-3 small focal points only (the highlighted chart bar, an arrow, an emphasis dot) totaling under 8%. No other colors. High contrast monochrome with one semantic accent only. 12-20% inner safe-zone padding. No embedded text or labels visible.",
@@ -59,7 +59,7 @@
       "status": "Generated"
     },
     {
-      "filename": "vivid-launch.png",
+      "filename": "vivid-launch.webp",
       "purpose": "Palette comparison — vivid-launch",
       "aspect_ratio": "16:9",
       "prompt": "Clean flat vector illustration with bold geometric shapes, sharp edges, no gradients, solid flat saturated fills throughout. Subject: a confident professional standing beside an upward growth chart, looking forward. Single dominant subject occupying 60-70% of the canvas (hero composition). Color behavior is vivid-launch: secondary near-white #FAFAFA background (about 38%); primary saturated brand magenta #E11D48 carries the dominant subject in confident vivid blocks (about 35%); accent vivid orange #F97316 is co-star — a major secondary subject element or supporting block (about 25%). One small detail in deep neutral for definition (about 2%). All colors confident and saturated. Promotional, attention-grabbing energy. 12-20% inner safe-zone padding. No embedded text or labels visible.",
@@ -67,7 +67,7 @@
       "status": "Generated"
     },
     {
-      "filename": "dark-cinematic.png",
+      "filename": "dark-cinematic.webp",
       "purpose": "Palette comparison — dark-cinematic",
       "aspect_ratio": "16:9",
       "prompt": "Clean flat vector illustration with bold geometric shapes (subtle 8%-opacity glow halos around bright elements for dark-cinematic atmosphere). Subject: a confident professional standing beside an upward growth chart, looking forward. Single dominant subject occupying 60-70% of the canvas (hero composition). Color behavior is dark-cinematic: deep dark background #0A0E27 covers about 65% of the canvas with subtle gradient toward darker edges. Primary bright teal #14B8A6 carries the main subject and growth chart bars as bright lit elements (about 25%) with implied luminance glow at 8% opacity. Accent vivid amber #D4AF37 appears as a small concentrated glow point near the focal area (about 10%). The bright primary and accent feel like light sources within the cinematic dark. 12-20% inner safe-zone padding. No embedded text or labels visible.",
@@ -75,7 +75,7 @@
       "status": "Generated"
     },
     {
-      "filename": "duotone.png",
+      "filename": "duotone.webp",
       "purpose": "Palette comparison — duotone",
       "aspect_ratio": "16:9",
       "prompt": "Clean flat vector illustration with bold geometric shapes, sharp edges, no gradients, only two solid colors total. Subject: a confident professional standing beside an upward growth chart, looking forward. Single dominant subject occupying 60-70% of the canvas (hero composition). Color behavior is duotone: Color A — deep teal #0F766E — carries the main subject silhouette and the dominant zone of the canvas (about 50%). Color B — vivid amber #D97706 — carries the background field and the secondary zone (about 48%). The two colors are the entire palette — no third hue beyond a barely-perceptible neutral 2% in transitional textures. Editorial poster balance. 12-20% inner safe-zone padding. No embedded text or labels visible.",
@@ -83,7 +83,7 @@
       "status": "Generated"
     },
     {
-      "filename": "nature-organic.png",
+      "filename": "nature-organic.webp",
       "purpose": "Palette comparison — nature-organic",
       "aspect_ratio": "16:9",
       "prompt": "Clean flat vector illustration with bold but slightly organic geometric shapes, sharp edges, no gradients, solid flat earthy fills. Subject: a confident professional standing beside an upward growth chart, looking forward. Single dominant subject occupying 60-70% of the canvas (hero composition). Color behavior is nature-organic: secondary soft cream #FEF3C7 covers the background field as gentle outdoor breath (about 50%). Primary deep forest green #166534 carries the dominant subject and natural forms — clothing, chart elements styled as organic shapes (about 35%). Accent warm honey #D4AF37 appears in small natural detail pops — a flower, a sunlit highlight on the chart (about 13%). All tones earthy and slightly desaturated. 12-20% inner safe-zone padding. No embedded text or labels visible.",
@@ -91,7 +91,7 @@
       "status": "Generated"
     },
     {
-      "filename": "jewel-tone.png",
+      "filename": "jewel-tone.webp",
       "purpose": "Palette comparison — jewel-tone",
       "aspect_ratio": "16:9",
       "prompt": "Clean flat vector illustration with bold geometric shapes, sharp edges, no gradients, solid flat fills with rich gemstone saturation. Subject: a confident professional standing beside an upward growth chart, looking forward. Single dominant subject occupying 60-70% of the canvas (hero composition). Color behavior is jewel-tone: rich primary deep emerald #047857 carries the dominant subject silhouette and main chart elements as confident saturated gemstone block (about 36%); secondary deep cream #FEF3C7 forms the velvet field background (about 50%); accent polished gold #D4AF37 appears as one thin metallic horizontal rule and one small jewel-cut dot, totaling about 14%. High saturation, premium evening feel, no muted tints, no plastic look. 12-20% inner padding. No embedded text or labels visible.",
@@ -99,7 +99,7 @@
       "status": "Generated"
     },
     {
-      "filename": "frost-ice.png",
+      "filename": "frost-ice.webp",
       "purpose": "Palette comparison — frost-ice",
       "aspect_ratio": "16:9",
       "prompt": "Clean flat vector illustration with bold geometric shapes, sharp edges, no gradients, near-white field dominance. Subject: a confident professional standing beside an upward growth chart, looking forward. Single dominant subject occupying 60-70% of the canvas (hero composition). Color behavior is frost-ice: secondary near-white #F8FBFD occupies about 80% of the canvas as vast calm field (the breathing room IS the identity); pale cool primary #DBEAFE renders the subject silhouette and chart as soft restrained structure (about 12%); accent steel blue #3B82F6 appears as one small deliberate focal element — a chart highlight or single dot, about 5%. No warm tones, no saturated colors. Clean clinical premium-minimal feel. 12-20% inner padding. No embedded text or labels visible.",
@@ -107,7 +107,7 @@
       "status": "Generated"
     },
     {
-      "filename": "sunset-gradient.png",
+      "filename": "sunset-gradient.webp",
       "purpose": "Palette comparison — sunset-gradient",
       "aspect_ratio": "16:9",
       "prompt": "Flat vector illustration with bold geometric shapes layered over a smooth atmospheric gradient background (sunset-gradient overrides the rendering's usual no-gradient rule for the BACKGROUND FIELD only — shapes on top remain flat). Subject: a confident professional silhouette standing beside an upward growth chart, looking forward. Single dominant subject occupying 60-70% of the canvas (hero composition). Color behavior is sunset-gradient: the entire background flows as a smooth diagonal gradient — primary deep pink #EC4899 in the lower-left, transitioning through secondary warm orange #F97316 in the middle band, into accent purple #9333EA in the upper-right. Smooth blending, no hard color edges in the gradient. Above the gradient, a near-black silhouette professional and chart shapes sit as flat solid forms (about 30%) as the focal rest point. Atmospheric, energetic, optimistic. 12-20% inner padding. No embedded text or labels.",
@@ -115,7 +115,7 @@
       "status": "Generated"
     },
     {
-      "filename": "earthy-dusty.png",
+      "filename": "earthy-dusty.webp",
       "purpose": "Palette comparison — earthy-dusty",
       "aspect_ratio": "16:9",
       "prompt": "Clean flat vector illustration with bold geometric shapes, sharp edges, no gradients, solid flat fills at uniformly reduced saturation (Morandi-adjacent). Subject: a confident professional standing beside an upward growth chart, looking forward. Single dominant subject occupying 60-70% of the canvas (hero composition). Color behavior is earthy-dusty: every color appears desaturated 30% from a vivid source. Secondary muted oat #E8E0D5 carries about 50% of the canvas as calm dusted field; primary muted dusty terracotta #C9A38C forms the subject silhouette and chart in soft warm earth tone (about 35%); accent muted sage #A8B5A0 appears as one thin horizontal line near the chart and one small dusty dot, totaling about 12%. No vivid colors anywhere. Refined, contemplative, slow. 12-20% inner padding. No embedded text or labels.",

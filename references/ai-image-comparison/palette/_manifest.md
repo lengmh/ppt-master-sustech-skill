@@ -9,7 +9,7 @@
 
 ---
 
-### Image 1: cool-corporate.png
+### Image 1: cool-corporate.webp
 
 | Attribute | Value |
 |---|---|
@@ -26,7 +26,7 @@ Clean flat vector illustration with bold geometric shapes, sharp edges, no gradi
 
 ---
 
-### Image 2: warm-earth.png
+### Image 2: warm-earth.webp
 
 | Attribute | Value |
 |---|---|
@@ -43,7 +43,7 @@ Clean flat vector illustration with bold geometric shapes, sharp edges, no gradi
 
 ---
 
-### Image 3: tech-neon.png
+### Image 3: tech-neon.webp
 
 | Attribute | Value |
 |---|---|
@@ -60,7 +60,7 @@ Clean flat vector illustration with bold geometric shapes, sharp edges, solid fl
 
 ---
 
-### Image 4: editorial-classic.png
+### Image 4: editorial-classic.webp
 
 | Attribute | Value |
 |---|---|
@@ -77,7 +77,7 @@ Clean flat vector illustration with bold geometric shapes, sharp edges, no gradi
 
 ---
 
-### Image 5: macaron.png
+### Image 5: macaron.webp
 
 | Attribute | Value |
 |---|---|
@@ -94,7 +94,7 @@ Clean flat vector illustration with bold rounded geometric shapes (slightly soft
 
 ---
 
-### Image 6: mono-ink.png
+### Image 6: mono-ink.webp
 
 | Attribute | Value |
 |---|---|
@@ -111,7 +111,7 @@ Clean flat vector illustration with bold geometric shapes, sharp edges, no gradi
 
 ---
 
-### Image 7: vivid-launch.png
+### Image 7: vivid-launch.webp
 
 | Attribute | Value |
 |---|---|
@@ -128,7 +128,7 @@ Clean flat vector illustration with bold geometric shapes, sharp edges, no gradi
 
 ---
 
-### Image 8: dark-cinematic.png
+### Image 8: dark-cinematic.webp
 
 | Attribute | Value |
 |---|---|
@@ -145,7 +145,7 @@ Clean flat vector illustration with bold geometric shapes (subtle 8%-opacity glo
 
 ---
 
-### Image 9: duotone.png
+### Image 9: duotone.webp
 
 | Attribute | Value |
 |---|---|
@@ -162,7 +162,7 @@ Clean flat vector illustration with bold geometric shapes, sharp edges, no gradi
 
 ---
 
-### Image 10: nature-organic.png
+### Image 10: nature-organic.webp
 
 | Attribute | Value |
 |---|---|
@@ -179,7 +179,7 @@ Clean flat vector illustration with bold but slightly organic geometric shapes, 
 
 ---
 
-### Image 11: jewel-tone.png
+### Image 11: jewel-tone.webp
 
 | Attribute | Value |
 |---|---|
@@ -196,7 +196,7 @@ Clean flat vector illustration with bold geometric shapes, sharp edges, no gradi
 
 ---
 
-### Image 12: frost-ice.png
+### Image 12: frost-ice.webp
 
 | Attribute | Value |
 |---|---|
@@ -213,7 +213,7 @@ Clean flat vector illustration with bold geometric shapes, sharp edges, no gradi
 
 ---
 
-### Image 13: sunset-gradient.png
+### Image 13: sunset-gradient.webp
 
 | Attribute | Value |
 |---|---|
@@ -230,7 +230,7 @@ Flat vector illustration with bold geometric shapes layered over a smooth atmosp
 
 ---
 
-### Image 14: earthy-dusty.png
+### Image 14: earthy-dusty.webp
 
 | Attribute | Value |
 |---|---|

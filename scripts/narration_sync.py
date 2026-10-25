@@ -51,6 +51,7 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from console_encoding import configure_utf8_stdio  # noqa: E402
+from slide_roster import sort_slide_paths  # noqa: E402
 from pptx_animations import (  # noqa: E402
     ANIMATION_TIMING_OPTION_FIELDS,
     animation_seconds_to_milliseconds,
@@ -308,8 +309,9 @@ def _project_path(project_path: Path, value: str | None, default: Path) -> Path:
 
 
 def _project_input_path(project_path: Path, value: str) -> Path:
+    """Resolve an input path: absolute, or existing as given, else project-relative."""
     path = Path(value)
-    if path.is_absolute():
+    if path.is_absolute() or path.exists():
         return path
     return project_path / path
 
@@ -493,7 +495,7 @@ def _page_subtitle_names(subtitle_dir: Path) -> list[str]:
         raise FileNotFoundError(f"Page-local SRT directory not found: {subtitle_dir}")
     names = [
         path.stem
-        for path in sorted(subtitle_dir.glob("*.srt"))
+        for path in sort_slide_paths(subtitle_dir.glob("*.srt"))
         if path.stem != "total"
     ]
     if not names:

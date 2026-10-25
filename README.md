@@ -11,7 +11,7 @@
   <a href="https://github.com/lengmh/ppt-master-sustech-skill/releases"><img alt="release" src="https://img.shields.io/github/v/release/lengmh/ppt-master-sustech-skill?style=flat-square&amp;label=release"></a>
   <a href="https://github.com/lengmh/ppt-master-sustech-skill/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/lengmh/ppt-master-sustech-skill?style=flat-square&amp;label=stars"></a>
   <a href="LICENSE"><img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-7cb342?style=flat-square"></a>
-  <a href="RELEASE_META.json"><img alt="upstream" src="https://img.shields.io/badge/upstream-ppt--master%20v6.1.0-f59e0b?style=flat-square"></a>
+  <a href="RELEASE_META.json"><img alt="upstream" src="https://img.shields.io/badge/upstream-ppt--master%20v6.7.3-f59e0b?style=flat-square"></a>
 </p>
 
 <p align="center">
@@ -30,10 +30,12 @@
 
 ## 版本信息
 
+版本信息由 `VERSION` 与 `RELEASE_META.json` 定义，下载资产见 GitHub Releases。
+
 | 项目 | 信息 |
 |---|---|
-| 当前版本 | `r6.1.0-v0.4.0` |
-| 对应上游 | `hugohe3/ppt-master@v6.1.0` |
+| 当前版本 | `r6.7.3-v0.4.0` |
+| 对应上游 | `hugohe3/ppt-master@v6.7.3` |
 | 下载 | [GitHub Releases](https://github.com/lengmh/ppt-master-sustech-skill/releases) |
 
 ## 功能亮点
@@ -52,7 +54,7 @@
 
 ## SUSTech 增强
 
-在上游 v6.1.0 基础上，本版本进一步提供：
+在上游 v6.7.3 基础上，本版本进一步提供：
 
 - 轻量 layout-quality 静态诊断，帮助发现页面溢出、对齐和间距问题。
 - 新建 Brand、Style、Layout、Deck 模板以 `design_spec.md` 为唯一语义合同，保留旧 `brief_lock.json` 的读取与按需严格审计兼容。

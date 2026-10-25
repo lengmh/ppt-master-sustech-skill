@@ -18,6 +18,7 @@ from typing import Any
 
 from template_brief_lock import load_brief_lock
 from svg_quality_checker import SVGQualityChecker
+from register_template import SpecParseError, _has_kind_qualified_spec, _validate_spec_shape
 
 REQUIRED_PERSONALITY_SPEC_SECTIONS = [
     "## I. Template Overview",
@@ -73,9 +74,9 @@ def _resolve_workspace(path: Path) -> tuple[Path, Path]:
     """Return ``(workspace_root, template_content_root)``."""
     path = Path(path)
     nested = path / "templates"
-    if (nested / "design_spec.md").is_file():
+    if (nested / "design_spec.md").is_file() or _has_kind_qualified_spec(nested):
         return path, nested
-    if path.name == "templates" and (path / "design_spec.md").is_file():
+    if path.name == "templates" and ((path / "design_spec.md").is_file() or _has_kind_qualified_spec(path)):
         return path.parent, path
     return path, path
 
@@ -361,6 +362,24 @@ def check_template_dir(
         return {"passed": False, "errors": errors, "warnings": warnings}
     else:
         warnings.append("Missing brief_lock.json; running frontmatter/prose compatibility checks")
+
+    # Qualified project specs are owned by the upstream multi-kind validator.
+    # Keep the legacy lock audit separate instead of inferring a lock per kind.
+    try:
+        qualified_specs = _validate_spec_shape(content_root)
+    except SpecParseError as exc:
+        return {"passed": False, "errors": [str(exc)], "warnings": warnings}
+    if qualified_specs:
+        if lock is not None:
+            errors.append("Legacy brief-lock audits require an unambiguous design_spec.md")
+        else:
+            _run_svg_quality_checker(content_root, expected_format, errors, warnings)
+        return {
+            "passed": not errors, "errors": errors, "warnings": warnings,
+            "lock_revision": lock["revision"] if lock else "N/A",
+            "workspace_root": str(workspace_root), "template_dir": str(content_root),
+            "kind": qualified_specs[0][1] if len(qualified_specs) == 1 else "multi-kind",
+        }
 
     design_spec = content_root / "design_spec.md"
     if not design_spec.exists():

@@ -10,7 +10,7 @@
 
 ---
 
-### Image 1: vector-illustration.png
+### Image 1: vector-illustration.webp
 
 | Attribute | Value |
 |---|---|
@@ -27,7 +27,7 @@ Clean flat vector illustration with bold geometric shapes, sharp edges, no gradi
 
 ---
 
-### Image 2: flat.png
+### Image 2: flat.webp
 
 | Attribute | Value |
 |---|---|
@@ -44,7 +44,7 @@ Modern flat design with crisp geometric blocks, slightly more decorative than pu
 
 ---
 
-### Image 3: 3d-isometric.png
+### Image 3: 3d-isometric.webp
 
 | Attribute | Value |
 |---|---|
@@ -61,7 +61,7 @@ Isometric 3D rendering with axonometric perspective, subtle ambient shadows at 8
 
 ---
 
-### Image 4: digital-dashboard.png
+### Image 4: digital-dashboard.webp
 
 | Attribute | Value |
 |---|---|
@@ -78,7 +78,7 @@ Polished UI dashboard aesthetic, screen-like surface with cards and chart elemen
 
 ---
 
-### Image 5: corporate-photo.png
+### Image 5: corporate-photo.webp
 
 | Attribute | Value |
 |---|---|
@@ -95,7 +95,7 @@ Editorial corporate photography, real human subject in modern office environment
 
 ---
 
-### Image 6: blueprint.png
+### Image 6: blueprint.webp
 
 | Attribute | Value |
 |---|---|
@@ -112,7 +112,7 @@ Technical schematic blueprint style, fine grid background, monospace cues, draft
 
 ---
 
-### Image 7: editorial.png
+### Image 7: editorial.webp
 
 | Attribute | Value |
 |---|---|
@@ -129,7 +129,7 @@ Magazine-style editorial infographic, refined typography hierarchy, balanced gut
 
 ---
 
-### Image 8: sketch-notes.png
+### Image 8: sketch-notes.webp
 
 | Attribute | Value |
 |---|---|
@@ -146,7 +146,7 @@ Hand-drawn sketch-notes style on warm cream paper background, black ink outlines
 
 ---
 
-### Image 9: ink-notes.png
+### Image 9: ink-notes.webp
 
 | Attribute | Value |
 |---|---|
@@ -163,7 +163,7 @@ Pure white background with sparse black ink drawing, hand-drawn linework, delibe
 
 ---
 
-### Image 10: chalkboard.png
+### Image 10: chalkboard.webp
 
 | Attribute | Value |
 |---|---|
@@ -180,7 +180,7 @@ Chalk drawing on a dark green chalkboard surface, white and pale chalk strokes w
 
 ---
 
-### Image 11: watercolor.png
+### Image 11: watercolor.webp
 
 | Attribute | Value |
 |---|---|
@@ -197,7 +197,7 @@ Painterly watercolor style with soft bleeding edges, organic color washes, sligh
 
 ---
 
-### Image 12: warm-scene.png
+### Image 12: warm-scene.webp
 
 | Attribute | Value |
 |---|---|
@@ -214,7 +214,7 @@ Golden-hour cinematic warmth, soft directional sunlight from low angle, warm col
 
 ---
 
-### Image 13: screen-print.png
+### Image 13: screen-print.webp
 
 | Attribute | Value |
 |---|---|
@@ -231,7 +231,7 @@ Halftone screen-print poster art, limited flat colors, visible halftone dot patt
 
 ---
 
-### Image 14: fantasy-animation.png
+### Image 14: fantasy-animation.webp
 
 | Attribute | Value |
 |---|---|
@@ -248,7 +248,7 @@ Hand-drawn animation style reminiscent of Studio Ghibli — soft warm linework, 
 
 ---
 
-### Image 15: pixel-art.png
+### Image 15: pixel-art.webp
 
 | Attribute | Value |
 |---|---|
@@ -265,7 +265,7 @@ Hand-drawn animation style reminiscent of Studio Ghibli — soft warm linework, 
 
 ---
 
-### Image 16: nature.png
+### Image 16: nature.webp
 
 | Attribute | Value |
 |---|---|
@@ -282,7 +282,7 @@ Organic earthy illustration with botanical details, hand-drawn natural forms, le
 
 ---
 
-### Image 17: minimalist-swiss.png
+### Image 17: minimalist-swiss.webp
 
 | Attribute | Value |
 |---|---|
@@ -299,7 +299,7 @@ Strict Swiss-grid minimalist composition with rigorous modular grid alignment, r
 
 ---
 
-### Image 18: glassmorphism.png
+### Image 18: glassmorphism.webp
 
 | Attribute | Value |
 |---|---|
@@ -316,7 +316,7 @@ Modern glassmorphism aesthetic with layered semi-transparent frosted-glass panel
 
 ---
 
-### Image 19: vintage-poster.png
+### Image 19: vintage-poster.webp
 
 | Attribute | Value |
 |---|---|
@@ -333,7 +333,7 @@ Mid-century modern poster aesthetic with bold geometric shapes with rounded orga
 
 ---
 
-### Image 20: paper-cut.png
+### Image 20: paper-cut.webp
 
 | Attribute | Value |
 |---|---|

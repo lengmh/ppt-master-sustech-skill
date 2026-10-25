@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
   "skill_name": "ppt-master",
-  "release_version": "r6.1.0-v0.4.0",
+  "release_version": "r6.7.3-v0.4.0",
   "upstream": {
     "repo": "hugohe3/ppt-master",
-    "version": "6.1.0",
-    "tag": "v6.1.0",
-    "commit": "c40bca58e168fcef2facdc7612cc352d1233679b",
+    "version": "6.7.3",
+    "tag": "v6.7.3",
+    "commit": "622bf0148bca4f697b0184322c7e2aa2a04520a2",
     "baseline_kind": "tag",
-    "tracked_ref": "refs/tags/v6.1.0",
-    "tracked_commit": "c40bca58e168fcef2facdc7612cc352d1233679b",
-    "tracked_range": "v6.1.0..c40bca58e168fcef2facdc7612cc352d1233679b",
-    "absorbed_from_commit": "cad57e4a45d8664bf4830d85711d355dc2600455",
-    "absorbed_range": "snapshot:cad57e4a45d8664bf4830d85711d355dc2600455=>c40bca58e168fcef2facdc7612cc352d1233679b"
+    "tracked_ref": "refs/heads/main",
+    "tracked_commit": "523e5bd972f94c3cac8742fec0d54d43824a17bb",
+    "tracked_range": "v6.7.3..523e5bd972f94c3cac8742fec0d54d43824a17bb",
+    "absorbed_from_commit": "c40bca58e168fcef2facdc7612cc352d1233679b",
+    "absorbed_range": "c40bca58e168fcef2facdc7612cc352d1233679b..523e5bd972f94c3cac8742fec0d54d43824a17bb"
   },
   "local": {
     "version": "0.4.0"
@@ -20,12 +20,12 @@
   "support_files": {
     "requirements_source": "local",
     "env_example_source": "local",
-    "requirements_basis": "upstream skills/ppt-master/requirements.txt @ v6.1.0 plus retained SUSTech renderer dependencies",
-    "env_example_basis": "upstream .env.example @ v6.1.0 plus SUSTech release support header"
+    "requirements_basis": "upstream skills/ppt-master/requirements.txt @ 523e5bd972f94c3cac8742fec0d54d43824a17bb plus retained SUSTech renderer dependencies and chardet",
+    "env_example_basis": "upstream .env.example @ 523e5bd972f94c3cac8742fec0d54d43824a17bb plus SUSTech release support header"
   },
   "package": {
     "zip_name_pattern": "ppt-master-sustech-r<upstream>-v<local>-YYYY-MM-DD.zip",
     "root_dirname": "ppt-master"
   },
-  "notes": "SUSTech v0.4.0 continuity release on the formal upstream v6.1.0 tag. The tracked_range records zero post-tag tracked commits; the absorbed_range is a non-ancestry snapshot disclosure, not a Git range. Adopts Edit Native PPTX, four-kind Brand/Style/Layout/Deck templates, expanded native PowerPoint, media, and SVG quality capabilities while preserving legacy brief-lock read and explicit strict-audit compatibility, layout-quality diagnostics, local assets, strict-local packaging, and conservative ppt_text_normalize scan/apply support."
+  "notes": "SUSTech v0.4.0 continuity release on upstream v6.7.3 plus two post-tag native roundtrip fixes. The absorbed range is a verified ancestry range from the previous v6.1.0 cutoff. Preserves legacy brief-lock read and explicit strict-audit compatibility, layout-quality diagnostics, local assets, strict-local packaging, and conservative ppt_text_normalize scan/apply."
 }

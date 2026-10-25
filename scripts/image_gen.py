@@ -14,6 +14,7 @@ Backend selection (`IMAGE_BACKEND` in `.env` or the current process environment)
   IMAGE_BACKEND=qwen        -> Alibaba Qwen image backend
   IMAGE_BACKEND=zhipu       -> Zhipu GLM-Image backend
   IMAGE_BACKEND=volcengine  -> Volcengine Seedream backend
+  IMAGE_BACKEND=tencent     -> Tencent Cloud TokenHub backend
   IMAGE_BACKEND=modelscope  -> ModelScope backend
   IMAGE_BACKEND=siliconflow -> SiliconFlow backend
   IMAGE_BACKEND=fal         -> fal.ai backend
@@ -49,6 +50,7 @@ import concurrent.futures
 import json
 import os
 import re
+import stat
 import sys
 import tempfile
 import threading
@@ -76,6 +78,8 @@ IMAGE_ENV_PREFIXES = (
     "VOLCENGINE_",
     "LAS_",
     "ARK_",
+    "TENCENT_",
+    "TOKENHUB_",
     "MODELSCOPE_",
     "SILICONFLOW_",
     "FAL_",
@@ -104,7 +108,7 @@ BACKEND_REGISTRY = {
         "module": "backend_gemini",
         "tier": "core",
         "label": "Google Gemini",
-        "default_model": "gemini-3.1-flash-image",
+        "default_model": "gemini-nano-banana-2.1",
         "default_image_size": "1K",
         "key_hint": "GEMINI_API_KEY",
         "aliases": ["google"],
@@ -153,6 +157,15 @@ BACKEND_REGISTRY = {
         "default_image_size": "2K",
         "key_hint": "LAS_API_KEY / VOLCENGINE_API_KEY / ARK_API_KEY",
         "aliases": ["ark", "doubao", "seedream"],
+    },
+    "tencent": {
+        "module": "backend_tencent",
+        "tier": "extended",
+        "label": "Tencent Cloud TokenHub",
+        "default_model": "hy-image-v3",
+        "default_image_size": "1K",
+        "key_hint": "TENCENT_API_KEY / TOKENHUB_API_KEY",
+        "aliases": ["tokenhub", "hunyuan", "tencentmaas"],
     },
     "modelscope": {
         "module": "backend_modelscope",
@@ -203,7 +216,7 @@ BACKEND_REGISTRY = {
         "module": "backend_fal",
         "tier": "experimental",
         "label": "fal.ai",
-        "default_model": "fal-ai/nano-banana-2",
+        "default_model": "google/nano-banana-2.1",
         "default_image_size": "1K",
         "key_hint": "FAL_KEY / FAL_API_KEY",
         "aliases": ["fal-ai"],
@@ -220,7 +233,7 @@ BACKEND_REGISTRY = {
         "module": "backend_openrouter",
         "tier": "experimental",
         "label": "OpenRouter",
-        "default_model": "google/gemini-3.1-flash-image",
+        "default_model": "google/gemini-nano-banana-2.1",
         "default_image_size": "1K",
         "key_hint": "OPENROUTER_API_KEY",
     },
@@ -369,6 +382,21 @@ def _print_backend_list() -> None:
         print()
     print("Recommendation: prefer CORE backends for everyday PPT generation.")
     _print_backend_resolution()
+
+
+def _check_backend_aspect_ratio(backend_module, aspect_ratio: str) -> None:
+    """Fail before the request when the resolved backend rejects this ratio.
+
+    ``ALL_ASPECT_RATIOS`` is the union across backends; each backend module
+    may narrow it with ``VALID_ASPECT_RATIOS``.
+    """
+    valid = getattr(backend_module, "VALID_ASPECT_RATIOS", None)
+    if valid and aspect_ratio not in valid:
+        name = getattr(backend_module, "__name__", "backend").rsplit(".", 1)[-1]
+        raise ValueError(
+            f"aspect_ratio '{aspect_ratio}' is not supported by {name}. "
+            f"Valid for this backend: {list(valid)}"
+        )
 
 
 def _resolve_backend() -> tuple[object, str]:
@@ -521,6 +549,7 @@ STRUCTURAL_IMAGE_TYPES = {
 }
 LEGACY_IMAGE_TYPES = {"background", "hero", "portrait", "typography"}
 EARLY_LEGACY_IMAGE_TYPES = {"illustration", "photography"}
+SHEET_TYPE_SPELLINGS = {"illustration sheet", "sheet"}
 VALID_IMAGE_TYPES = (
     STRUCTURAL_IMAGE_TYPES
     | LEGACY_IMAGE_TYPES
@@ -683,6 +712,11 @@ def load_manifest(path: str) -> dict:
             )
 
         image_type = item.get("type")
+        if isinstance(image_type, str) and image_type.strip().lower() in SHEET_TYPE_SPELLINGS:
+            # The resource-row column reads "Illustration Sheet"; the manifest
+            # item omits type. Accept the row spelling as that omission.
+            item.pop("type")
+            image_type = None
         if image_type is not None:
             normalized_type = (
                 image_type.strip().lower()
@@ -815,6 +849,12 @@ def load_manifest(path: str) -> dict:
 def save_manifest(path: str, data: dict) -> None:
     """Atomically write manifest back to disk (tmp file + rename)."""
     target = Path(path)
+    try:
+        mode = stat.S_IMODE(target.stat().st_mode)
+    except FileNotFoundError:
+        umask = os.umask(0)
+        os.umask(umask)
+        mode = 0o666 & ~umask
     fd, tmp_path = tempfile.mkstemp(
         prefix=target.stem + ".",
         suffix=".tmp",
@@ -824,6 +864,8 @@ def save_manifest(path: str, data: dict) -> None:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
             f.write("\n")
+        # mkstemp creates 0600; keep the manifest's own permissions.
+        os.chmod(tmp_path, mode)
         os.replace(tmp_path, target)
     except Exception:
         try:
@@ -950,12 +992,13 @@ def _run_manifest(manifest: dict, manifest_path: str, backend_module, *,
     def _one(idx: int):
         item = items[idx]
         try:
+            _check_backend_aspect_ratio(backend_module, item["aspect_ratio"])
             saved_path = backend_module.generate(
                 prompt=item["prompt"],
                 aspect_ratio=item["aspect_ratio"],
                 image_size=item.get("image_size", image_size),
                 output_dir=output_dir,
-                filename=Path(item["filename"]).stem,
+                filename=item["filename"],  # the backend strips the extension once
                 model=item.get("model", model),
             )
             saved_path = _materialize_manifest_image(

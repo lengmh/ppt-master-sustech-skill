@@ -35,7 +35,7 @@ python3 skills/ppt-master/scripts/notes_to_audio.py --list-voices --locale <loca
 python3 skills/ppt-master/scripts/notes_to_audio.py --provider <elevenlabs|minimax|qwen|cosyvoice> --list-voices
 ```
 
-From the flat list, pick **3–6 candidates**: cover both genders when the locale has them; for edge prefer the curated `COMMON_VOICES` set; for ElevenLabs prefer voices already in the user's account and never override a user-supplied `voice_id`; for MiniMax / Qwen / CosyVoice use a supplied cloned `voice_id` directly and never attempt cloning here; for CosyVoice subtitles use a timestamp-capable model/voice pair, and `--cosyvoice-audio-only` only when the user accepts no page-local SRT. Match the deck's tone — a Chinese consultant / financial deck leans a steady male (`zh-CN-YunjianNeural`) or clear female (`zh-CN-XiaoxiaoNeural`) voice; teaching / product decks a bright female or young male (`zh-CN-XiaoyiNeural` / `zh-CN-YunxiNeural`); launch / broadcast decks `zh-CN-YunyangNeural`; English consultant decks `en-US-GuyNeural` or `en-US-JennyNeural`; Japanese / Korean from `ja-JP-*` / `ko-KR-*` with gender + tone noted. Describe each candidate in one line in the user's chat language (gender · tone · best-fit scenario), with the exact name/ID to pass to `--voice-id` for cloud providers.
+From the flat list, pick **3–6 candidates**: cover both genders when the locale has them; for edge prefer the curated `COMMON_VOICES` set; for ElevenLabs prefer voices already in the user's account and never override a user-supplied `voice_id`; for MiniMax / Qwen / CosyVoice `--list-voices` prints no catalog — use a supplied cloned `voice_id` directly (never attempt cloning here) or a system voice id from the provider's documentation; for CosyVoice subtitles use a timestamp-capable model/voice pair, and `--cosyvoice-audio-only` only when the user accepts no page-local SRT. Match the deck's tone — a Chinese consultant / financial deck leans a steady male (`zh-CN-YunjianNeural`) or clear female (`zh-CN-XiaoxiaoNeural`) voice; teaching / product decks a bright female or young male (`zh-CN-XiaoyiNeural` / `zh-CN-YunxiNeural`); launch / broadcast decks `zh-CN-YunyangNeural`; English consultant decks `en-US-GuyNeural` or `en-US-JennyNeural`; Japanese / Korean from `ja-JP-*` / `ko-KR-*` with gender + tone noted. Describe each candidate in one line in the user's chat language (gender · tone · best-fit scenario), with the exact name/ID to pass to `--voice-id` for cloud providers.
 
 ---
 
@@ -43,7 +43,7 @@ From the flat list, pick **3–6 candidates**: cover both genders when the local
 
 **Quick exception**: do not pause. Apply explicit user values, resolve the rest from the recommended-value rules, keep video off unless the caller selected direct video (then embed the narrated PPTX and continue to native video only when `powerpoint_video.py --check` succeeds); with resolved sound cues continue automatically through the post-export mix. An explicit slideshow-capture request stops at the capture-ready narrated PPTX until the user supplies the recorded MP4 — never silently switching to native export. Require a timestamp-capable provider only when cue sync or subtitle delivery needs page-local SRT.
 
-**Default / Edit Native — one-shot interaction (mandatory)**: send one message that resolves all five decisions with a recommended value each; never split into rounds. Run `powerpoint_video.py --check` before offering automatic video export (an explicit slideshow-capture choice skips the check and uses the manual handoff). **Cloned-voice fast path**: when the user mentioned a cloned voice / 克隆音色 / 复刻音色 / "my own voice" with a `voice_id`, skip the recommendation list, pin the named provider and `voice_id`, and confirm only rate + embed + video. "Embed" means SVG re-export for Generate or `svg_to_pptx.py --roundtrip --recorded-narration audio` for Edit Native.
+**Default / Edit Native — one-shot interaction (mandatory)**: send one message that resolves all five decisions with a recommended value each; never split into rounds. Run `powerpoint_video.py --check` before offering automatic video export (an explicit slideshow-capture choice skips the check and uses the manual handoff). **Cloned-voice fast path**: when the user mentioned a cloned voice or "my own voice", in any language, with a `voice_id`, skip the recommendation list, pin the named provider and `voice_id`, and confirm only rate + embed + video. "Embed" means SVG re-export for Generate or `svg_to_pptx.py --roundtrip --recorded-narration audio` for Edit Native.
 
 **Message template** (Chinese; translate to the user's chat language):
 
@@ -75,7 +75,7 @@ From the flat list, pick **3–6 candidates**: cover both genders when the local
 
 ```bash
 # 1. Generate audio (one provider form; flags in narration.md)
-python3 skills/ppt-master/scripts/notes_to_audio.py <project_path> --voice <ShortName> --rate <rate>
+python3 skills/ppt-master/scripts/notes_to_audio.py <project_path> --voice <ShortName> --rate=<rate>
 python3 skills/ppt-master/scripts/notes_to_audio.py <project_path> --provider <elevenlabs|minimax|qwen|cosyvoice> --voice-id <id> [provider model flag]
 
 # 2A. Only when narration-cue sync is selected and page SRT + animations.json exist
@@ -88,6 +88,7 @@ python3 skills/ppt-master/scripts/svg_to_pptx.py <project_path> --recorded-narra
 
 # 2C. Only when page-local SRT exists
 python3 skills/ppt-master/scripts/narration_sync.py subtitles <project_path> --pptx <final_narrated_pptx> --force
+#     <final_narrated_pptx>: absolute, or an existing path as given, else relative to <project_path>
 
 # 2D. Optional native video through installed Windows PowerPoint
 python3 skills/ppt-master/scripts/powerpoint_video.py <final_narrated_pptx> -o <raw_powerpoint_video.mp4>

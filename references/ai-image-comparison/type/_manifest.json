@@ -15,7 +15,7 @@
   "deck_style_anchor": "Vector-illustration rendering: clean flat vector with bold shapes, sharp edges, no gradients, no shadows. Cool-corporate palette: secondary off-white #F8F9FA dominates background (60-70%), primary deep navy #1E3A5F carries main forms, accent gold #D4AF37 in small emphasis points only.",
   "items": [
     {
-      "filename": "infographic.png",
+      "filename": "infographic.webp",
       "purpose": "Type comparison — infographic (2-5 ordered zones with icons + minimal labels)",
       "type": "infographic",
       "aspect_ratio": "4:3",
@@ -24,7 +24,7 @@
       "status": "Generated"
     },
     {
-      "filename": "flowchart.png",
+      "filename": "flowchart.webp",
       "purpose": "Type comparison — flowchart (sequential blocks connected by arrows)",
       "type": "flowchart",
       "aspect_ratio": "21:9",
@@ -33,7 +33,7 @@
       "status": "Generated"
     },
     {
-      "filename": "framework.png",
+      "filename": "framework.webp",
       "purpose": "Type comparison — framework (central node + radiating satellites)",
       "type": "framework",
       "aspect_ratio": "1:1",
@@ -42,7 +42,7 @@
       "status": "Generated"
     },
     {
-      "filename": "comparison.png",
+      "filename": "comparison.webp",
       "purpose": "Type comparison — comparison (split composition, left vs right)",
       "type": "comparison",
       "aspect_ratio": "21:9",
@@ -51,7 +51,7 @@
       "status": "Generated"
     },
     {
-      "filename": "timeline.png",
+      "filename": "timeline.webp",
       "purpose": "Type comparison — timeline (linear progression along an axis)",
       "type": "timeline",
       "aspect_ratio": "21:9",
@@ -60,7 +60,7 @@
       "status": "Generated"
     },
     {
-      "filename": "scene.png",
+      "filename": "scene.webp",
       "purpose": "Type comparison — scene (atmospheric environment with narrative)",
       "type": "scene",
       "aspect_ratio": "4:3",
@@ -69,7 +69,7 @@
       "status": "Generated"
     },
     {
-      "filename": "matrix.png",
+      "filename": "matrix.webp",
       "purpose": "Type comparison — matrix (2×2 quadrant grid)",
       "type": "matrix",
       "aspect_ratio": "1:1",
@@ -78,7 +78,7 @@
       "status": "Generated"
     },
     {
-      "filename": "cycle.png",
+      "filename": "cycle.webp",
       "purpose": "Type comparison — cycle (closed-loop process)",
       "type": "cycle",
       "aspect_ratio": "1:1",
@@ -87,7 +87,7 @@
       "status": "Generated"
     },
     {
-      "filename": "funnel.png",
+      "filename": "funnel.webp",
       "purpose": "Type comparison — funnel (top-wide bottom-narrow conversion stack)",
       "type": "funnel",
       "aspect_ratio": "3:4",
@@ -96,7 +96,7 @@
       "status": "Generated"
     },
     {
-      "filename": "pyramid.png",
+      "filename": "pyramid.webp",
       "purpose": "Type comparison — pyramid (bottom-wide top-narrow hierarchical tiers)",
       "type": "pyramid",
       "aspect_ratio": "3:4",
@@ -105,7 +105,7 @@
       "status": "Generated"
     },
     {
-      "filename": "map.png",
+      "filename": "map.webp",
       "purpose": "Type comparison — map (stylized geographic outline with annotated markers)",
       "type": "map",
       "aspect_ratio": "16:9",

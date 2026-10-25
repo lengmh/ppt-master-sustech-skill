@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*-
 # PPT Master Dependencies / PPT Master 依赖
 # =============================================
-# Published SUSTech release: r6.1.0-v0.4.0
-# Fusion basis: formal upstream tag v6.1.0@c40bca58, with the disclosed
-# snapshot:cad57e4a=>c40bca58 range plus the SUSTech overlay.
+# SUSTech release: r6.7.3-v0.4.0
+# Fusion basis: v6.7.3@622bf014 plus two post-tag commits through 523e5bd9.
+# Absorbed ancestry range: c40bca58..523e5bd9; retained SUSTech overlay.
 #
 # Most tools use only the Python standard library. Below are optional dependencies.
 # 大部分工具仅使用 Python 标准库，以下为可选依赖。
@@ -43,6 +44,11 @@ reportlab>=4.0.0
 # ─────────────────────────────────────────────────────────────
 # Converts PDF to Markdown with text, image, and table extraction.
 # 用于将 PDF 文件转换为 Markdown 格式，支持文本、图片、表格提取
+# License notice: PyMuPDF is AGPL-3.0 (commercial license available from Artifex).
+# It is imported only by pdf_to_md.py; skip this line if you never convert PDF
+# sources, and review the AGPL terms before redistributing a bundle that includes it.
+# 许可证说明：PyMuPDF 采用 AGPL-3.0（Artifex 另提供商业许可）。仅 pdf_to_md.py 导入它；
+# 不转换 PDF 源可跳过此行；若要连同依赖一起再分发，请先核对 AGPL 条款。
 PyMuPDF>=1.23.0
 
 # ─────────────────────────────────────────────────────────────
@@ -91,6 +97,8 @@ numpy>=1.20.0
 # ─────────────────────────────────────────────────────────────
 requests>=2.31.0
 beautifulsoup4>=4.12.0
+# Source-text encoding detection via BeautifulSoup.
+chardet>=7.7.0
 # Optional — TLS fingerprint impersonation for sites that block Python's
 # default TLS fingerprint (e.g., WeChat mp.weixin.qq.com). If installed,
 # web_to_md.py uses it automatically; otherwise falls back to requests.
