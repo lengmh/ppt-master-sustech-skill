@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Build a versioned SUSTech custom ppt-master skill release zip.
+"""Build a versioned SUSTech custom ppt-master skill release ZIP or TAR.GZ.
 
 Usage:
     python3 scripts/package_release.py
     python3 scripts/package_release.py --output /path/to/ppt-master-skill.zip
+    python3 scripts/package_release.py --output /path/to/ppt-master-skill.tar.gz
     python3 scripts/package_release.py --keep-temp
     python3 scripts/package_release.py --env-example-file .env.example --requirements-file requirements.txt
     python3 scripts/package_release.py --allow-upstream-support-fallback
@@ -45,6 +46,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import urllib.error
 import urllib.request
@@ -94,6 +96,11 @@ VERSION_PATTERN = re.compile(
 )
 
 EXCLUDED_DIR_NAMES = {
+    ".private",
+    ".ai-toolbox",
+    ".codex",
+    ".vscode",
+    "logs",
     ".git",
     ".venv",
     ".venv-flask-check",
@@ -106,6 +113,11 @@ EXCLUDED_FILE_NAMES = {
     ".synced_hash",
     "AGENTS.md",
     "CONTEXT.md",
+    "STATUS.md",
+    "backlog.json",
+    "findings.md",
+    "progress.md",
+    "task_plan.md",
     "Thumbs.db",
 }
 EXCLUDED_SUFFIXES = {
@@ -236,7 +248,7 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=None,
         help=(
-            "Output zip path (default: current directory with a "
+            "Output .zip or .tar.gz path (default: current directory with a "
             "version-aware date-stamped filename)."
         ),
     )
@@ -451,7 +463,13 @@ def default_output_path(release_version: str) -> Path:
     return Path.cwd() / f"ppt-master-sustech-{release_version}-{today}.zip"
 
 
+def is_linked(path: Path) -> bool:
+    return path.is_symlink() or getattr(path, "is_junction", lambda: False)()
+
+
 def copy_local_item(source: Path, destination: Path) -> None:
+    if is_linked(source):
+        raise RuntimeError("Linked release inputs are not allowed.")
     if source.is_dir():
         shutil.copytree(
             source,
@@ -465,7 +483,7 @@ def copy_local_item(source: Path, destination: Path) -> None:
 
 
 def is_forbidden_release_source(path: Path) -> bool:
-    relative = path.resolve().relative_to(SKILL_DIR).as_posix()
+    relative = path.relative_to(SKILL_DIR).as_posix()
     return any(
         relative == forbidden.rstrip("/")
         or (forbidden.endswith("/") and relative.startswith(forbidden))
@@ -476,15 +494,22 @@ def is_forbidden_release_source(path: Path) -> bool:
 def ignore_copytree_entries(_dirpath: str, names: list[str]) -> set[str]:
     ignored: set[str] = set()
     for name in names:
-        if name in EXCLUDED_DIR_NAMES or name in EXCLUDED_FILE_NAMES:
-            ignored.add(name)
-            continue
-        if Path(name).suffix.lower() in EXCLUDED_SUFFIXES:
+        if is_private_entry(Path(name)):
             ignored.add(name)
             continue
         if is_forbidden_release_source(Path(_dirpath) / name):
             ignored.add(name)
+        source = Path(_dirpath) / name
+        if is_linked(source):
+            raise RuntimeError("Linked release inputs are not allowed.")
     return ignored
+
+
+def is_private_entry(path: Path) -> bool:
+    excluded = {name.casefold() for name in EXCLUDED_DIR_NAMES | EXCLUDED_FILE_NAMES}
+    return any(part.casefold() in excluded
+               or (part.casefold().startswith(".env") and part != ".env.example")
+               for part in path.parts) or path.suffix.lower() in EXCLUDED_SUFFIXES
 
 
 def stage_local_release_tree(package_root: Path) -> None:
@@ -514,9 +539,9 @@ def stage_upstream_support_files(
     if env_example_file is not None:
         if not env_example_file.exists():
             raise RuntimeError(f"Missing local .env.example source: {env_example_file}")
-        shutil.copy2(env_example_file, env_target)
+        copy_local_item(env_example_file, env_target)
     elif env_local.exists():
-        shutil.copy2(env_local, env_target)
+        copy_local_item(env_local, env_target)
     elif not allow_upstream_support_fallback:
         raise RuntimeError(
             "Missing local .env.example. Strict-local release packaging is the "
@@ -537,9 +562,9 @@ def stage_upstream_support_files(
             raise RuntimeError(
                 f"Missing local requirements.txt source: {requirements_file}"
             )
-        shutil.copy2(requirements_file, req_target)
+        copy_local_item(requirements_file, req_target)
     elif req_local.exists():
-        shutil.copy2(req_local, req_target)
+        copy_local_item(req_local, req_target)
     elif not allow_upstream_support_fallback:
         raise RuntimeError(
             "Missing local requirements.txt. Strict-local release packaging is "
@@ -569,12 +594,38 @@ def build_zip(staging_root: Path, output_path: Path) -> int:
         compresslevel=9,
     ) as archive:
         for path in sorted(staging_root.rglob("*")):
+            if is_linked(path):
+                raise RuntimeError("Linked release inputs are not allowed.")
             if path.is_dir():
                 continue
             rel = path.relative_to(staging_root)
+            if is_private_entry(rel):
+                continue
             archive.write(path, rel.as_posix())
             file_count += 1
     return file_count
+
+
+def build_tar(staging_root: Path, output_path: Path) -> int:
+    """Use the same staged product tree without local TAR owner identities."""
+    ensure_parent(output_path)
+    count = 0
+    with tarfile.open(output_path, "w:gz", format=tarfile.PAX_FORMAT) as archive:
+        for path in sorted(staging_root.rglob("*")):
+            if is_linked(path):
+                raise RuntimeError("Linked release inputs are not allowed.")
+            rel = path.relative_to(staging_root)
+            if path.is_dir() or is_private_entry(rel):
+                continue
+            info = archive.gettarinfo(str(path), arcname=rel.as_posix())
+            info.mode = 0o755 if info.mode & 0o111 else 0o644
+            info.uid = info.gid = 0
+            info.uname = info.gname = ""
+            info.pax_headers = {}
+            with path.open("rb") as source:
+                archive.addfile(info, source)
+            count += 1
+    return count
 
 
 def _entry_present(names: list[str], entry: str) -> bool:
@@ -591,12 +642,17 @@ def validate_package_dirname(package_dirname: str) -> None:
 
 
 def verify_release_zip(zip_path: Path, package_dirname: str) -> None:
+    with zipfile.ZipFile(zip_path) as archive:
+        verify_release_names(archive.namelist(), package_dirname)
+
+
+def verify_release_names(names: list[str], package_dirname: str) -> None:
     validate_package_dirname(package_dirname)
     required_entries = [f"{package_dirname}/{path}" for path in REQUIRED_RELEASE_PATHS]
     forbidden_entries = [f"{package_dirname}/{path}" for path in FORBIDDEN_RELEASE_PATHS]
 
-    with zipfile.ZipFile(zip_path) as archive:
-        names = archive.namelist()
+    if any(is_private_entry(Path(name)) for name in names):
+        raise RuntimeError("Zip verification failed. Forbidden entries present: private or development files")
 
     unexpected_roots = sorted(
         {
@@ -680,10 +736,17 @@ def main() -> int:
             allow_upstream_support_fallback=args.allow_upstream_support_fallback,
         )
 
-        file_count = build_zip(staging_root, output_path)
-        verify_release_zip(output_path, args.package_dirname)
+        if output_path.name.endswith(".tar.gz"):
+            file_count = build_tar(staging_root, output_path)
+            with tarfile.open(output_path, "r:gz") as archive:
+                verify_release_names(archive.getnames(), args.package_dirname)
+        elif output_path.suffix == ".zip":
+            file_count = build_zip(staging_root, output_path)
+            verify_release_zip(output_path, args.package_dirname)
+        else:
+            raise RuntimeError("Release output must end in .zip or .tar.gz.")
 
-        print(f"[OK] Release zip created: {output_path}")
+        print(f"[OK] Release archive created: {output_path}")
         print(f"[OK] Release version: {version_text}")
         print(
             f"[OK] Upstream baseline: {upstream_version} "
@@ -691,8 +754,8 @@ def main() -> int:
         )
         print(f"[OK] Local version: {local_version}")
         print(f"[OK] Files packed: {file_count}")
-        print(f"[OK] Zip size: {format_size(output_path)}")
-        print(f"[OK] Package root inside zip: {args.package_dirname}/")
+        print(f"[OK] Archive size: {format_size(output_path)}")
+        print(f"[OK] Package root inside archive: {args.package_dirname}/")
         print(
             "[OK] Support files: "
             f"{meta['support_files'].get('requirements_source', 'unknown')} "
