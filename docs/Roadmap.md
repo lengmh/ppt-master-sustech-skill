@@ -397,7 +397,7 @@ Before accepting a future upstream update, verify:
 - Adopted upstream prompt-audit contracts, with standalone-root path mapping and unchanged numeric budgets. Retained local advisory grammar and the 76-entry chart registry.
 - Adapted SUSTech text frames and three guidance baselines; kept font sizes, placeholders, images and historical brief-lock unchanged. Compressed duplicate design-spec prose without removing identity or usage rules.
 - Full regression: 952 tests and 1350 subtests passed. Browser navigation/edit/draft restore/save and actual PowerPoint 16.0 eight-slide preview passed.
-- New development checkout: `/home/sustech/workspace/ppt-master-sustech`. The former checkout under `.ai-toolbox/skills/ppt-master` and public checkout remain untouched.
+- Development uses a separate checkout. The former skill checkout and public checkout remain untouched.
 
 ## Release Line Status
 
